@@ -9,6 +9,7 @@
  * 적재 후 read 경로를 캐시로 전환할 수 있게 구조를 잡아둔다.
  */
 
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { REACTION_WEIGHT } from "../xp/xpRules";
 
@@ -293,3 +294,29 @@ export async function refreshRankingCache(): Promise<void> {
     }),
   ]);
 }
+
+// ─────────────────────────────────────────────────────────────
+// 캐시된 읽기 경로 (Next.js Data Cache) — 매 요청 재계산 방지.
+// 시간 기반으로 자동 재계산(revalidate), 배치(cron)에서 revalidateTag("rankings")로 즉시 갱신.
+// 함수 인자(regionId 등)는 캐시 키에 자동 포함된다.
+// ─────────────────────────────────────────────────────────────
+const RANKING_REVALIDATE = 600; // 10분
+
+export const getOverallUserRankingCached = unstable_cache(
+  (limit: number = TOP_N) => getOverallUserRanking(limit),
+  ["ranking:overall"],
+  { revalidate: RANKING_REVALIDATE, tags: ["rankings"] }
+);
+
+export const getRegionUserRankingCached = unstable_cache(
+  (regionId: string, limit: number = TOP_N) => getRegionUserRanking(regionId, limit),
+  ["ranking:region"],
+  { revalidate: RANKING_REVALIDATE, tags: ["rankings"] }
+);
+
+export const getWeeklyRestaurantRankingCached = unstable_cache(
+  (regionId: string | null = null, limit: number = TOP_N) =>
+    getWeeklyRestaurantRanking(regionId, limit),
+  ["ranking:weekly"],
+  { revalidate: RANKING_REVALIDATE, tags: ["rankings"] }
+);

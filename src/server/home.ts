@@ -9,7 +9,7 @@ import {
   toPostCard,
   type PostCard,
 } from "@/server/restaurant/RestaurantService";
-import { getOverallUserRanking } from "@/server/ranking/RankingService";
+import { getOverallUserRankingCached } from "@/server/ranking/RankingService";
 import { getActiveCategories } from "@/server/catalog";
 import { getBlockedIds } from "@/server/block/BlockService";
 
@@ -73,7 +73,7 @@ export async function getHomeData(viewerId?: string | null) {
       })
       .then((rows) => rows.map(toPostCard)),
     getPublicCollections(8),
-    getOverallUserRanking(5),
+    getOverallUserRankingCached(5),
     getActiveCategories(),
   ]);
   return {

@@ -3,9 +3,9 @@ import { Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveRegions } from "@/server/catalog";
 import {
-  getOverallUserRanking,
-  getRegionUserRanking,
-  getWeeklyRestaurantRanking,
+  getOverallUserRankingCached,
+  getRegionUserRankingCached,
+  getWeeklyRestaurantRankingCached,
   getMyOverallRank,
   type UserRankRow,
 } from "@/server/ranking/RankingService";
@@ -89,7 +89,7 @@ function UserRow({ row, highlight }: { row: UserRankRow; highlight?: boolean }) 
 }
 
 async function OverallTab({ userId }: { userId: string | null }) {
-  const rows = await getOverallUserRanking();
+  const rows = await getOverallUserRankingCached();
   const myRank = userId ? await getMyOverallRank(userId) : 0;
   return (
     <>
@@ -111,7 +111,7 @@ async function RegionTab({
   regionId: string;
   regions: { id: string; name: string }[];
 }) {
-  const rows = await getRegionUserRanking(regionId);
+  const rows = await getRegionUserRankingCached(regionId);
   return (
     <>
       <form method="get" className="mb-4">
@@ -139,7 +139,7 @@ async function WeeklyTab({
   regionId: string | null;
   regions: { id: string; name: string }[];
 }) {
-  const rows = await getWeeklyRestaurantRanking(regionId);
+  const rows = await getWeeklyRestaurantRankingCached(regionId);
   return (
     <>
       <form method="get" className="mb-4">
