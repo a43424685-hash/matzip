@@ -44,7 +44,7 @@ export default function LoginForm({ error }: { error?: string }) {
   return (
     <main className="px-5 py-10">
       <h1 className="text-2xl font-extrabold">로그인</h1>
-      <p className="mt-1 text-sm text-neutral-500">맛집 레벨업에 다시 오신 걸 환영해요.</p>
+      <p className="mt-1 text-sm text-neutral-500">먹고핀에 다시 오신 걸 환영해요.</p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>

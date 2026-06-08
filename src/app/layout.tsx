@@ -3,8 +3,8 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
-  title: "맛집 레벨업",
-  description: "내 맛집 지도를 키우고 레벨업하는 소셜 맛집 앱",
+  title: "먹고핀",
+  description: "먹고 핀 꽂고 — 내 맛집 지도를 키우고 레벨업하는 소셜 맛집 앱",
 };
 
 export const viewport: Viewport = {

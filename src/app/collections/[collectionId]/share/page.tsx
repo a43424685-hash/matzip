@@ -35,9 +35,9 @@ export default async function CollectionSharePage({
     <ShareExport
       pageTitle="리스트 공유 카드"
       pageSubtitle="내가 모은 맛집 리스트를 인스타·카톡에 자랑해보세요."
-      filename={`맛집레벨업-${data.title}.png`}
+      filename={`먹고핀-${data.title}.png`}
       shareTitle={data.title}
-      shareText={`${data.title} (맛집 ${data.itemCount}곳) — 맛집레벨업`}
+      shareText={`${data.title} (맛집 ${data.itemCount}곳) — 먹고핀`}
       cardWidth={400}
       cardHeight={600}
     >

@@ -66,9 +66,9 @@ export default async function SharePage({
     <ShareExport
       pageTitle="맛집 공유 카드"
       pageSubtitle="인스타·카톡에 “내가 이런 맛집 알아”를 공유해보세요."
-      filename={`맛집레벨업-${data.restaurantName}.png`}
+      filename={`먹고핀-${data.restaurantName}.png`}
       shareTitle={data.restaurantName}
-      shareText={`${data.restaurantName} (${data.regionName}) — 맛집레벨업에서 발견`}
+      shareText={`${data.restaurantName} (${data.regionName}) — 먹고핀에서 발견`}
       cardWidth={400}
       cardHeight={500}
     >

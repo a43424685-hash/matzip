@@ -19,7 +19,7 @@ export default function CollectionShareCard({ data }: { data: CollectionShareDat
       {/* 상단 */}
       <div className="relative">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-extrabold tracking-tight">맛집레벨업</span>
+          <span className="text-sm font-extrabold tracking-tight">먹고핀</span>
           <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold">
             맛집 리스트
           </span>
@@ -66,7 +66,7 @@ export default function CollectionShareCard({ data }: { data: CollectionShareDat
           </span>
           <span className="text-sm font-semibold">{data.nickname}의 리스트</span>
         </div>
-        <span className="text-[11px] text-white/60">맛집레벨업</span>
+        <span className="text-[11px] text-white/60">먹고핀</span>
       </div>
     </div>
   );

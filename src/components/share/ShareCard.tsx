@@ -22,7 +22,7 @@ export default function ShareCard({ data }: { data: ShareCardData }) {
 
       {/* 상단: 워터마크 + 라벨 */}
       <div className="relative flex items-center justify-between">
-        <span className="text-sm font-extrabold tracking-tight">맛집레벨업</span>
+        <span className="text-sm font-extrabold tracking-tight">먹고핀</span>
         <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold">
           내 맛집 컬렉션
         </span>
@@ -64,7 +64,7 @@ export default function ShareCard({ data }: { data: ShareCardData }) {
           </span>
           <span className="text-sm font-semibold">{data.nickname}</span>
         </div>
-        <span className="text-[11px] text-white/60">맛집레벨업에서 발견</span>
+        <span className="text-[11px] text-white/60">먹고핀에서 발견</span>
       </div>
     </div>
   );
