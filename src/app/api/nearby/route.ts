@@ -56,14 +56,16 @@ export async function GET(request: Request) {
   const sorted = posts
     .map((p) => ({
       post: toPostCard(p),
+      latitude: p.restaurant.latitude,
+      longitude: p.restaurant.longitude,
       distanceMeters:
         p.restaurant.latitude == null || p.restaurant.longitude == null
           ? null
           : distanceMeters(lat, lng, p.restaurant.latitude, p.restaurant.longitude),
     }))
-    .filter((p): p is { post: ReturnType<typeof toPostCard>; distanceMeters: number } => p.distanceMeters != null)
+    .filter((p): p is { post: ReturnType<typeof toPostCard>; latitude: number; longitude: number; distanceMeters: number } => p.distanceMeters != null && p.latitude != null && p.longitude != null)
     .sort((a, b) => a.distanceMeters - b.distanceMeters)
-    .slice(0, 30);
+    .slice(0, 50);
 
   const { likedPosts, savedRestaurants } = await getViewerReactions(
     user?.id ?? null,
