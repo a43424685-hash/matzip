@@ -90,11 +90,17 @@ export default async function PostDetailPage({
     ? `https://map.kakao.com/link/map/${encodeURIComponent(post.restaurant.name)},${post.restaurant.latitude},${post.restaurant.longitude}`
     : `https://map.kakao.com/?q=${encodeURIComponent(post.restaurant.name + " " + (post.restaurant.address ?? ""))}`;
 
-  // 표시 주소: 좌표가 있으면 역지오코딩으로 정확한 도로명 주소를, 실패 시 저장된 주소로 폴백
+  // 표시 주소: 저장된 주소가 있으면 그대로 사용(빠름). 없을 때만 좌표로 역지오코딩 후
+  // restaurant.address 에 캐시 → 다음 조회부턴 외부호출 없이 즉시.
   let displayAddress = post.restaurant.address ?? null;
-  if (post.restaurant.latitude != null && post.restaurant.longitude != null) {
+  if (!displayAddress && post.restaurant.latitude != null && post.restaurant.longitude != null) {
     const geo = await reverseGeocode(post.restaurant.latitude, post.restaurant.longitude);
-    if (geo) displayAddress = geo;
+    if (geo) {
+      displayAddress = geo;
+      await prisma.restaurant
+        .update({ where: { id: post.restaurant.id }, data: { address: geo } })
+        .catch(() => {});
+    }
   }
 
   const comments = await getComments(postId, user?.id ?? null);
