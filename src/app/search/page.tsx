@@ -8,6 +8,7 @@ import {
 import { getBlockedIds } from "@/server/block/BlockService";
 import PostCard from "@/components/PostCard";
 import { PRICE_RANGES, SORT_OPTIONS } from "@/lib/labels";
+import BackHomeHeader from "@/components/BackHomeHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,7 @@ export default async function SearchPage({
 
   return (
     <main className="px-5 py-6">
-      <h1 className="mb-1 text-xl font-extrabold text-ink">검색</h1>
+      <BackHomeHeader title="검색" />
       <p className="mb-4 text-[13px] text-ink-muted">지역과 상황으로 가고 싶은 맛집을 찾아보세요.</p>
 
       <form method="get" className="space-y-4">

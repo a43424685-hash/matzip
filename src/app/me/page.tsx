@@ -12,6 +12,7 @@ import {
 import { getMyCollectionsWithPreview } from "@/server/collection/CollectionService";
 import LevelBar from "@/components/LevelBar";
 import PostCard from "@/components/PostCard";
+import BackHomeHeader from "@/components/BackHomeHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function MePage() {
 
   return (
     <main className="px-5 py-6">
+      <BackHomeHeader title="내정보" />
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-extrabold">{user.nickname}</h1>

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveRegions } from "@/server/catalog";
 import {
@@ -9,6 +8,7 @@ import {
   getMyOverallRank,
   type UserRankRow,
 } from "@/server/ranking/RankingService";
+import BackHomeHeader from "@/components/BackHomeHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +31,7 @@ export default async function RankingsPage({
 
   return (
     <main className="px-5 py-6">
-      <h1 className="mb-1 flex items-center gap-2 text-xl font-extrabold text-ink">
-        <Trophy size={20} className="text-coral" /> 랭킹
-      </h1>
+      <BackHomeHeader title="랭킹" />
       <p className="mb-4 text-[13px] text-ink-muted">
         진짜 맛집을 아는 사람은 누구일까요?
       </p>

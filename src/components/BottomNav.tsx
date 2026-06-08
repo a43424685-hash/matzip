@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, Trophy, Map } from "lucide-react";
+import { Search, Trophy, MapPin, User, BadgePercent } from "lucide-react";
 
 const TABS = [
-  { href: "/", label: "홈", Icon: Home },
+  { href: "/benefits", label: "혜택 모음", Icon: BadgePercent },
   { href: "/search", label: "검색", Icon: Search },
-  { href: "/register", label: "등록", Icon: PlusSquare },
+  { href: "/nearby", label: "주변", Icon: MapPin },
   { href: "/rankings", label: "랭킹", Icon: Trophy },
-  { href: "/me", label: "내 지도", Icon: Map },
+  { href: "/me", label: "내정보", Icon: User },
 ];
 
 export default function BottomNav() {
