@@ -9,5 +9,8 @@ dev.db-journal
 .env*.local
 !.env.example
 next-env.d.ts
+tsconfig.tsbuildinfo
+# 로컬 업로드(개발용). 운영은 Supabase 스토리지 사용.
+uploads/
 .claude/settings.local.json
 .gstack/
