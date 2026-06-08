@@ -73,6 +73,7 @@ export interface SessionUser {
   totalXp: number;
   totalLevel: number;
   nicknameConfirmedAt: Date | null;
+  isAdmin: boolean;
 }
 
 /** 현재 로그인 사용자 (없으면 null) */
@@ -89,10 +90,21 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       totalXp: true,
       totalLevel: true,
       nicknameConfirmedAt: true,
+      isAdmin: true,
     },
   });
   if (user && !user.nicknameConfirmedAt) {
     redirect("/onboarding/nickname");
   }
   return user;
+}
+
+/** API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부만 */
+export async function getSessionAdmin(): Promise<{ id: string; isAdmin: boolean } | null> {
+  const userId = await getSessionUserId();
+  if (!userId) return null;
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, isAdmin: true },
+  });
 }

@@ -27,6 +27,8 @@ import {
   attachPhoto,
   verifyLocation,
 } from "../src/server/verification/VerificationService";
+import { deletePost } from "../src/server/restaurant/RestaurantService";
+import { createReport, listReports } from "../src/server/report/ReportService";
 import { regionFromAddress } from "../src/server/place/PlaceSearchService";
 import {
   addComment,
@@ -420,6 +422,29 @@ async function main() {
   const del = await deleteComment(b.id, c1.id);
   assert(del.deleted === 3, "본인 댓글 삭제 → 딸린 답글 전부 삭제(3, 무한 깊이 cascade)");
   assert((await cnt()) === 0, "삭제 후 commentCount 0");
+
+  console.log("\n[9e] 운영 안전장치 — 신고 + 글/댓글 삭제 (작성자/운영자)");
+  const repPost = await createRestaurantPost({
+    userId: a.id, name: "신고테스트집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+  });
+  let rr = await createReport({ reporterId: a.id, targetType: "post", targetId: repPost.postId, reason: "spam" });
+  assert(!rr.ok && rr.reason === "SELF", "자기 글 신고 불가(SELF)");
+  rr = await createReport({ reporterId: b.id, targetType: "post", targetId: repPost.postId, reason: "spam" });
+  assert(rr.ok, "다른 사용자가 글 신고 성공");
+  rr = await createReport({ reporterId: b.id, targetType: "post", targetId: repPost.postId, reason: "abuse" });
+  assert(!rr.ok && rr.reason === "DUPLICATE", "같은 사용자·같은 글 중복 신고 불가(DUPLICATE)");
+  let openReports = await listReports("open");
+  assert(openReports.some((x) => x.targetId === repPost.postId), "신고함(open)에 노출됨");
+  let dp = await deletePost(b.id, repPost.postId, false);
+  assert(!dp.ok && dp.reason === "FORBIDDEN", "남의 글을 비운영자가 삭제 거부(FORBIDDEN)");
+  dp = await deletePost(b.id, repPost.postId, true);
+  assert(dp.ok, "운영자가 글 삭제 성공");
+  openReports = await listReports("open");
+  assert(!openReports.some((x) => x.targetId === repPost.postId), "글 삭제 시 해당 신고 자동 처리(open에서 사라짐)");
+  assert(
+    !(await prisma.restaurantPost.findUnique({ where: { id: repPost.postId } })),
+    "삭제된 글은 DB에서 사라짐"
+  );
 
   console.log("\n[10] 장소 검색 — 주소 → 17개 시도 매핑");
   assert(regionFromAddress("서울특별시 중구 명동") === "서울", "서울특별시→서울");

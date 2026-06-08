@@ -133,13 +133,17 @@ export async function togglePinComment(
 }
 
 /** 본인 댓글 삭제 (답글까지 함께 삭제) */
-export async function deleteComment(userId: string, commentId: string): Promise<{ deleted: number }> {
+export async function deleteComment(
+  userId: string,
+  commentId: string,
+  isAdmin = false
+): Promise<{ deleted: number }> {
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
     select: { userId: true, postId: true },
   });
   if (!comment) throw new Error("NOT_FOUND");
-  if (comment.userId !== userId) throw new Error("FORBIDDEN"); // 본인 댓글만
+  if (comment.userId !== userId && !isAdmin) throw new Error("FORBIDDEN"); // 본인 댓글 또는 운영자
   return prisma.$transaction(async (tx) => {
     const before = await tx.comment.count({ where: { postId: comment.postId } });
     await tx.comment.delete({ where: { id: commentId } }); // 딸린 답글(무한 깊이) cascade
@@ -147,6 +151,11 @@ export async function deleteComment(userId: string, commentId: string): Promise<
     await tx.restaurantPost.update({
       where: { id: comment.postId },
       data: { commentCount: after }, // 실제 개수로 동기화 (깊이 무관 정확)
+    });
+    // 이 댓글에 대한 미처리 신고는 처리됨으로
+    await tx.report.updateMany({
+      where: { targetType: "comment", targetId: commentId, status: "open" },
+      data: { status: "resolved" },
     });
     return { deleted: before - after };
   });

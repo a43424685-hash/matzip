@@ -56,9 +56,15 @@ export default async function HomePage() {
                 로그인
               </Link>
             )}
-            <span className="text-stone-500">
-              <Bell size={22} strokeWidth={1.9} />
-            </span>
+            {user?.isAdmin ? (
+              <Link href="/admin" className="text-coral" aria-label="신고함">
+                <Bell size={22} strokeWidth={1.9} />
+              </Link>
+            ) : (
+              <span className="text-stone-500">
+                <Bell size={22} strokeWidth={1.9} />
+              </span>
+            )}
           </div>
         </div>
 

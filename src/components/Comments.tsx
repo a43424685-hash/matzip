@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle, Heart, Pin, Trash2 } from "lucide-react";
+import ReportButton from "./ReportButton";
 
 interface CUser {
   id: string;
@@ -92,6 +93,13 @@ function CommentItem({ c, depth, ctx }: { c: CNode; depth: number; ctx: Ctx }) {
               <button onClick={() => ctx.del(c.id)} className="flex items-center gap-0.5 text-stone-400">
                 <Trash2 size={12} /> 삭제
               </button>
+            )}
+            {ctx.isLoggedIn && !c.isMine && (
+              <ReportButton
+                targetType="comment"
+                targetId={c.id}
+                className="flex items-center gap-0.5 text-stone-400"
+              />
             )}
           </div>
 

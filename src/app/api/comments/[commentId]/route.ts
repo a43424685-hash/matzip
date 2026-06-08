@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getSessionAdmin } from "@/lib/auth";
 import { deleteComment } from "@/server/comment/CommentService";
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ commentId: string }> }
 ) {
-  const userId = await getSessionUserId();
-  if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  const me = await getSessionAdmin();
+  if (!me) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const { commentId } = await params;
   try {
-    const r = await deleteComment(userId, commentId);
+    const r = await deleteComment(me.id, commentId, me.isAdmin);
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
     const code = e instanceof Error ? e.message : "ERROR";

@@ -9,6 +9,8 @@ import CollectionPicker from "@/components/CollectionPicker";
 import VerificationBadges from "@/components/VerificationBadges";
 import VerifyPanel from "@/components/VerifyPanel";
 import Comments from "@/components/Comments";
+import ReportButton from "@/components/ReportButton";
+import DeletePostButton from "@/components/DeletePostButton";
 import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
@@ -221,6 +223,19 @@ export default async function PostDetailPage({
             <MapPin size={15} /> 지도 열기
           </a>
         </div>
+
+        {/* 신고 / 삭제 (작성자 본인 또는 운영자) */}
+        {user && (
+          <div className="flex items-center justify-end gap-4 text-[13px]">
+            {user.id !== post.userId && <ReportButton targetType="post" targetId={post.id} />}
+            {(user.id === post.userId || user.isAdmin) && (
+              <DeletePostButton
+                postId={post.id}
+                adminLabel={user.id === post.userId ? undefined : "운영자 삭제"}
+              />
+            )}
+          </div>
+        )}
 
         {/* 방문 인증하기 — 본인 기록만 */}
         {user?.id === post.userId && (

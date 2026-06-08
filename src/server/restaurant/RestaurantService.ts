@@ -164,6 +164,30 @@ export async function createRestaurantPost(
 }
 
 // ─────────────────────────────────────────────────────────────
+// 글 삭제 (작성자 본인 또는 운영자)
+// ─────────────────────────────────────────────────────────────
+export async function deletePost(
+  userId: string,
+  postId: string,
+  isAdmin = false
+): Promise<{ ok: boolean; reason?: string }> {
+  const post = await prisma.restaurantPost.findUnique({
+    where: { id: postId },
+    select: { userId: true },
+  });
+  if (!post) return { ok: false, reason: "NOT_FOUND" };
+  if (post.userId !== userId && !isAdmin) return { ok: false, reason: "FORBIDDEN" };
+  // 미디어/카테고리/좋아요/저장/공유/댓글/증거시도/컬렉션항목은 onDelete:Cascade 로 함께 삭제
+  await prisma.restaurantPost.delete({ where: { id: postId } });
+  // 이 글에 대한 미처리 신고는 처리됨으로
+  await prisma.report.updateMany({
+    where: { targetType: "post", targetId: postId, status: "open" },
+    data: { status: "resolved" },
+  });
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────
 // 좋아요 토글
 // ─────────────────────────────────────────────────────────────
 export async function toggleLike(
