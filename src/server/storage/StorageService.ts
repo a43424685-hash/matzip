@@ -16,6 +16,9 @@ export interface PutResult {
 export interface StorageService {
   put(key: string, data: Buffer, contentType: string): Promise<PutResult>;
   delete(key: string): Promise<void>;
+  // 브라우저가 직접 업로드할 서명 URL (대용량 영상용 — Vercel 본문 4.5MB 제한 우회).
+  // 미지원 어댑터(local)는 구현하지 않음(undefined).
+  createSignedUpload?(key: string): Promise<{ uploadUrl: string; publicUrl: string }>;
 }
 
 // ── 로컬 디스크 (cwd/uploads, /api/uploads 라우트로 서빙) ──────
@@ -68,6 +71,25 @@ class SupabaseStorage implements StorageService {
       method: "DELETE",
       headers: { Authorization: `Bearer ${this.serviceKey}` },
     }).catch(() => {});
+  }
+
+  async createSignedUpload(key: string): Promise<{ uploadUrl: string; publicUrl: string }> {
+    const res = await fetch(
+      `${this.baseUrl}/storage/v1/object/upload/sign/${this.bucket}/${key}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.serviceKey}`, "content-type": "application/json" },
+        body: "{}",
+      }
+    );
+    if (!res.ok) {
+      throw new Error(`SIGN_FAILED ${res.status} ${await res.text().catch(() => "")}`);
+    }
+    const json = (await res.json()) as { url: string };
+    return {
+      uploadUrl: `${this.baseUrl}/storage/v1${json.url}`,
+      publicUrl: `${this.baseUrl}/storage/v1/object/public/${this.bucket}/${key}`,
+    };
   }
 }
 

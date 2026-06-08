@@ -22,6 +22,8 @@ const schema = z.object({
   imageUrl: z.string().optional(),
   imageThumbUrl: z.string().optional(),
   videoUrl: z.string().optional(),
+  videoThumbUrl: z.string().optional(),
+  videoDuration: z.string().optional(),
 });
 
 function parseCoord(v?: string): number | null {
@@ -55,6 +57,8 @@ export async function registerPostAction(
     imageUrl: formData.get("imageUrl") || undefined,
     imageThumbUrl: formData.get("imageThumbUrl") || undefined,
     videoUrl: formData.get("videoUrl") || undefined,
+    videoThumbUrl: formData.get("videoThumbUrl") || undefined,
+    videoDuration: formData.get("videoDuration") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.errors[0].message };
   const d = parsed.data;
@@ -66,7 +70,13 @@ export async function registerPostAction(
       url: d.imageUrl.trim(),
       thumbnailUrl: d.imageThumbUrl?.trim() || null,
     });
-  if (d.videoUrl?.trim()) media.push({ type: "video" as const, url: d.videoUrl.trim() });
+  if (d.videoUrl?.trim())
+    media.push({
+      type: "video" as const,
+      url: d.videoUrl.trim(),
+      thumbnailUrl: d.videoThumbUrl?.trim() || null,
+      duration: d.videoDuration ? Number(d.videoDuration) || null : null,
+    });
 
   let result;
   try {

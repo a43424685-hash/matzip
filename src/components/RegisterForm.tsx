@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { ChevronDown, Camera, Sparkles, Search, MapPin, Check } from "lucide-react";
+import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { uploadImage } from "@/lib/imageUpload";
+import { uploadVideo } from "@/lib/videoUpload";
 import { registerPostAction, type RegisterState } from "@/app/actions/post";
 import { PRICE_RANGES, REVISIT_INTENTS, WAITING_LEVELS } from "@/lib/labels";
 import { XP_AMOUNT } from "@/server/xp/xpRules";
@@ -50,6 +51,26 @@ export default function RegisterForm({
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoThumb, setVideoThumb] = useState("");
+  const [videoDuration, setVideoDuration] = useState("");
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoErr, setVideoErr] = useState("");
+
+  async function onPickVideo(file: File | undefined) {
+    if (!file) return;
+    setUploadingVideo(true);
+    setVideoErr("");
+    try {
+      const { url, thumbnailUrl, duration } = await uploadVideo(file);
+      setVideoUrl(url);
+      setVideoThumb(thumbnailUrl ?? "");
+      setVideoDuration(duration != null ? String(duration) : "");
+    } catch (e) {
+      setVideoErr(e instanceof Error ? e.message : "영상 업로드에 실패했어요.");
+    } finally {
+      setUploadingVideo(false);
+    }
+  }
 
   async function onPickImage(file: File | undefined) {
     if (!file) return;
@@ -448,13 +469,51 @@ export default function RegisterForm({
           <input type="hidden" name="imageUrl" value={imageUrl} />
           <input type="hidden" name="imageThumbUrl" value={imageThumb} />
 
-          <input
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            name="videoUrl"
-            className="input mt-2 h-11"
-            placeholder="영상 URL (선택 · 추후 업로드 지원)"
-          />
+          {/* 영상 — 앨범에서 선택 (최대 60초·50MB), 첫 프레임을 자동 썸네일로 */}
+          {videoUrl ? (
+            <div className="mt-2 flex items-center gap-3">
+              {videoThumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={videoThumb} alt="영상 썸네일" className="h-16 w-16 rounded-xl object-cover" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-stone-100 text-stone-400">
+                  <Video size={20} />
+                </div>
+              )}
+              <div className="text-sm">
+                <div className="font-semibold text-ink">
+                  영상 첨부됨{videoDuration ? ` · ${videoDuration}초` : ""}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoUrl("");
+                    setVideoThumb("");
+                    setVideoDuration("");
+                  }}
+                  className="text-coral-dark"
+                >
+                  영상 삭제
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label className="mt-2 flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold text-ink active:scale-[0.99]">
+              <Video size={16} className="text-forest" />
+              {uploadingVideo ? "영상 업로드 중…" : "영상 추가 (최대 60초)"}
+              <input
+                type="file"
+                accept="video/*"
+                disabled={uploadingVideo}
+                onChange={(e) => onPickVideo(e.target.files?.[0])}
+                className="hidden"
+              />
+            </label>
+          )}
+          {videoErr && <p className="mt-1 text-[12px] text-coral-dark">{videoErr}</p>}
+          <input type="hidden" name="videoUrl" value={videoUrl} />
+          <input type="hidden" name="videoThumbUrl" value={videoThumb} />
+          <input type="hidden" name="videoDuration" value={videoDuration} />
         </div>
 
         <div>
