@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-stone-50 text-ink antialiased;
+}
+
+/* 모바일 우선: 본문은 가운데 정렬된 폰 너비 컬럼 */
+.app-shell {
+  @apply mx-auto min-h-screen w-full max-w-md bg-white pb-20;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-forest text-white hover:bg-forest-dark;
+  }
+  .btn-accent {
+    @apply btn bg-coral text-white hover:bg-coral-dark;
+  }
+  .btn-ghost {
+    @apply btn bg-stone-100 text-ink hover:bg-stone-200;
+  }
+  .btn-outline {
+    @apply btn border border-stone-200 bg-white text-ink hover:border-stone-300;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium transition;
+  }
+  .chip-off {
+    @apply chip border-stone-200 bg-white text-ink-muted hover:border-stone-300;
+  }
+  .chip-on {
+    @apply chip border-forest bg-forest-soft text-forest;
+  }
+  .card {
+    @apply rounded-2xl border border-stone-200/80 bg-white;
+  }
+  .input {
+    @apply w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-ink;
+  }
+  .section-title {
+    @apply text-[17px] font-extrabold tracking-tight text-ink;
+  }
+  /* 순위/레벨 배지 — 숫자 중심, 깔끔하게 */
+  .badge-rank {
+    @apply inline-flex h-6 w-6 items-center justify-center rounded-md text-[13px] font-bold tabular-nums;
+  }
+  .badge-lv {
+    @apply inline-flex items-center rounded-md bg-forest px-1.5 py-0.5 text-[11px] font-bold text-white;
+  }
+}
+
+/* 가로 스크롤 줄 — 스크롤바 숨김 */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 사진 없는 카드의 세련된 placeholder (간판/핀 느낌의 미묘한 패턴) */
+.thumb-empty {
+  background-color: #f3f4f2;
+  background-image: radial-gradient(circle at 1px 1px, rgba(35, 75, 63, 0.08) 1px, transparent 0);
+  background-size: 12px 12px;
+}

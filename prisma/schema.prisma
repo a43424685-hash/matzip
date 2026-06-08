@@ -1,0 +1,497 @@
+// 맛집 레벨업 소셜 앱 — 데이터 모델
+// MVP는 SQLite 기준. enum은 SQLite에서 미지원이라 String + 주석으로 허용값을 명시한다.
+// (Postgres 이전 시 enum 으로 승격 가능)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 사용자
+// ─────────────────────────────────────────────────────────────
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  nickname     String   @unique
+  passwordHash String
+  emailVerifiedAt DateTime?
+  nicknameConfirmedAt DateTime?
+  avatarUrl    String?
+  totalXp      Int      @default(0)
+  totalLevel   Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  authAccounts AuthAccount[]
+  emailVerificationTokens EmailVerificationToken[]
+  regionStats UserRegionStat[]
+  restaurants Restaurant[]     @relation("RestaurantCreator")
+  posts       RestaurantPost[]
+  likes       Like[]
+  saves       Save[]
+  postShares  PostShare[]
+  proofAttempts ProofAttempt[]
+  comments     Comment[]
+  commentLikes CommentLike[]
+  xpEvents    XpEvent[]        @relation("XpRecipient")
+  xpActions   XpEvent[]        @relation("XpActor")
+  collections Collection[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 외부 로그인 계정 연결 (kakao, apple, google 등 확장용)
+// ─────────────────────────────────────────────────────────────
+model AuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String
+  providerUserId String
+  email          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("auth_accounts")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 이메일 인증 토큰 (개발: 인증 링크 화면 표시, 운영: 메일 발송 연결)
+// ─────────────────────────────────────────────────────────────
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 지역 (MVP: 17개 시도만 활성화. 하위 지역 확장 가능하도록 self-relation)
+// ─────────────────────────────────────────────────────────────
+model Region {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  // type: province | city | district
+  type           String   @default("province")
+  parentRegionId String?
+  parent         Region?  @relation("RegionTree", fields: [parentRegionId], references: [id])
+  children       Region[] @relation("RegionTree")
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  primaryRestaurants Restaurant[]     @relation("PrimaryRegion")
+  subRestaurants     Restaurant[]     @relation("SubRegion")
+  userStats          UserRegionStat[]
+  xpEvents           XpEvent[]
+  collections        Collection[]
+
+  @@map("regions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 사용자 × 지역 통계 (지역 랭킹의 기준 테이블)
+// ─────────────────────────────────────────────────────────────
+model UserRegionStat {
+  id                 String   @id @default(cuid())
+  userId             String
+  regionId           String
+  regionXp           Int      @default(0)
+  regionLevel        Int      @default(1)
+  restaurantCount    Int      @default(0)
+  likeReceivedCount  Int      @default(0)
+  saveReceivedCount  Int      @default(0)
+  // 동점 처리용: 최근 30일 활동 XP 캐시 (랭킹 tie-break). 정확 계산은 XpEvent 기준.
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region Region @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, regionId])
+  @@index([regionId, regionLevel])
+  @@map("user_region_stats")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 음식점 (반드시 하나의 primary region을 가짐)
+// ─────────────────────────────────────────────────────────────
+model Restaurant {
+  id               String   @id @default(cuid())
+  name             String
+  kakaoPlaceId     String?  @unique // 카카오 장소 고유 ID — 같은 가게 판별의 강한 기준(있으면 우선)
+  address          String?
+  latitude         Float?
+  longitude        Float?
+  primaryRegionId  String
+  subRegionId      String?
+  createdByUserId  String
+  ownerId          String? // 사장님 계정 연결(향후). MVP에서는 미사용.
+  isClaimedByOwner Boolean  @default(false)
+  saveCount        Int      @default(0) // restaurant 단위 저장 수
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  primaryRegion Region           @relation("PrimaryRegion", fields: [primaryRegionId], references: [id])
+  subRegion     Region?          @relation("SubRegion", fields: [subRegionId], references: [id])
+  createdBy     User             @relation("RestaurantCreator", fields: [createdByUserId], references: [id])
+  posts           RestaurantPost[]
+  saves           Save[]
+  promotions      OwnerPromotion[]
+  collectionItems CollectionItem[]
+
+  // 같은 가게 판별: kakaoPlaceId(있으면) 우선, 없으면 name+region 소프트 매칭.
+  // (name+region 강제 유일은 제거 — 같은 동네 다른 지점이 잘못 합쳐지는 것 방지)
+  @@index([name, primaryRegionId])
+  @@index([primaryRegionId])
+  @@map("restaurants")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 맛집 게시글 (사용자가 등록한 맛집 콘텐츠)
+// ─────────────────────────────────────────────────────────────
+model RestaurantPost {
+  id           String   @id @default(cuid())
+  restaurantId String
+  userId       String
+  content      String? // 상세 리뷰
+  shortReview  String? // 한줄평
+  // revisitIntent: yes | maybe | no | (null)
+  revisitIntent String?
+  // priceRange: under_10k | 10k_20k | 20k_40k | over_40k | (null)
+  priceRange   String?
+  // waitingLevel: none | short | long | (null)
+  waitingLevel String?
+  likeCount    Int      @default(0)
+  saveCount    Int      @default(0)
+  shareCount   Int      @default(0)
+  commentCount Int      @default(0)
+  visitProofCount Int   @default(0)
+  videoViewCount  Int   @default(0)
+
+  // ── 방문 인증 (음식점 자체가 아니라 "이 유저의 해당 맛집 기록"에 귀속) ──
+  // 뱃지 4종: 위치 / 음식·현장 사진 / 영수증 / 메뉴판
+  locationVerified           Boolean   @default(false)
+  photoVerified              Boolean   @default(false)
+  receiptVerified            Boolean   @default(false)
+  menuVerified               Boolean   @default(false)
+  // 위치 인증 상세
+  verifiedLatitude           Float?
+  verifiedLongitude          Float?
+  verificationDistanceMeters Float? // 음식점과 인증 위치 간 거리(m)
+  locationAccuracyMeters     Float? // GPS 정확도(m)
+  // 인증 사진 (각 뱃지 근거)
+  foodOrPlacePhotoUrl        String?
+  receiptPhotoUrl            String?
+  menuPhotoUrl               String?
+  visitedAt                  DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant               @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media      Media[]
+  categories RestaurantPostCategory[]
+  likes      Like[]
+  saves      Save[]
+  shares     PostShare[]
+  proofAttempts ProofAttempt[]
+  comments   Comment[]
+  collectionItems CollectionItem[]
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@map("restaurant_posts")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 미디어 (image | video — 릴스형 피드 대비 video 타입 지원)
+// ─────────────────────────────────────────────────────────────
+model Media {
+  id           String   @id @default(cuid())
+  postId       String
+  // type: image | video
+  type         String   @default("image")
+  url          String
+  thumbnailUrl String?
+  duration     Int? // video 길이(초)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  post RestaurantPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("media")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 카테고리 ("가고 싶은 이유" 중심 — DB seed로 관리, 하드코딩 금지)
+// ─────────────────────────────────────────────────────────────
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  // type: situation | season | credential | food | price
+  type      String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  posts RestaurantPostCategory[]
+
+  @@map("categories")
+}
+
+model RestaurantPostCategory {
+  postId     String
+  categoryId String
+
+  post     RestaurantPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId])
+  @@map("restaurant_post_categories")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 좋아요 (중복 방지: user×post 유니크)
+// ─────────────────────────────────────────────────────────────
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post RestaurantPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId, createdAt])
+  @@map("likes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 저장 (중복 방지: user×restaurant 유니크)
+// ─────────────────────────────────────────────────────────────
+model Save {
+  id           String   @id @default(cuid())
+  userId       String
+  restaurantId String
+  postId       String? // 저장 시점에 본 post (작성자 XP 귀속용)
+  createdAt    DateTime @default(now())
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  post       RestaurantPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId, createdAt])
+  @@map("saves")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 공유 기록 (공유 버튼 클릭 — user×post 유니크).
+// shareCount/dedupe 의 출처. XP 상한과 분리: 상한 초과여도 기록은 남고 XP만 0.
+// ─────────────────────────────────────────────────────────────
+model PostShare {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post RestaurantPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+  @@map("post_shares")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 댓글 (경험치 없음). 대댓글(parentId), 댓글 좋아요, 글쓴이 상단 고정.
+// ─────────────────────────────────────────────────────────────
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  parentId  String? // 대댓글이면 부모 댓글 id (1단계)
+  content   String
+  likeCount Int      @default(0)
+  isPinned  Boolean  @default(false) // 글쓴이가 상단 고정 (최상위 댓글만)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post    RestaurantPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[]      @relation("CommentReplies")
+  likes   CommentLike[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("comment_likes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 증거 인증 시도 기록 (성공·실패 모두). 비용/어뷰징 상한의 카운팅 기준.
+//   - 글-슬롯당(post×kind) 시도 상한, 유저 하루 시도 상한을 이 테이블로 센다.
+//   - AI 호출 전에 기록을 만들어, 실패해도 카운트되도록 한다.
+// ─────────────────────────────────────────────────────────────
+model ProofAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  kind      String // photo | receipt | menu
+  ok        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post RestaurantPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([postId, kind])
+  @@map("proof_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────
+// XP 이벤트 로그 (모든 XP 지급은 여기 기록 — 멱등성/어뷰징/밸런스용)
+// ─────────────────────────────────────────────────────────────
+model XpEvent {
+  id          String   @id @default(cuid())
+  userId      String // XP를 받은 사용자
+  actorUserId String? // XP를 유발한 사용자 (좋아요/저장 누른 사람) — 감쇠 계산용
+  regionId    String? // 지역 XP 귀속 (전체 XP만 줄 땐 null)
+  // sourceType: post_created | photo_added | video_added | short_review | detail_review |
+  //   categories | price | waiting | revisit | menu_recommend |
+  //   like_received | saved_by_user | shared | comment_received | visit_proof | video_views |
+  //   daily_first_post | streak_7d | region_10_restaurants | category_10_restaurants | clean_30d
+  sourceType  String
+  sourceId    String? // 관련 엔티티 id (post id 등)
+  xpAmount    Int
+  // dedupeKey: 멱등성 보장용 유니크 키. 같은 키는 두 번 적립되지 않음.
+  dedupeKey   String?  @unique
+  createdAt   DateTime @default(now())
+
+  user  User    @relation("XpRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User?   @relation("XpActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  region Region? @relation(fields: [regionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, regionId, createdAt])
+  @@index([sourceType, createdAt])
+  @@map("xp_events")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 랭킹 캐시 (MVP는 실시간 쿼리. 데이터 쌓이면 이 테이블로 이전)
+// ─────────────────────────────────────────────────────────────
+model RankingCache {
+  id          String   @id @default(cuid())
+  // rankingType: overall_users | region_users | weekly_restaurants
+  rankingType String
+  regionId    String?
+  rank        Int
+  targetId    String // user_id 또는 restaurant_id
+  score       Float
+  computedAt  DateTime @default(now())
+
+  @@index([rankingType, regionId, rank])
+  @@map("rankings_cache")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 사장님 홍보/쿠폰/이벤트 (구조만 열어둠 — 일반 랭킹/XP와 완전 분리)
+// ─────────────────────────────────────────────────────────────
+model OwnerPromotion {
+  id            String    @id @default(cuid())
+  restaurantId  String
+  ownerId       String?
+  title         String
+  content       String?
+  // promotionType: story | coupon | seasonal_menu | outdoor_seating | event
+  promotionType String
+  startsAt      DateTime?
+  endsAt        DateTime?
+  isPaid        Boolean   @default(false)
+  isAdLabeled   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@map("owner_promotions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 맛집 컬렉션 (사용자가 모은 맛집 리스트 — "내 성수 맛집 10곳" 등)
+// 공유/큐레이션의 기반. 향후 크리에이터 지도/유료 지도로 확장 가능.
+// ─────────────────────────────────────────────────────────────
+model Collection {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  isPublic    Boolean  @default(true)
+  regionId    String // 대표 지역(필수). 카테고리 태그는 담긴 맛집에서 파생 표시.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region Region           @relation(fields: [regionId], references: [id])
+  items  CollectionItem[]
+
+  @@index([userId])
+  @@index([isPublic])
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String   @id @default(cuid())
+  collectionId String
+  restaurantId String
+  postId       String? // 대표 게시글(카드 썸네일/한줄평 표시용)
+  note         String? // 큐레이터 메모
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  collection Collection      @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  post       RestaurantPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  // 같은 컬렉션에 같은 음식점 중복 방지
+  @@unique([collectionId, restaurantId])
+  @@index([collectionId])
+  @@map("collection_items")
+}
