@@ -11,6 +11,7 @@ import {
 } from "@/server/restaurant/RestaurantService";
 import { getOverallUserRanking } from "@/server/ranking/RankingService";
 import { getActiveCategories } from "@/server/catalog";
+import { getBlockedIds } from "@/server/block/BlockService";
 
 export interface HomeCollection {
   id: string;
@@ -56,12 +57,16 @@ async function getPublicCollections(limit: number): Promise<HomeCollection[]> {
   }));
 }
 
-export async function getHomeData() {
+export async function getHomeData(viewerId?: string | null) {
+  const blockedIds = await getBlockedIds(viewerId ?? null);
   const [weekly, verified, collections, topUsers, categories] = await Promise.all([
-    searchPosts({ sort: "weekly", limit: 8 }),
+    searchPosts({ sort: "weekly", limit: 8, excludeUserIds: blockedIds }),
     prisma.restaurantPost
       .findMany({
-        where: { locationVerified: true },
+        where: {
+          locationVerified: true,
+          ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
+        },
         orderBy: [{ visitedAt: "desc" }, { createdAt: "desc" }],
         take: 8,
         select: postCardSelect,

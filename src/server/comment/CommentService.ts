@@ -5,6 +5,7 @@
  */
 import { prisma } from "@/lib/db";
 import { ABUSE_LIMITS } from "../xp/xpRules";
+import { getBlockedIds } from "../block/BlockService";
 
 function startOfToday(): Date {
   const d = new Date();
@@ -212,5 +213,17 @@ export async function getComments(
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
+
+  // 차단한 사용자의 댓글은 하위 답글까지 통째로 숨김
+  if (currentUserId) {
+    const blocked = new Set(await getBlockedIds(currentUserId));
+    if (blocked.size > 0) {
+      const prune = (nodes: CommentNode[]): CommentNode[] =>
+        nodes
+          .filter((n) => !blocked.has(n.user.id))
+          .map((n) => ({ ...n, replies: prune(n.replies) }));
+      return prune(roots);
+    }
+  }
   return roots;
 }

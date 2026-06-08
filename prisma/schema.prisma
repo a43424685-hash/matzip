@@ -41,6 +41,8 @@ model User {
   comments     Comment[]
   commentLikes CommentLike[]
   reports      Report[]
+  blocking     Block[]          @relation("Blocker")
+  blockedBy    Block[]          @relation("Blocked")
   xpEvents    XpEvent[]        @relation("XpRecipient")
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
@@ -388,6 +390,23 @@ model Report {
   @@index([status, createdAt])
   @@index([targetType, targetId])
   @@map("reports")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 사용자 차단 — blocker 가 blocked 의 글/댓글을 안 보게 (단방향).
+// ─────────────────────────────────────────────────────────────
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@map("blocks")
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -170,6 +170,15 @@ export default async function MePage() {
           </div>
         </section>
       )}
+
+      <section className="mt-8">
+        <Link
+          href="/me/blocks"
+          className="block rounded-2xl border border-stone-200 px-4 py-3.5 text-sm font-semibold text-ink active:scale-[0.99]"
+        >
+          차단한 사용자 관리 →
+        </Link>
+      </section>
     </main>
   );
 }

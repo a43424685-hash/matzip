@@ -426,16 +426,20 @@ export interface SearchInput {
   priceRange?: string | null;
   sort?: SortKey;
   limit?: number;
+  excludeUserIds?: string[]; // 차단한 사용자 글 제외
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50 } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds } = input;
 
   const where: Record<string, unknown> = {};
   if (regionId) where.restaurant = { primaryRegionId: regionId };
   if (priceRange) where.priceRange = priceRange;
   if (categoryIds && categoryIds.length > 0) {
     where.categories = { some: { categoryId: { in: categoryIds } } };
+  }
+  if (excludeUserIds && excludeUserIds.length > 0) {
+    where.userId = { notIn: excludeUserIds };
   }
 
   const orderBy =

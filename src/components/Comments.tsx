@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageCircle, Heart, Pin, Trash2 } from "lucide-react";
 import ReportButton from "./ReportButton";
+import BlockButton from "./BlockButton";
 
 interface CUser {
   id: string;
@@ -98,6 +99,13 @@ function CommentItem({ c, depth, ctx }: { c: CNode; depth: number; ctx: Ctx }) {
               <ReportButton
                 targetType="comment"
                 targetId={c.id}
+                className="flex items-center gap-0.5 text-stone-400"
+              />
+            )}
+            {ctx.isLoggedIn && !c.isMine && (
+              <BlockButton
+                userId={c.user.id}
+                nickname={c.user.nickname}
                 className="flex items-center gap-0.5 text-stone-400"
               />
             )}

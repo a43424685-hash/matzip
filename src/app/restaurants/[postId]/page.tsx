@@ -10,6 +10,7 @@ import VerificationBadges from "@/components/VerificationBadges";
 import VerifyPanel from "@/components/VerifyPanel";
 import Comments from "@/components/Comments";
 import ReportButton from "@/components/ReportButton";
+import BlockButton from "@/components/BlockButton";
 import DeletePostButton from "@/components/DeletePostButton";
 import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
@@ -227,6 +228,9 @@ export default async function PostDetailPage({
         {/* 신고 / 삭제 (작성자 본인 또는 운영자) */}
         {user && (
           <div className="flex items-center justify-end gap-4 text-[13px]">
+            {user.id !== post.userId && (
+              <BlockButton userId={post.userId} nickname={post.user.nickname} />
+            )}
             {user.id !== post.userId && <ReportButton targetType="post" targetId={post.id} />}
             {(user.id === post.userId || user.isAdmin) && (
               <DeletePostButton

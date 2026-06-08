@@ -27,8 +27,9 @@ import {
   attachPhoto,
   verifyLocation,
 } from "../src/server/verification/VerificationService";
-import { deletePost } from "../src/server/restaurant/RestaurantService";
+import { deletePost, searchPosts } from "../src/server/restaurant/RestaurantService";
 import { createReport, listReports } from "../src/server/report/ReportService";
+import { blockUser, unblockUser, getBlockedIds } from "../src/server/block/BlockService";
 import { regionFromAddress } from "../src/server/place/PlaceSearchService";
 import {
   addComment,
@@ -445,6 +446,36 @@ async function main() {
     !(await prisma.restaurantPost.findUnique({ where: { id: repPost.postId } })),
     "삭제된 글은 DB에서 사라짐"
   );
+
+  console.log("\n[9f] 차단 — 글/댓글 숨김 + 해제");
+  const blkPost = await createRestaurantPost({
+    userId: a.id, name: "차단테스트집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+  });
+  await addComment(a.id, seoulPost.id, "차단 테스트용 댓글 by A");
+  const hasA = (nodes: { user: { id: string }; replies: unknown[] }[]): boolean =>
+    nodes.some((n) => n.user.id === a.id || hasA(n.replies as typeof nodes));
+
+  // 차단 전: b 에게 a 글/댓글 보임
+  let bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
+  assert(bIds.includes(blkPost.postId), "차단 전: b 검색에 a 글 보임");
+  assert(hasA(await getComments(seoulPost.id, b.id)), "차단 전: b 에게 a 댓글 보임");
+
+  const bl = await blockUser(b.id, a.id);
+  assert(bl.ok, "b 가 a 차단 성공");
+  assert(!(await blockUser(b.id, b.id)).ok, "자기 자신 차단 불가(SELF)");
+
+  // 차단 후: b 에게 a 글/댓글 숨김
+  bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
+  assert(!bIds.includes(blkPost.postId), "차단 후: b 검색에서 a 글 사라짐");
+  assert(!hasA(await getComments(seoulPost.id, b.id)), "차단 후: b 에게 a 댓글 안 보임");
+
+  // a 본인은 영향 없음 (자기 글 보임)
+  const aIds = (await searchPosts({ excludeUserIds: await getBlockedIds(a.id) })).map((p) => p.id);
+  assert(aIds.includes(blkPost.postId), "a 본인은 자기 글 그대로 보임 (단방향 차단)");
+
+  await unblockUser(b.id, a.id);
+  bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
+  assert(bIds.includes(blkPost.postId), "차단 해제 후: b 에게 a 글 다시 보임");
 
   console.log("\n[10] 장소 검색 — 주소 → 17개 시도 매핑");
   assert(regionFromAddress("서울특별시 중구 명동") === "서울", "서울특별시→서울");

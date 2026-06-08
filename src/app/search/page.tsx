@@ -5,6 +5,7 @@ import {
   getViewerReactions,
   type SortKey,
 } from "@/server/restaurant/RestaurantService";
+import { getBlockedIds } from "@/server/block/BlockService";
 import PostCard from "@/components/PostCard";
 import { PRICE_RANGES, SORT_OPTIONS } from "@/lib/labels";
 
@@ -66,6 +67,7 @@ export default async function SearchPage({
     priceRange: priceRange || null,
     categoryIds,
     sort,
+    excludeUserIds: await getBlockedIds(user?.id ?? null),
   });
   const { likedPosts, savedRestaurants } = await getViewerReactions(
     user?.id ?? null,

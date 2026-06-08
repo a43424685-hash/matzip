@@ -27,7 +27,7 @@ const SHORT: Record<string, string> = { "부모님 모시기 좋음": "부모님
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const { weekly, verified, collections, topUsers, categories } = await getHomeData();
+  const { weekly, verified, collections, topUsers, categories } = await getHomeData(user?.id);
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
   const navCats = NAV_CATS.map((n) => ({ name: SHORT[n] ?? n, id: idByName.get(n) })).filter(
