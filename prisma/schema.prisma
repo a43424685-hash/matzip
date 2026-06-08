@@ -1,14 +1,15 @@
 // 맛집 레벨업 소셜 앱 — 데이터 모델
-// MVP는 SQLite 기준. enum은 SQLite에서 미지원이라 String + 주석으로 허용값을 명시한다.
-// (Postgres 이전 시 enum 으로 승격 가능)
+// DB: PostgreSQL (Supabase). 허용값은 String + 주석으로 명시 (향후 enum 으로 승격 가능).
+// 서버리스(Vercel) → 런타임은 Supabase 풀러(DATABASE_URL, 6543), 마이그레이션은 직접연결(DIRECT_URL, 5432).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────────────────────
