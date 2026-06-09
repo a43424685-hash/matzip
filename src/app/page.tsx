@@ -17,6 +17,7 @@ import type { PostCard } from "@/server/restaurant/RestaurantService";
 import type { UserRankRow } from "@/server/ranking/RankingService";
 import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
+import SiteFooter from "@/components/SiteFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -169,6 +170,8 @@ export default async function HomePage() {
           </ol>
         )}
       </div>
+
+      <SiteFooter />
     </main>
   );
 }

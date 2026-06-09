@@ -52,6 +52,19 @@ body {
   .section-title {
     @apply text-[17px] font-extrabold tracking-tight text-ink;
   }
+  /* 약관/개인정보/환불 등 법적 고지 본문 서식 */
+  .prose-legal h2 {
+    @apply mb-1.5 mt-6 text-[15px] font-extrabold text-ink;
+  }
+  .prose-legal p {
+    @apply mb-2.5 text-ink-muted;
+  }
+  .prose-legal ul {
+    @apply mb-3 list-disc space-y-1 pl-5 text-ink-muted;
+  }
+  .prose-legal b {
+    @apply font-bold text-ink;
+  }
   .brand-logo {
     color: #1f2a24;
     font-weight: 950;

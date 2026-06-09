@@ -166,6 +166,7 @@ export default async function MePage() {
         <Row href="/me/notices" icon={<Info size={18} />} label="공지사항" />
         <Row href="/me/support" icon={<Headphones size={18} />} label="고객센터" />
         <Row href="/me/settings" icon={<Settings size={18} />} label="설정" />
+        <Row href="/terms" icon={<FileText size={18} />} label="약관 및 정책" sub="이용약관·개인정보·환불정책" />
         <form action={logoutAction}>
           <button
             type="submit"
