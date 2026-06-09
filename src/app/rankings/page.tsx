@@ -1,5 +1,6 @@
 import { BadgePercent, Lock, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { getBlockedIds } from "@/server/block/BlockService";
 import { prisma } from "@/lib/db";
 import { getActiveRegions } from "@/server/catalog";
 import {
@@ -40,6 +41,11 @@ export default async function RankingsPage({
     getWeeklyRestaurantRankingCached(sp.regionId || null),
   ]);
 
+  // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
+  const blocked = user ? new Set(await getBlockedIds(user.id)) : new Set<string>();
+  const overall = blocked.size > 0 ? initialOverall.filter((r) => !blocked.has(r.userId)) : initialOverall;
+  const region = blocked.size > 0 ? initialRegion.filter((r) => !blocked.has(r.userId)) : initialRegion;
+
   return (
     <main className="px-5 py-6">
       <BackHomeHeader title="랭킹" />
@@ -68,8 +74,8 @@ export default async function RankingsPage({
         userId={user?.id ?? null}
         regions={regions}
         initialRegionId={sp.regionId || regionId}
-        initialOverall={initialOverall}
-        initialRegion={initialRegion}
+        initialOverall={overall}
+        initialRegion={region}
         initialWeekly={initialWeekly}
       />
     </main>

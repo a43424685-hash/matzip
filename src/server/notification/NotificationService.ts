@@ -4,6 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { getBlockedIds } from "../block/BlockService";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -32,7 +33,14 @@ export async function createNotification(
 }
 
 export async function unreadCount(userId: string): Promise<number> {
-  return prisma.notification.count({ where: { userId, read: false } });
+  const blocked = await getBlockedIds(userId);
+  return prisma.notification.count({
+    where: {
+      userId,
+      read: false,
+      ...(blocked.length > 0 ? { actorUserId: { notIn: blocked } } : {}),
+    },
+  });
 }
 
 export async function markAllRead(userId: string): Promise<void> {
@@ -53,7 +61,8 @@ export interface NotificationRow {
 }
 
 export async function listNotifications(userId: string, limit = 50): Promise<NotificationRow[]> {
-  const rows = await prisma.notification.findMany({
+  const blocked = new Set(await getBlockedIds(userId));
+  const all = await prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -63,9 +72,12 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
       read: true,
       createdAt: true,
       postId: true,
+      actorUserId: true,
       actor: { select: { nickname: true } },
     },
   });
+  // 차단한 사용자의 활동 알림은 숨김
+  const rows = all.filter((r) => !r.actorUserId || !blocked.has(r.actorUserId));
 
   const postIds = rows.map((r) => r.postId).filter((id): id is string => !!id);
   const posts =

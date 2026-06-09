@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Share2, MapPin, Store, Lock } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getCollectionDetail } from "@/server/collection/CollectionService";
+import { getBlockedIds } from "@/server/block/BlockService";
 import CardImage from "@/components/CardImage";
 import VerificationBadges from "@/components/VerificationBadges";
 
@@ -23,6 +24,11 @@ export default async function CollectionDetailPage({
   const isOwner = user?.id === col.ownerId;
   // 비공개 컬렉션은 소유자만
   if (!col.isPublic && !isOwner) notFound();
+  // 차단한 사용자의 컬렉션은 보이지 않게
+  if (user && !isOwner) {
+    const blocked = await getBlockedIds(user.id);
+    if (blocked.includes(col.ownerId)) notFound();
+  }
 
   return (
     <main className="pb-10">

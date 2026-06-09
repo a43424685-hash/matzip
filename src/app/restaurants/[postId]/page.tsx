@@ -15,6 +15,7 @@ import DeletePostButton from "@/components/DeletePostButton";
 import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
+import { getBlockedIds } from "@/server/block/BlockService";
 import { getComments } from "@/server/comment/CommentService";
 import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
 
@@ -75,6 +76,12 @@ export default async function PostDetailPage({
   });
 
   if (!post) notFound();
+
+  // 차단한 사용자의 글은 직접 URL로도 보이지 않게
+  if (user) {
+    const blocked = await getBlockedIds(user.id);
+    if (blocked.includes(post.userId)) notFound();
+  }
 
   let liked = false;
   let saved = false;

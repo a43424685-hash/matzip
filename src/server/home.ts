@@ -23,9 +23,16 @@ export interface HomeCollection {
   coverUrl: string | null;
 }
 
-export async function getPublicCollections(limit: number): Promise<HomeCollection[]> {
+export async function getPublicCollections(
+  limit: number,
+  excludeUserIds: string[] = []
+): Promise<HomeCollection[]> {
   const cols = await prisma.collection.findMany({
-    where: { isPublic: true, items: { some: {} } },
+    where: {
+      isPublic: true,
+      items: { some: {} },
+      ...(excludeUserIds.length > 0 ? { userId: { notIn: excludeUserIds } } : {}),
+    },
     orderBy: { updatedAt: "desc" },
     take: limit,
     select: {
@@ -72,7 +79,7 @@ export async function getHomeData(viewerId?: string | null) {
         select: postCardSelect,
       })
       .then((rows) => rows.map(toPostCard)),
-    getPublicCollections(8),
+    getPublicCollections(8, blockedIds),
     getOverallUserRankingCached(5),
     getActiveCategories(),
   ]);
@@ -80,7 +87,8 @@ export async function getHomeData(viewerId?: string | null) {
     weekly: weekly as PostCard[],
     verified,
     collections,
-    topUsers,
+    // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
+    topUsers: blockedIds.length > 0 ? topUsers.filter((u) => !blockedIds.includes(u.userId)) : topUsers,
     categories,
   };
 }

@@ -30,7 +30,7 @@ import {
 import { deletePost, searchPosts } from "../src/server/restaurant/RestaurantService";
 import { createReport, listReports } from "../src/server/report/ReportService";
 import { blockUser, unblockUser, getBlockedIds } from "../src/server/block/BlockService";
-import { unreadCount, markAllRead } from "../src/server/notification/NotificationService";
+import { unreadCount, markAllRead, listNotifications } from "../src/server/notification/NotificationService";
 import { regionFromAddress } from "../src/server/place/PlaceSearchService";
 import {
   addComment,
@@ -496,6 +496,18 @@ async function main() {
     "댓글 받으면 알림 생성"
   );
   assert((await unreadCount(a.id)) > 0, "안 읽은 알림 카운트 > 0");
+  // 차단하면 그 사용자의 알림은 숨김 (배치4 차단 전면적용)
+  await blockUser(a.id, b.id);
+  assert(
+    !(await listNotifications(a.id)).some((n) => n.actorNickname === "맛잘알B"),
+    "차단한 사용자의 알림은 숨김"
+  );
+  assert((await unreadCount(a.id)) === 0, "차단 후 안 읽은 카운트에서도 제외");
+  await unblockUser(a.id, b.id);
+  assert(
+    (await listNotifications(a.id)).some((n) => n.actorNickname === "맛잘알B"),
+    "차단 해제 후 알림 다시 보임"
+  );
   await markAllRead(a.id);
   assert((await unreadCount(a.id)) === 0, "전체 읽음 처리 후 0");
 

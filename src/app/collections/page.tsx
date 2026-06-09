@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
 import { getPublicCollections } from "@/server/home";
+import { getCurrentUser } from "@/lib/auth";
+import { getBlockedIds } from "@/server/block/BlockService";
 import CardImage from "@/components/CardImage";
 import BackHomeHeader from "@/components/BackHomeHeader";
 
 export const dynamic = "force-dynamic";
 
 export default async function PublicCollectionsPage() {
-  const collections = await getPublicCollections(50);
+  const user = await getCurrentUser();
+  const collections = await getPublicCollections(50, await getBlockedIds(user?.id ?? null));
 
   return (
     <main className="px-5 pb-24 pt-5">
