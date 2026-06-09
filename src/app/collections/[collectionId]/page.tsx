@@ -117,7 +117,7 @@ export default async function CollectionDetailPage({
               </div>
 
               <div className="mt-4">
-                <PurchaseMapButton priceWon={col.priceWon} />
+                <PurchaseMapButton collectionId={col.id} priceWon={col.priceWon} buyerId={user?.id ?? null} />
               </div>
             </div>
           </div>
