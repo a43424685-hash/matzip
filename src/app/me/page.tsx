@@ -124,7 +124,7 @@ export default async function MePage() {
 
         {mapUnlocked ? (
           <Link
-            href="/me/soon?t=유료 맛집지도 만들기"
+            href="/me/paid-map"
             className="mt-4 flex h-11 items-center justify-center rounded-xl bg-forest text-sm font-bold text-white active:scale-[0.99]"
           >
             유료 맛집지도 만들기
@@ -141,31 +141,31 @@ export default async function MePage() {
         <Quick href="/me/posts" icon={<Utensils size={20} />} label="내 등록" value={registeredCount} />
         <Quick href="/me/saved" icon={<Bookmark size={20} />} label="저장" value={savedCount} />
         <Quick href="/me/collections" icon={<ListChecks size={20} />} label="리스트" value={collectionsCount} />
-        <Quick href="/notifications" icon={<Bell size={20} />} label="알림함" badge={unread} />
+        <Quick href="/me/notifications" icon={<Bell size={20} />} label="알림함" badge={unread} />
       </section>
 
       {/* 수익화 · 혜택 */}
       <Section title="수익화 · 혜택">
-        <Row href="/me/soon?t=유료 맛집지도 관리" icon={<Map size={18} />} label="유료 맛집지도 관리" sub="조건 달성 후 오픈 가능" />
-        <Row href="/me/soon?t=판매 수익 내역" icon={<Coins size={18} />} label="판매 수익 내역" sub="수수료 차감 후 정산 예정" />
-        <Row href="/me/soon?t=혜택 모음" icon={<Gift size={18} />} label="혜택 모음" />
-        <Row href="/me/soon?t=정직 리뷰 캠페인" icon={<Megaphone size={18} />} label="정직 리뷰 캠페인" />
+        <Row href="/me/paid-map" icon={<Map size={18} />} label="유료 맛집지도 관리" sub="조건 달성 후 오픈 가능" />
+        <Row href="/me/earnings" icon={<Coins size={18} />} label="판매 수익 내역" sub="수수료 차감 후 정산 예정" />
+        <Row href="/me/benefits" icon={<Gift size={18} />} label="혜택 모음" />
+        <Row href="/me/review-campaigns" icon={<Megaphone size={18} />} label="정직 리뷰 캠페인" />
       </Section>
 
       {/* 활동 관리 */}
       <Section title="활동 관리">
-        <Row href="/me/posts" icon={<FileText size={18} />} label="내가 쓴 리뷰" />
-        <Row href="/me/soon?t=받은 좋아요·저장" icon={<Heart size={18} />} label="받은 좋아요·저장" />
-        <Row href="/me/soon?t=공유한 맛집" icon={<Share2 size={18} />} label="공유한 맛집" />
-        <Row href="/me/blocks" icon={<ShieldAlert size={18} />} label="차단한 사용자" />
-        <Row href="/me/soon?t=신고/제재 내역" icon={<ShieldAlert size={18} />} label="신고/제재 내역" />
+        <Row href="/me/reviews" icon={<FileText size={18} />} label="내가 쓴 리뷰" />
+        <Row href="/me/reactions" icon={<Heart size={18} />} label="받은 좋아요·저장" />
+        <Row href="/me/shared" icon={<Share2 size={18} />} label="공유한 맛집" />
+        <Row href="/me/blocked-users" icon={<ShieldAlert size={18} />} label="차단한 사용자" />
+        <Row href="/me/reports" icon={<ShieldAlert size={18} />} label="신고/제재 내역" />
       </Section>
 
       {/* 고객 · 설정 */}
       <Section title="고객 · 설정">
-        <Row href="/me/soon?t=공지사항" icon={<Info size={18} />} label="공지사항" />
-        <Row href="/me/soon?t=고객센터" icon={<Headphones size={18} />} label="고객센터" />
-        <Row href="/me/soon?t=설정" icon={<Settings size={18} />} label="설정" />
+        <Row href="/me/notices" icon={<Info size={18} />} label="공지사항" />
+        <Row href="/me/support" icon={<Headphones size={18} />} label="고객센터" />
+        <Row href="/me/settings" icon={<Settings size={18} />} label="설정" />
         <form action={logoutAction}>
           <button
             type="submit"

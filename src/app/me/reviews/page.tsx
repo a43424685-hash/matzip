@@ -7,20 +7,17 @@ import MeSubPageHeader from "@/components/MeSubPageHeader";
 
 export const dynamic = "force-dynamic";
 
-export default async function MySavedPage() {
+export default async function MyReviewsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const rows = await prisma.save.findMany({
-    where: { userId: user.id, postId: { not: null } },
+  const rows = await prisma.restaurantPost.findMany({
+    where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
-    select: { post: { select: postCardSelect } },
+    select: postCardSelect,
   });
-  const cards = rows
-    .map((s) => s.post)
-    .filter((p): p is NonNullable<typeof p> => !!p)
-    .map(toPostCard);
+  const cards = rows.map(toPostCard);
   const { likedPosts, savedRestaurants } = await getViewerReactions(
     user.id,
     cards.map((p) => p.id),
@@ -29,10 +26,10 @@ export default async function MySavedPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title={`저장한 맛집 (${cards.length})`} />
+      <MeSubPageHeader title={`내가 쓴 리뷰 (${cards.length})`} />
       {cards.length === 0 ? (
         <p className="mt-10 rounded-2xl bg-stone-50 py-12 text-center text-sm text-stone-400">
-          아직 저장한 맛집이 없어요.
+          아직 쓴 리뷰가 없어요.
         </p>
       ) : (
         <div className="space-y-4">

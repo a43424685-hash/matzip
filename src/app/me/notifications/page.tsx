@@ -1,14 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ShieldAlert } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { listNotifications, markAllRead } from "@/server/notification/NotificationService";
-import BackHomeHeader from "@/components/BackHomeHeader";
+import MeSubPageHeader from "@/components/MeSubPageHeader";
 import NotificationListView from "@/components/NotificationListView";
 
 export const dynamic = "force-dynamic";
 
-export default async function NotificationsPage() {
+export default async function MeNotificationsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -17,15 +15,7 @@ export default async function NotificationsPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <BackHomeHeader title="알림" />
-      {user.isAdmin && (
-        <Link
-          href="/admin"
-          className="mb-4 flex items-center gap-2 rounded-2xl border border-coral/30 bg-coral-soft/40 px-4 py-3 text-sm font-semibold text-coral-dark"
-        >
-          <ShieldAlert size={16} /> 신고함 (운영자)
-        </Link>
-      )}
+      <MeSubPageHeader title="알림함" />
       <NotificationListView rows={rows} />
     </main>
   );

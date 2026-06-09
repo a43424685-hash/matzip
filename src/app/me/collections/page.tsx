@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Plus, Lock, ChevronRight, Bookmark } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyCollectionsWithPreview } from "@/server/collection/CollectionService";
-import BackHomeHeader from "@/components/BackHomeHeader";
+import MeSubPageHeader from "@/components/MeSubPageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,8 @@ export default async function MyCollectionsPage() {
   const collections = await getMyCollectionsWithPreview(user.id);
 
   return (
-    <main className="px-5 py-6">
-      <BackHomeHeader title={`맛집 리스트 (${collections.length})`} />
+    <main className="px-5 pb-24 pt-5">
+      <MeSubPageHeader title={`맛집 리스트 (${collections.length})`} />
 
       <Link
         href="/collections/new"
