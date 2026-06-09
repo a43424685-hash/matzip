@@ -83,7 +83,7 @@ export async function GET(req: Request) {
     if (account) {
       await tx.user.update({
         where: { id: account.userId },
-        data: { emailVerifiedAt: new Date() },
+        data: { emailVerifiedAt: new Date(), deactivatedAt: null },
       });
       return tx.user.findUniqueOrThrow({
         where: { id: account.userId },

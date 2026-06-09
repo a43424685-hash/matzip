@@ -32,6 +32,7 @@ import { deletePost, searchPosts } from "../src/server/restaurant/RestaurantServ
 import { createReport, listReports } from "../src/server/report/ReportService";
 import { blockUser, unblockUser, getBlockedIds } from "../src/server/block/BlockService";
 import { unreadCount, markAllRead, listNotifications } from "../src/server/notification/NotificationService";
+import { updateNotifyPrefs, deactivateAccount } from "../src/server/account/AccountService";
 import { regionFromAddress } from "../src/server/place/PlaceSearchService";
 import {
   addComment,
@@ -546,6 +547,35 @@ async function main() {
   const exposeIds = (await searchPosts({ q: "노출집" })).map((p) => p.id);
   assert(!exposeIds.includes(userUnverified.postId), "일반 사용자 미인증 글은 검색/피드에서 숨김");
   assert(exposeIds.includes(adminUnverified.postId), "운영자 글은 미인증이어도 노출됨");
+
+  console.log("\n[9i] 알림 설정(종류별 on/off) + 비활성화 숨김/복구");
+  const npref = await createRestaurantPost({
+    userId: a.id, name: "알림설정테스트집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+  });
+  await updateNotifyPrefs(a.id, { notifyLike: false, notifyComment: true });
+  await toggleLike(b.id, npref.postId);
+  assert(
+    (await prisma.notification.count({ where: { userId: a.id, type: "like", postId: npref.postId } })) === 0,
+    "좋아요 알림 끄면 알림 생성 안 됨"
+  );
+  await addComment(b.id, npref.postId, "댓글 알림 테스트");
+  assert(
+    (await prisma.notification.count({ where: { userId: a.id, type: "comment", postId: npref.postId } })) === 1,
+    "댓글 알림은 켜져 있어 생성됨"
+  );
+  await updateNotifyPrefs(a.id, { notifyLike: true, notifyComment: true });
+
+  // 비활성화: a 의 인증 글(seoulPost)이 검색에서 숨김 → 복구 후 다시 노출
+  await deactivateAccount(a.id);
+  assert(
+    !(await searchPosts({})).some((p) => p.id === seoulPost.id),
+    "비활성화 사용자 글은 검색/피드에서 숨김"
+  );
+  await prisma.user.update({ where: { id: a.id }, data: { deactivatedAt: null } });
+  assert(
+    (await searchPosts({})).some((p) => p.id === seoulPost.id),
+    "재활성화 후 다시 노출"
+  );
 
   console.log("\n[10] 장소 검색 — 주소 → 17개 시도 매핑");
   assert(regionFromAddress("서울특별시 중구 명동") === "서울", "서울특별시→서울");

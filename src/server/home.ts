@@ -31,6 +31,7 @@ export async function getPublicCollections(
     where: {
       isPublic: true,
       items: { some: {} },
+      user: { deactivatedAt: null },
       ...(excludeUserIds.length > 0 ? { userId: { notIn: excludeUserIds } } : {}),
     },
     orderBy: { updatedAt: "desc" },
@@ -72,6 +73,7 @@ export async function getHomeData(viewerId?: string | null) {
       .findMany({
         where: {
           OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
+          user: { deactivatedAt: null },
           ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
         },
         orderBy: [{ visitedAt: "desc" }, { createdAt: "desc" }],

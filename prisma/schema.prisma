@@ -24,6 +24,10 @@ model User {
   nicknameConfirmedAt DateTime?
   avatarUrl    String?
   isAdmin      Boolean  @default(false) // 운영자 — 신고 처리/콘텐츠 삭제 권한
+  nicknameUpdatedAt DateTime? // 닉네임 마지막 변경 시각 (30일 1회 제한)
+  deactivatedAt DateTime? // 비활성화(쉬어가기) — 글/프로필 숨김, 재로그인 시 자동 복구
+  notifyLike    Boolean  @default(true) // 좋아요 알림 받기
+  notifyComment Boolean  @default(true) // 댓글/답글 알림 받기
   totalXp      Int      @default(0)
   totalLevel   Int      @default(1)
   createdAt    DateTime @default(now())
@@ -170,7 +174,7 @@ model Restaurant {
   longitude        Float?
   primaryRegionId  String
   subRegionId      String?
-  createdByUserId  String
+  createdByUserId  String? // 등록자 탈퇴 시 null (가게·다른 사람 글은 유지)
   ownerId          String? // 사장님 계정 연결(향후). MVP에서는 미사용.
   isClaimedByOwner Boolean  @default(false)
   saveCount        Int      @default(0) // restaurant 단위 저장 수
@@ -179,7 +183,7 @@ model Restaurant {
 
   primaryRegion Region           @relation("PrimaryRegion", fields: [primaryRegionId], references: [id])
   subRegion     Region?          @relation("SubRegion", fields: [subRegionId], references: [id])
-  createdBy     User             @relation("RestaurantCreator", fields: [createdByUserId], references: [id])
+  createdBy     User?            @relation("RestaurantCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   posts           RestaurantPost[]
   saves           Save[]
   promotions      OwnerPromotion[]

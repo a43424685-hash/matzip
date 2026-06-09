@@ -72,7 +72,7 @@ export default async function MePage() {
       </header>
 
       {/* 프로필 */}
-      <Link href="/me/soon?t=프로필 수정" className="flex items-center gap-4">
+      <Link href="/me/profile" className="flex items-center gap-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-forest-soft text-2xl font-extrabold text-forest">
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

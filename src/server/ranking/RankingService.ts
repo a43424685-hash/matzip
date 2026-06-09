@@ -81,7 +81,7 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
   // 동점 tie-break(30일 활동)가 50위 경계를 넘나들 수 있어 버퍼를 두고 가져온다
   // 운영자(admin)는 랭킹에서 제외 (Lv.200 고정·의미 없음)
   const candidates = await prisma.user.findMany({
-    where: { isAdmin: false },
+    where: { isAdmin: false, deactivatedAt: null },
     orderBy: [{ totalLevel: "desc" }, { totalXp: "desc" }, { createdAt: "asc" }],
     take: limit + 20,
     select: { id: true, nickname: true, avatarUrl: true, totalLevel: true, totalXp: true },
@@ -157,7 +157,7 @@ export async function getRegionUserRanking(
   limit = TOP_N
 ): Promise<UserRankRow[]> {
   const candidates = await prisma.userRegionStat.findMany({
-    where: { regionId, user: { isAdmin: false } },
+    where: { regionId, user: { isAdmin: false, deactivatedAt: null } },
     orderBy: [{ regionLevel: "desc" }, { regionXp: "desc" }, { createdAt: "asc" }],
     take: limit + 20,
     select: {

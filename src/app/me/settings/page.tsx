@@ -22,7 +22,7 @@ export default async function SettingsPage() {
       <MeSubPageHeader title="설정" />
 
       <div className="divide-y divide-stone-100">
-        <Link href="/me/soon?t=닉네임 변경" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
+        <Link href="/me/profile" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
           <UserCog size={18} className="text-stone-400" />
           <span className="flex-1 text-[15px] text-ink">닉네임 변경</span>
           <span className="text-[13px] text-stone-400">{user.nickname}</span>
@@ -37,13 +37,13 @@ export default async function SettingsPage() {
           </span>
         </div>
 
-        <Link href="/me/soon?t=알림 설정" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
+        <Link href="/me/notification-settings" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
           <Bell size={18} className="text-stone-400" />
           <span className="flex-1 text-[15px] text-ink">알림 설정</span>
           <ChevronRight size={18} className="text-stone-300" />
         </Link>
 
-        <Link href="/me/soon?t=위치 권한 안내" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
+        <Link href="/me/location-help" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
           <MapPin size={18} className="text-stone-400" />
           <span className="flex-1 text-[15px] text-ink">위치 권한 안내</span>
           <ChevronRight size={18} className="text-stone-300" />
@@ -55,7 +55,7 @@ export default async function SettingsPage() {
           </button>
         </form>
 
-        <Link href="/me/soon?t=회원 탈퇴" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
+        <Link href="/me/withdraw" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
           <UserX size={18} className="text-stone-400" />
           <span className="flex-1 text-[15px] text-stone-400">회원 탈퇴</span>
           <ChevronRight size={18} className="text-stone-300" />

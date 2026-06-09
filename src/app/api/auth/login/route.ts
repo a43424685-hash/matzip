@@ -39,6 +39,11 @@ export async function POST(request: Request) {
     );
   }
 
+  // 비활성화 계정은 로그인 시 자동 복구 (쉬어가기 → 다시 활성)
+  if (user.deactivatedAt) {
+    await prisma.user.update({ where: { id: user.id }, data: { deactivatedAt: null } });
+  }
+
   await createSession(user.id);
   return NextResponse.json({ ok: true });
 }

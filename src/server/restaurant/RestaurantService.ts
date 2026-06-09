@@ -465,6 +465,8 @@ export async function searchPosts(input: SearchInput) {
   }
   // 노출 게이트: 위치 인증된 글만. 단 운영자(admin) 글은 미인증이어도 노출(운영자 맛집).
   where.OR = [{ locationVerified: true }, { user: { isAdmin: true } }];
+  // 비활성화한 사용자의 글은 숨김
+  where.user = { deactivatedAt: null };
 
   const orderBy =
     sort === "saves"

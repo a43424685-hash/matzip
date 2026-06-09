@@ -38,6 +38,7 @@ export async function GET(request: Request) {
     where: {
       restaurant: { latitude: { not: null }, longitude: { not: null } },
       OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
+      user: { deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],

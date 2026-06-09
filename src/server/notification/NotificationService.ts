@@ -22,6 +22,15 @@ export async function createNotification(
 ): Promise<void> {
   if (input.userId === input.actorUserId) return; // 자기 행동은 알림 없음
 
+  // 수신자 알림 설정 반영 — 끈 종류는 생성하지 않음
+  const pref = await db.user.findUnique({
+    where: { id: input.userId },
+    select: { notifyLike: true, notifyComment: true },
+  });
+  if (!pref) return;
+  if (input.type === "like" && !pref.notifyLike) return;
+  if ((input.type === "comment" || input.type === "reply") && !pref.notifyComment) return;
+
   // 좋아요 알림 멱등: 같은 사람이 같은 글을 재좋아요(취소→다시) 해도 알림은 1개만.
   // (댓글/답글은 각각 별개 이벤트라 매번 생성)
   if (input.type === "like") {
