@@ -23,7 +23,7 @@ export interface HomeCollection {
   coverUrl: string | null;
 }
 
-async function getPublicCollections(limit: number): Promise<HomeCollection[]> {
+export async function getPublicCollections(limit: number): Promise<HomeCollection[]> {
   const cols = await prisma.collection.findMany({
     where: { isPublic: true, items: { some: {} } },
     orderBy: { updatedAt: "desc" },

@@ -33,8 +33,8 @@ export async function POST(req: Request) {
       const { uploadUrl, publicUrl } = await storage.createSignedUpload(key);
       return NextResponse.json({ mode: "signed", uploadUrl, publicUrl });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "ERROR";
-      return NextResponse.json({ error: "SIGN_FAILED", detail: msg }, { status: 500 });
+      console.error("[video/sign]", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: "SIGN_FAILED" }, { status: 500 });
     }
   }
   // local 개발 폴백

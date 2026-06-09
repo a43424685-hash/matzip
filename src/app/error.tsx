@@ -54,10 +54,15 @@ export default function Error({
     <main className="px-5 py-10">
       <h1 className="text-lg font-extrabold text-ink">문제가 발생했어요</h1>
       <p className="mt-1 text-sm text-ink-muted">잠시 후 다시 시도해주세요.</p>
-      <pre className="mt-4 whitespace-pre-wrap break-all rounded-xl bg-stone-100 p-3 text-[12px] text-stone-600">
-        {error?.name}: {error?.message}
-        {error?.digest ? `\n\ndigest: ${error.digest}` : ""}
-      </pre>
+      {/* 운영에서는 원시 에러 메시지를 사용자에게 노출하지 않고 오류 코드만 표시 */}
+      {process.env.NODE_ENV !== "production" && (
+        <pre className="mt-4 whitespace-pre-wrap break-all rounded-xl bg-stone-100 p-3 text-[12px] text-stone-600">
+          {error?.name}: {error?.message}
+        </pre>
+      )}
+      {error?.digest && (
+        <p className="mt-3 text-[12px] text-stone-400">오류 코드: {error.digest}</p>
+      )}
       <button
         type="button"
         onClick={reset}

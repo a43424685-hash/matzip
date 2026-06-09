@@ -6,6 +6,7 @@ import {
   postCardSelect,
   toPostCard,
 } from "@/server/restaurant/RestaurantService";
+import { getBlockedIds } from "@/server/block/BlockService";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,12 @@ export async function GET(request: Request) {
   }
 
   const user = await getCurrentUser();
+  const blockedIds = await getBlockedIds(user?.id ?? null);
   const posts = await prisma.restaurantPost.findMany({
     where: {
       restaurant: { latitude: { not: null }, longitude: { not: null } },
       locationVerified: true,
+      ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
     take: 80,

@@ -49,7 +49,8 @@ export default function NearbyMapScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetState>("default");
-  const [mode, setMode] = useState<FilterMode>("saved");
+  // 기본은 '인증 맛집' — 첫 사용자(저장 0)도 바로 주변 맛집을 보게 한다.
+  const [mode, setMode] = useState<FilterMode>("verified");
   const [category, setCategory] = useState("전체");
   const [loading, setLoading] = useState(false);
 
@@ -323,8 +324,30 @@ export default function NearbyMapScreen() {
         <div className="mt-3 h-[calc(100%-118px)] overflow-y-auto px-5 pb-24">
           {filteredItems.length === 0 ? (
             <div className="rounded-2xl bg-stone-50 px-4 py-8 text-center">
-              <p className="text-sm font-bold text-ink">표시할 맛집이 없어요.</p>
-              <p className="mt-1 text-[13px] text-ink-muted">저장한 맛집이 없으면 인증 맛집 탭을 눌러보세요.</p>
+              {mode === "saved" ? (
+                <>
+                  <p className="text-sm font-bold text-ink">저장한 맛집이 없어요.</p>
+                  <p className="mt-1 text-[13px] text-ink-muted">‘인증 맛집’에서 주변 맛집을 둘러보세요.</p>
+                  <button
+                    type="button"
+                    onClick={() => setMode("verified")}
+                    className="mt-3 rounded-xl bg-forest px-4 py-2 text-sm font-bold text-white active:scale-95"
+                  >
+                    인증 맛집 보기
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-ink">주변에 아직 인증 맛집이 없어요.</p>
+                  <p className="mt-1 text-[13px] text-ink-muted">현장에서 위치 인증을 하면 여기에 떠요.</p>
+                  <Link
+                    href="/register"
+                    className="mt-3 inline-block rounded-xl bg-forest px-4 py-2 text-sm font-bold text-white active:scale-95"
+                  >
+                    맛집 등록하기
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

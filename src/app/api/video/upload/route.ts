@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const r = await getStorage().put(key, buf, file.type);
     return NextResponse.json({ url: r.url });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "ERROR";
-    return NextResponse.json({ error: "UPLOAD_FAILED", detail: msg }, { status: 500 });
+    console.error("[video/upload]", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "UPLOAD_FAILED" }, { status: 500 });
   }
 }

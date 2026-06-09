@@ -137,7 +137,7 @@ export default async function HomePage() {
       </div>
 
       {/* 섹션 4. 추천 맛집 리스트 */}
-      <SectionHead title="추천 맛집 리스트" sub="사람들이 모은 맛집 묶음" href="/me" />
+      <SectionHead title="추천 맛집 리스트" sub="사람들이 모은 맛집 묶음" href="/collections" />
       {collections.length === 0 ? (
         <Empty>아직 공개된 리스트가 없어요.</Empty>
       ) : (
