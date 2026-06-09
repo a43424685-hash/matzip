@@ -9,6 +9,7 @@ import {
   ListChecks,
   Map,
   Coins,
+  ShoppingBag,
   Gift,
   Megaphone,
   FileText,
@@ -146,6 +147,7 @@ export default async function MePage() {
 
       {/* 수익화 · 혜택 */}
       <Section title="수익화 · 혜택">
+        <Row href="/me/purchases" icon={<ShoppingBag size={18} />} label="구매한 지도" sub="내가 산 유료 맛집 지도" />
         <Row href="/me/paid-map" icon={<Map size={18} />} label="유료 맛집지도 관리" sub="조건 달성 후 오픈 가능" />
         <Row href="/me/earnings" icon={<Coins size={18} />} label="판매 수익 내역" sub="수수료 차감 후 정산 예정" />
         <Row href="/me/benefits" icon={<Gift size={18} />} label="혜택 모음" />

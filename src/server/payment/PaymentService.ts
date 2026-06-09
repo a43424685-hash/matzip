@@ -114,3 +114,78 @@ export async function confirmPurchase(
 
   return { ok: true, collectionId };
 }
+
+// ─────────────────────────────────────────────────────────────
+// 구매 내역 / 판매 정산 조회
+// ─────────────────────────────────────────────────────────────
+
+/** 내가 구매한 유료 지도 목록 */
+export async function getMyPurchases(buyerId: string) {
+  const rows = await prisma.mapPurchase.findMany({
+    where: { buyerId, status: "paid" },
+    orderBy: { paidAt: "desc" },
+    select: {
+      amountWon: true,
+      paidAt: true,
+      collection: {
+        select: {
+          id: true,
+          title: true,
+          region: { select: { name: true } },
+          user: { select: { nickname: true } },
+          _count: { select: { items: true } },
+        },
+      },
+    },
+  });
+  return rows.map((r) => ({
+    collectionId: r.collection.id,
+    title: r.collection.title,
+    regionName: r.collection.region.name,
+    sellerNickname: r.collection.user.nickname,
+    itemCount: r.collection._count.items,
+    amountWon: r.amountWon,
+    paidAt: r.paidAt,
+  }));
+}
+
+export interface SellerEarnings {
+  totalGrossWon: number; // 총 판매액
+  totalFeeWon: number; // 총 수수료(30%)
+  totalNetWon: number; // 총 정산액(70%)
+  salesCount: number; // 판매 건수
+  perMap: { collectionId: string; title: string; count: number; netWon: number }[];
+}
+
+/** 내가 판매한 유료 지도의 수익(정산) 요약 */
+export async function getSellerEarnings(sellerId: string): Promise<SellerEarnings> {
+  const rows = await prisma.mapPurchase.findMany({
+    where: { status: "paid", collection: { userId: sellerId } },
+    select: {
+      amountWon: true,
+      feeWon: true,
+      sellerNetWon: true,
+      collectionId: true,
+      collection: { select: { title: true } },
+    },
+  });
+
+  let totalGrossWon = 0;
+  let totalFeeWon = 0;
+  let totalNetWon = 0;
+  const map = new Map<string, { title: string; count: number; netWon: number }>();
+  for (const r of rows) {
+    totalGrossWon += r.amountWon;
+    totalFeeWon += r.feeWon;
+    totalNetWon += r.sellerNetWon;
+    const cur = map.get(r.collectionId) ?? { title: r.collection.title, count: 0, netWon: 0 };
+    cur.count += 1;
+    cur.netWon += r.sellerNetWon;
+    map.set(r.collectionId, cur);
+  }
+  const perMap = [...map.entries()]
+    .map(([collectionId, v]) => ({ collectionId, ...v }))
+    .sort((a, b) => b.netWon - a.netWon);
+
+  return { totalGrossWon, totalFeeWon, totalNetWon, salesCount: rows.length, perMap };
+}

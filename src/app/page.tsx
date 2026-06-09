@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Search,
   Bell,
   ChevronRight,
   Bookmark,
@@ -10,6 +9,7 @@ import {
   ListChecks,
   Play,
   Coins,
+  Plus,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getHomeData, type HomeCollection, type PaidMapCard } from "@/server/home";
@@ -36,7 +36,7 @@ function formatPostDate(value: Date | string) {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const { weekly, verified, collections, paidMaps, topUsers, categories } = await getHomeData(user?.id);
+  const { weekly, verified, collections, paidMaps, saved, topUsers, categories } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
@@ -66,6 +66,11 @@ export default async function HomePage() {
                 로그인
               </Link>
             )}
+            {user && (
+              <Link href="/me/saved" className="text-stone-500" aria-label="찜한 맛집">
+                <Heart size={22} strokeWidth={1.9} />
+              </Link>
+            )}
             {user ? (
               <Link href="/notifications" className="relative text-stone-500" aria-label="알림">
                 <Bell size={22} strokeWidth={1.9} />
@@ -82,14 +87,6 @@ export default async function HomePage() {
             )}
           </div>
         </div>
-
-        <Link
-          href="/search"
-          className="mt-4 flex h-12 items-center gap-2.5 rounded-2xl bg-stone-100 px-4 text-[15px] text-stone-400"
-        >
-          <Search size={20} className="text-forest" strokeWidth={2.2} />
-          지역·상황으로 맛집 찾기
-        </Link>
       </header>
 
       <CategoryIconGrid categories={navCats} />
@@ -104,6 +101,25 @@ export default async function HomePage() {
             p.media ? <PhotoCard key={p.id} post={p} /> : <TextPostCard key={p.id} post={p} />
           )}
         </div>
+      )}
+
+      {/* 내가 찜한 맛집 (로그인 + 찜 있을 때만) */}
+      {user && saved.length > 0 && (
+        <>
+          <div className="flex items-end justify-between px-5 pb-3 pt-9">
+            <h2 className="section-title flex items-center gap-1.5">
+              <Heart size={17} className="text-coral" fill="currentColor" /> 내가 찜한 맛집
+            </h2>
+            <Link href="/me/saved" className="flex items-center text-[13px] font-semibold text-forest">
+              전체 <ChevronRight size={15} />
+            </Link>
+          </div>
+          <div className="no-scrollbar flex items-start gap-3 overflow-x-auto px-5 pb-1">
+            {photoFirst(saved).map((p) =>
+              p.media ? <PhotoCard key={p.id} post={p} /> : <TextPostCard key={p.id} post={p} />
+            )}
+          </div>
+        </>
       )}
 
       {/* 섹션 2. 내 주변 인증 맛집 */}
@@ -196,6 +212,15 @@ export default async function HomePage() {
       </div>
 
       <SiteFooter />
+
+      {/* 맛집 등록 FAB (홈에서만) */}
+      <Link
+        href="/register"
+        aria-label="맛집 등록"
+        className="fixed bottom-[88px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-forest text-white shadow-[0_8px_24px_rgba(31,77,63,.4)] active:scale-95"
+      >
+        <Plus size={28} strokeWidth={2.4} />
+      </Link>
     </main>
   );
 }

@@ -14,6 +14,7 @@ import {
   buildVerificationUrl,
   createEmailVerificationToken,
 } from "@/server/auth/EmailVerificationService";
+import { sendVerificationEmail } from "@/lib/email";
 import { nicknameSchema } from "@/lib/nickname";
 
 const signupSchema = z.object({
@@ -52,6 +53,7 @@ export async function signupAction(
     const { token } = await createEmailVerificationToken(exists.id);
     const url = buildVerificationUrl(token);
     console.log(`[auth] 이메일 인증 링크 재발급: ${url}`);
+    await sendVerificationEmail(email, url).catch((e) => console.error("[email] 발송 실패", e));
     const dev = process.env.NODE_ENV !== "production"
       ? `&devUrl=${encodeURIComponent(url)}`
       : "";
@@ -95,6 +97,7 @@ export async function signupAction(
   const { token } = await createEmailVerificationToken(user.id);
   const url = buildVerificationUrl(token);
   console.log(`[auth] 이메일 인증 링크: ${url}`);
+  await sendVerificationEmail(email, url).catch((e) => console.error("[email] 발송 실패", e));
 
   const dev = process.env.NODE_ENV !== "production"
     ? `&devUrl=${encodeURIComponent(url)}`
