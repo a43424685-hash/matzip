@@ -6,7 +6,7 @@
 export type XpSourceType =
   // 기록 작성 — 위치 인증 전까지 "보류", 위치 인증 시 일괄 지급
   | "post_created" // 기본 기록(상호명·지역)
-  | "photo_added" // 음식·현장 사진
+  | "photo_added" // 등록 사진(음식/가게 전경/메뉴/분위기). 별도 음식 인증사진은 폐지.
   | "video_added"
   | "short_review"
   | "detail_review"
@@ -19,7 +19,7 @@ export type XpSourceType =
   | "location_verified" // 위치 인증 — XP의 중심
   | "receipt_verified" // 영수증 (강한 증거 → 높게)
   | "menu_verified" // 메뉴판
-  | "full_verify_bonus" // 위치+사진+영수증+메뉴판 4종 풀인증
+  | "full_verify_bonus" // 위치+영수증+메뉴판 3종 풀인증
   // 반응 (인증된 맛집에만 지급)
   | "like_received"
   | "saved_by_user"
@@ -36,7 +36,7 @@ export type XpSourceType =
 export const XP_AMOUNT: Record<XpSourceType, number> = {
   // 기록(보류 → 위치 인증 시 지급)
   post_created: 50, // 기본 기록
-  photo_added: 50, // 음식·현장 사진
+  photo_added: 50, // 등록 사진
   video_added: 80,
   short_review: 40,
   detail_review: 70,
@@ -49,7 +49,7 @@ export const XP_AMOUNT: Record<XpSourceType, number> = {
   location_verified: 150, // 중심
   receipt_verified: 100, // 강한 증거
   menu_verified: 40,
-  full_verify_bonus: 150, // 4종 풀인증
+  full_verify_bonus: 150, // 3종 풀인증(위치+영수증+메뉴판)
   // 반응 (인증글만)
   like_received: 10,
   saved_by_user: 25,
@@ -104,7 +104,7 @@ export const ABUSE_LIMITS = {
  *  - 리스트 생성/담기/저장: XP 없음 (순수 큐레이션·개인 활동)
  *  - 미인증 맛집 기록: XP 제한 또는 없음
  *  - 인증된 맛집 기록: XP 지급 대상
- *  - 인증 뱃지(위치/사진/영수증/메뉴판)가 많을수록 신뢰도↑ → 보너스 가능
+ *  - 인증 뱃지(위치/영수증/메뉴판)가 많을수록 신뢰도↑ → 보너스 가능
  */
 export const XP_ELIGIBILITY = {
   collectionCreate: false, // 리스트 생성
@@ -115,7 +115,7 @@ export const XP_ELIGIBILITY = {
 } as const;
 
 /**
- * 인증 뱃지 수(0~4)별 신뢰도/보너스 배수 — 전부 1 = 아직 미적용 placeholder.
+ * 인증 뱃지 수(0~3: 위치/영수증/메뉴판)별 신뢰도/보너스 배수 — 전부 1 = 아직 미적용 placeholder.
  * 추후 확정 시 awardXp 결과에 곱해 "인증 많을수록 더 많이" 를 구현한다.
  */
 export const VERIFICATION_BONUS_MULTIPLIER: Record<number, number> = {
@@ -123,5 +123,4 @@ export const VERIFICATION_BONUS_MULTIPLIER: Record<number, number> = {
   1: 1,
   2: 1,
   3: 1,
-  4: 1,
 };

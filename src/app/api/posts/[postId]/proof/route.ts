@@ -12,7 +12,7 @@ import { ABUSE_LIMITS } from "@/server/xp/xpRules";
 import { getStorage } from "@/server/storage/StorageService";
 import { randomUUID } from "crypto";
 
-const KINDS: ProofKind[] = ["photo", "receipt", "menu"];
+const KINDS: ProofKind[] = ["receipt", "menu"];
 
 /** data URL → 스토리지 업로드용 버퍼/타입 */
 function parseImage(dataUrl: string): { mime: string; ext: string; buf: Buffer } | null {
@@ -20,8 +20,7 @@ function parseImage(dataUrl: string): { mime: string; ext: string; buf: Buffer }
   if (!m) return null;
   return { mime: m[1], ext: m[2] === "jpeg" ? "jpg" : m[2], buf: Buffer.from(m[3], "base64") };
 }
-const BADGE: Record<ProofKind, "photoVerified" | "receiptVerified" | "menuVerified"> = {
-  photo: "photoVerified",
+const BADGE: Record<ProofKind, "receiptVerified" | "menuVerified"> = {
   receipt: "receiptVerified",
   menu: "menuVerified",
 };
@@ -60,7 +59,6 @@ export async function POST(
     select: {
       userId: true,
       locationVerified: true,
-      photoVerified: true,
       receiptVerified: true,
       menuVerified: true,
       restaurant: { select: { name: true } },

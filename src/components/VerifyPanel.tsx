@@ -65,7 +65,6 @@ const PHOTO_ROWS: { kind: PhotoKind; label: string; Icon: LucideIcon; xp: number
 
 export interface VerifyInitial {
   locationVerified: boolean;
-  photoAttached: boolean;
   receiptAttached: boolean;
   menuAttached: boolean;
 }
@@ -91,7 +90,6 @@ export default function VerifyPanel({
   const hasCoords =
     restaurant != null && restaurant.lat != null && restaurant.lng != null;
   const [attached, setAttached] = useState({
-    photo: initial.photoAttached,
     receipt: initial.receiptAttached,
     menu: initial.menuAttached,
   });

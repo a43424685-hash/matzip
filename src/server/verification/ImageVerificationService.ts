@@ -5,7 +5,7 @@
  *  - 음식·현장 사진 / 메뉴판: AI 미사용. 위치 인증 + 현장 카메라 촬영 게이팅으로 통과 (B 합의, 비용 절감).
  */
 
-export type ProofKind = "photo" | "receipt" | "menu";
+export type ProofKind = "receipt" | "menu";
 
 export interface ProofVerdict {
   ok: boolean;
@@ -88,8 +88,8 @@ export async function verifyProofImage(
   dataUrl: string,
   restaurantName: string
 ): Promise<ProofVerdict> {
-  // 음식·메뉴판 → AI 미사용, 통과 (현장 카메라+위치 게이팅으로 인정)
-  if (kind === "photo" || kind === "menu") {
+  // 메뉴판 → AI 미사용, 통과 (현장 카메라+위치 게이팅으로 인정)
+  if (kind === "menu") {
     return { ok: true, reason: "현장 카메라 촬영 + 위치 인증으로 확인" };
   }
 

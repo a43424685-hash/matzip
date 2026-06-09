@@ -508,7 +508,6 @@ export const postCardSelect = {
   saveCount: true,
   createdAt: true,
   locationVerified: true,
-  photoVerified: true,
   receiptVerified: true,
   menuVerified: true,
   restaurant: {
@@ -545,7 +544,6 @@ export function toPostCard(p: NonNullable<PostRow>) {
     categories: p.categories.map((c) => c.category.name),
     verification: {
       location: p.locationVerified,
-      photo: p.photoVerified,
       receipt: p.receiptVerified,
       menu: p.menuVerified,
     },

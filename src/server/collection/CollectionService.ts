@@ -162,7 +162,6 @@ export async function getCollectionDetail(collectionId: string) {
               media: mediaPick,
               categories: { select: { category: { select: { name: true } } }, take: 3 },
               locationVerified: true,
-              photoVerified: true,
               receiptVerified: true,
               menuVerified: true,
             },
@@ -192,7 +191,6 @@ export async function getCollectionDetail(collectionId: string) {
       categories: i.post?.categories.map((c) => c.category.name) ?? [],
       verification: {
         location: i.post?.locationVerified ?? false,
-        photo: i.post?.photoVerified ?? false,
         receipt: i.post?.receiptVerified ?? false,
         menu: i.post?.menuVerified ?? false,
       },

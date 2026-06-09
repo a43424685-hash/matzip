@@ -25,7 +25,7 @@ export default function VerificationBadges({
   compact?: boolean;
   showUnverified?: boolean;
 }) {
-  const keys = VERIFICATION_KEYS.filter((k) => k !== "photo" && v[k]);
+  const keys = VERIFICATION_KEYS.filter((k) => v[k]);
 
   if (keys.length === 0) {
     return showUnverified ? (

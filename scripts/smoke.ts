@@ -121,12 +121,13 @@ async function main() {
     where: { id: seoulPost.restaurantId },
     data: { latitude: 37.5662, longitude: 126.9912 },
   });
-  // 기대 해제 XP(기록/콘텐츠만 — 증거 사진 XP는 인증 후 현장 촬영 시 별도 지급):
-  //   위치150 + 첫인증50 + 기본50 + 한줄평40 + 상세70 + 카테고리30 + 가격10 + 재방문10 = 410
+  // 기대 해제 XP(기록/콘텐츠 + 등록 사진 — 영수증·메뉴판 증거 XP는 인증 후 현장 촬영 시 별도):
+  //   위치150 + 첫인증50 + 기본50 + 등록사진50 + 한줄평40 + 상세70 + 카테고리30 + 가격10 + 재방문10 = 460
   const expectRelease =
     XP_AMOUNT.location_verified +
     XP_AMOUNT.daily_first_verify +
     XP_AMOUNT.post_created +
+    XP_AMOUNT.photo_added + // 등록 사진(이미지 미디어) — 인증 시 함께 해제
     XP_AMOUNT.short_review +
     XP_AMOUNT.detail_review +
     XP_AMOUNT.categories +
@@ -257,7 +258,7 @@ async function main() {
   assert(detail!.regionName === "서울", "컬렉션 대표 지역(필수) 표시");
   const verifiedItem = detail!.items.find((i) => i.restaurantId === seoulPost.restaurantId)!;
   assert(
-    verifiedItem.verification.location && !verifiedItem.verification.photo,
+    verifiedItem.verification.location && !verifiedItem.verification.receipt && !verifiedItem.verification.menu,
     "위치 인증됨 + 아직 증거 미첨부 → 위치 뱃지만 표시"
   );
 
@@ -276,32 +277,29 @@ async function main() {
   // 미인증 글엔 증거 첨부 불가 (NOT_VERIFIED) — busan 은 아직 미인증
   let notVerified = false;
   try {
-    await attachPhoto(a.id, busanPost.id, "photo", "/sample-food.svg");
+    await attachPhoto(a.id, busanPost.id, "receipt", "/sample-food.svg");
   } catch (e) {
     notVerified = (e as Error).message === "NOT_VERIFIED";
   }
   assert(notVerified, "미인증 글엔 증거 첨부 불가(NOT_VERIFIED)");
 
-  // 인증된 서울 글에 증거 3종 첨부 → 각 XP + 뱃지 ON + 4종 풀인증 보너스
+  // 인증된 서울 글에 증거(영수증·메뉴판) 첨부 → 각 XP + 뱃지 ON + 3종 풀인증 보너스
   let xp0 = await totalXp(a.id);
-  await attachPhoto(a.id, seoulPost.id, "photo", "/sample-food.svg");
-  assert((await totalXp(a.id)) === xp0 + XP_AMOUNT.photo_added, `사진 첨부 → +${XP_AMOUNT.photo_added}`);
-  xp0 = await totalXp(a.id);
   await attachPhoto(a.id, seoulPost.id, "receipt", "/sample-food.svg");
   assert((await totalXp(a.id)) === xp0 + XP_AMOUNT.receipt_verified, `영수증 첨부 → +${XP_AMOUNT.receipt_verified}`);
   xp0 = await totalXp(a.id);
   await attachPhoto(a.id, seoulPost.id, "menu", "/sample-food.svg");
   assert(
     (await totalXp(a.id)) === xp0 + XP_AMOUNT.menu_verified + XP_AMOUNT.full_verify_bonus,
-    `메뉴판 첨부 → +${XP_AMOUNT.menu_verified} + 4종 풀인증 보너스 +${XP_AMOUNT.full_verify_bonus}`
+    `메뉴판 첨부 → +${XP_AMOUNT.menu_verified} + 3종 풀인증 보너스 +${XP_AMOUNT.full_verify_bonus}`
   );
   const badges = await prisma.restaurantPost.findUniqueOrThrow({
     where: { id: seoulPost.id },
-    select: { photoVerified: true, receiptVerified: true, menuVerified: true },
+    select: { receiptVerified: true, menuVerified: true },
   });
   assert(
-    badges.photoVerified && badges.receiptVerified && badges.menuVerified,
-    "증거 첨부 시 인증 뱃지 ON (카메라+AI검증 통과분)"
+    badges.receiptVerified && badges.menuVerified,
+    "증거 첨부 시 인증 뱃지 ON (영수증·메뉴판)"
   );
 
   // 좌표 없는 부산 가게 → NO_COORDS

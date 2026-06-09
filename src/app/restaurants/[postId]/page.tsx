@@ -49,10 +49,8 @@ export default async function PostDetailPage({
       commentCount: true,
       createdAt: true,
       locationVerified: true,
-      photoVerified: true,
       receiptVerified: true,
       menuVerified: true,
-      foodOrPlacePhotoUrl: true,
       receiptPhotoUrl: true,
       menuPhotoUrl: true,
       user: { select: { nickname: true, totalLevel: true } },
@@ -188,7 +186,6 @@ export default async function PostDetailPage({
           <VerificationBadges
             v={{
               location: post.locationVerified,
-              photo: post.photoVerified,
               receipt: post.receiptVerified,
               menu: post.menuVerified,
             }}
@@ -265,7 +262,6 @@ export default async function PostDetailPage({
             }}
             initial={{
               locationVerified: post.locationVerified,
-              photoAttached: !!post.foodOrPlacePhotoUrl,
               receiptAttached: !!post.receiptPhotoUrl,
               menuAttached: !!post.menuPhotoUrl,
             }}

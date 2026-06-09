@@ -216,9 +216,8 @@ model RestaurantPost {
   videoViewCount  Int   @default(0)
 
   // ── 방문 인증 (음식점 자체가 아니라 "이 유저의 해당 맛집 기록"에 귀속) ──
-  // 뱃지 4종: 위치 / 음식·현장 사진 / 영수증 / 메뉴판
+  // 뱃지 3종: 위치 / 영수증 / 메뉴판 (음식·현장 사진 인증은 폐지 — 등록 사진으로 대체)
   locationVerified           Boolean   @default(false)
-  photoVerified              Boolean   @default(false)
   receiptVerified            Boolean   @default(false)
   menuVerified               Boolean   @default(false)
   // 위치 인증 상세
@@ -227,7 +226,6 @@ model RestaurantPost {
   verificationDistanceMeters Float? // 음식점과 인증 위치 간 거리(m)
   locationAccuracyMeters     Float? // GPS 정확도(m)
   // 인증 사진 (각 뱃지 근거)
-  foodOrPlacePhotoUrl        String?
   receiptPhotoUrl            String?
   menuPhotoUrl               String?
   visitedAt                  DateTime?
