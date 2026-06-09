@@ -95,9 +95,14 @@ function Header({ post }: { post: PostCardData }) {
     <div className="flex items-start justify-between gap-2">
       <Link
         href={`/restaurants/${post.id}`}
-        className="truncate text-base font-bold text-ink"
+        className="flex min-w-0 items-center gap-1.5 text-base font-bold text-ink"
       >
-        {post.restaurantName}
+        {post.isOfficial && (
+          <span className="shrink-0 rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+            운영자
+          </span>
+        )}
+        <span className="truncate">{post.restaurantName}</span>
       </Link>
       <span className="flex shrink-0 items-center gap-0.5 text-[13px] text-stone-400">
         <MapPin size={13} /> {post.regionName}

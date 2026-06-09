@@ -387,8 +387,16 @@ function NearbyCard({ item }: { item: NearbyItem }) {
       </div>
       <div className="min-w-0 flex-1 py-1">
         <div className="flex items-center gap-1 text-[12px] font-bold text-forest">
-          {item.saved ? <Bookmark size={13} /> : <ShieldCheck size={13} />}
-          {item.saved ? "저장됨" : "인증"}
+          {item.post.isOfficial ? (
+            <span className="flex items-center gap-1 text-amber-600">
+              <ShieldCheck size={13} /> 운영자
+            </span>
+          ) : (
+            <>
+              {item.saved ? <Bookmark size={13} /> : <ShieldCheck size={13} />}
+              {item.saved ? "저장됨" : "인증"}
+            </>
+          )}
           <span className="text-stone-300">·</span>
           {formatDistance(item.distanceMeters)}
         </div>

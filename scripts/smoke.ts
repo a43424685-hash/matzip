@@ -78,6 +78,7 @@ async function main() {
       passwordHash: pw,
       emailVerifiedAt: new Date(),
       nicknameConfirmedAt: new Date(),
+      isAdmin: true, // 운영자(노출 정책 검증용)
     },
   });
   const b = await prisma.user.create({
@@ -524,6 +525,17 @@ async function main() {
   assert(kq.some((p) => p.id === np.postId), "키워드 검색으로 가게 이름 매칭");
   const kq2 = await searchPosts({ q: "존재하지않는가게명xyz" });
   assert(!kq2.some((p) => p.id === np.postId), "없는 키워드는 결과 없음");
+
+  console.log("\n[9h] 노출 정책 — 일반 미인증 숨김 / 운영자 글 노출");
+  const userUnverified = await createRestaurantPost({
+    userId: b.id, name: "일반미인증노출집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+  });
+  const adminUnverified = await createRestaurantPost({
+    userId: a.id, name: "운영자미인증노출집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+  });
+  const exposeIds = (await searchPosts({ q: "노출집" })).map((p) => p.id);
+  assert(!exposeIds.includes(userUnverified.postId), "일반 사용자 미인증 글은 검색/피드에서 숨김");
+  assert(exposeIds.includes(adminUnverified.postId), "운영자 글은 미인증이어도 노출됨");
 
   console.log("\n[10] 장소 검색 — 주소 → 17개 시도 매핑");
   assert(regionFromAddress("서울특별시 중구 명동") === "서울", "서울특별시→서울");

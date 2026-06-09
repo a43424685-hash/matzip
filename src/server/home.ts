@@ -71,7 +71,7 @@ export async function getHomeData(viewerId?: string | null) {
     prisma.restaurantPost
       .findMany({
         where: {
-          locationVerified: true,
+          OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
           ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
         },
         orderBy: [{ visitedAt: "desc" }, { createdAt: "desc" }],

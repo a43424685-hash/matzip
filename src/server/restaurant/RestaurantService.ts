@@ -453,6 +453,8 @@ export async function searchPosts(input: SearchInput) {
   if (excludeUserIds && excludeUserIds.length > 0) {
     where.userId = { notIn: excludeUserIds };
   }
+  // 노출 게이트: 위치 인증된 글만. 단 운영자(admin) 글은 미인증이어도 노출(운영자 맛집).
+  where.OR = [{ locationVerified: true }, { user: { isAdmin: true } }];
 
   const orderBy =
     sort === "saves"
@@ -513,7 +515,7 @@ export const postCardSelect = {
   restaurant: {
     select: { id: true, name: true, primaryRegion: { select: { id: true, name: true } } },
   },
-  user: { select: { id: true, nickname: true, totalLevel: true } },
+  user: { select: { id: true, nickname: true, totalLevel: true, isAdmin: true } },
   media: { select: { type: true, url: true, thumbnailUrl: true, muted: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
   categories: { select: { category: { select: { name: true } } } },
 } as const;
@@ -540,6 +542,7 @@ export function toPostCard(p: NonNullable<PostRow>) {
     authorId: p.user.id,
     authorNickname: p.user.nickname,
     authorLevel: p.user.totalLevel,
+    isOfficial: p.user.isAdmin, // 운영자 맛집 (피드 노출 허용 + 배지)
     media: p.media[0] ?? null,
     categories: p.categories.map((c) => c.category.name),
     verification: {

@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const posts = await prisma.restaurantPost.findMany({
     where: {
       restaurant: { latitude: { not: null }, longitude: { not: null } },
-      locationVerified: true,
+      OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],

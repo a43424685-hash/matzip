@@ -54,7 +54,7 @@ export default async function PostDetailPage({
       menuVerified: true,
       receiptPhotoUrl: true,
       menuPhotoUrl: true,
-      user: { select: { nickname: true, totalLevel: true } },
+      user: { select: { nickname: true, totalLevel: true, isAdmin: true } },
       restaurant: {
         select: {
           id: true,
@@ -158,7 +158,14 @@ export default async function PostDetailPage({
       <div className="space-y-5 px-5 pt-5">
         <header>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-extrabold">{post.restaurant.name}</h1>
+            <h1 className="flex items-center gap-2 text-2xl font-extrabold">
+              {post.user.isAdmin && (
+                <span className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[12px] font-extrabold text-white">
+                  운영자
+                </span>
+              )}
+              {post.restaurant.name}
+            </h1>
             <span className="text-sm text-neutral-400">{post.restaurant.primaryRegion.name}</span>
           </div>
           <p className="mt-1 text-[13px] text-stone-400">{formatPostDate(post.createdAt)} 등록</p>
