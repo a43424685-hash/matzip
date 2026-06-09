@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { BadgePercent, Crown, Lock, Medal, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -12,14 +11,9 @@ import {
   type UserRankRow,
 } from "@/server/ranking/RankingService";
 import BackHomeHeader from "@/components/BackHomeHeader";
+import RankingControls from "@/components/RankingControls";
 
 export const dynamic = "force-dynamic";
-
-const TABS = [
-  { key: "overall", label: "전체" },
-  { key: "region", label: "지역" },
-  { key: "weekly", label: "이번 주 인기" },
-];
 
 interface CreatorEligibility {
   level: number;
@@ -67,21 +61,11 @@ export default async function RankingsPage({
 
       <CreatorMapCard eligibility={eligibility} />
 
-      <div className="mb-5 mt-6 flex gap-1.5">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/rankings?tab=${t.key}`}
-            className={t.key === tab ? "chip-on" : "chip-off"}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
+      <RankingControls activeTab={tab} regionId={sp.regionId || regionId} regions={regions} />
 
       {tab === "overall" && <OverallTab userId={user?.id ?? null} />}
-      {tab === "region" && <RegionTab regionId={regionId} regions={regions} />}
-      {tab === "weekly" && <WeeklyTab regionId={sp.regionId || null} regions={regions} />}
+      {tab === "region" && <RegionTab regionId={regionId} />}
+      {tab === "weekly" && <WeeklyTab regionId={sp.regionId || null} />}
     </main>
   );
 }
@@ -259,38 +243,19 @@ async function OverallTab({ userId }: { userId: string | null }) {
   return <RankList rows={rows} userId={userId} emptyText="아직 랭킹이 없어요. 첫 맛집을 등록해보세요." />;
 }
 
-async function RegionTab({ regionId, regions }: { regionId: string; regions: { id: string; name: string }[] }) {
+async function RegionTab({ regionId }: { regionId: string }) {
   const rows = await getRegionUserRankingCached(regionId);
   return (
     <>
-      <form method="get" className="mb-4">
-        <input type="hidden" name="tab" value="region" />
-        <select name="regionId" defaultValue={regionId} className="input">
-          {regions.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-        <button type="submit" className="btn-ghost mt-2 w-full">이 지역 랭킹 보기</button>
-      </form>
       <RankList rows={rows} userId={null} emptyText="이 지역은 아직 랭킹이 없어요." />
     </>
   );
 }
 
-async function WeeklyTab({ regionId, regions }: { regionId: string | null; regions: { id: string; name: string }[] }) {
+async function WeeklyTab({ regionId }: { regionId: string | null }) {
   const rows = await getWeeklyRestaurantRankingCached(regionId);
   return (
     <>
-      <form method="get" className="mb-4">
-        <input type="hidden" name="tab" value="weekly" />
-        <select name="regionId" defaultValue={regionId ?? ""} className="input">
-          <option value="">전국</option>
-          {regions.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-        <button type="submit" className="btn-ghost mt-2 w-full">필터 적용</button>
-      </form>
       <RestaurantRankList rows={rows} />
     </>
   );
