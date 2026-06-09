@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getHomeData, type HomeCollection } from "@/server/home";
+import { unreadCount } from "@/server/notification/NotificationService";
 import type { PostCard } from "@/server/restaurant/RestaurantService";
 import type { UserRankRow } from "@/server/ranking/RankingService";
 import CardImage from "@/components/CardImage";
@@ -33,6 +34,7 @@ function formatPostDate(value: Date | string) {
 export default async function HomePage() {
   const user = await getCurrentUser();
   const { weekly, verified, collections, topUsers, categories } = await getHomeData(user?.id);
+  const unread = user ? await unreadCount(user.id) : 0;
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
   const navCats = NAV_CATS.map((n) => ({ name: SHORT[n] ?? n, id: idByName.get(n) })).filter(
@@ -61,9 +63,14 @@ export default async function HomePage() {
                 로그인
               </Link>
             )}
-            {user?.isAdmin ? (
-              <Link href="/admin" className="text-coral" aria-label="신고함">
+            {user ? (
+              <Link href="/notifications" className="relative text-stone-500" aria-label="알림">
                 <Bell size={22} strokeWidth={1.9} />
+                {unread > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">
+                    {unread > 99 ? "99+" : unread}
+                  </span>
+                )}
               </Link>
             ) : (
               <span className="text-stone-500">

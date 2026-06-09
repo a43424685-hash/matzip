@@ -10,6 +10,7 @@ import {
   likeFromActorAllowed,
   shareFromActorAllowed,
 } from "../xp/XpService";
+import { createNotification } from "../notification/NotificationService";
 
 // ─────────────────────────────────────────────────────────────
 // 입력 타입
@@ -256,6 +257,9 @@ export async function toggleLike(
       }
     }
 
+    // 알림: 글 작성자에게 좋아요 알림 (셀프 제외는 서비스 내부 처리)
+    await createNotification(tx, { userId: post.userId, actorUserId: userId, type: "like", postId });
+
     return { liked: true, likeCount: updated.likeCount };
   });
 }
@@ -431,13 +435,17 @@ export interface SearchInput {
   sort?: SortKey;
   limit?: number;
   excludeUserIds?: string[]; // 차단한 사용자 글 제외
+  q?: string | null; // 가게 이름 키워드 검색
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q } = input;
 
   const where: Record<string, unknown> = {};
-  if (regionId) where.restaurant = { primaryRegionId: regionId };
+  const restaurantWhere: Record<string, unknown> = {};
+  if (regionId) restaurantWhere.primaryRegionId = regionId;
+  if (q && q.trim()) restaurantWhere.name = { contains: q.trim(), mode: "insensitive" };
+  if (Object.keys(restaurantWhere).length > 0) where.restaurant = restaurantWhere;
   if (priceRange) where.priceRange = priceRange;
   if (categoryIds && categoryIds.length > 0) {
     where.categories = { some: { categoryId: { in: categoryIds } } };

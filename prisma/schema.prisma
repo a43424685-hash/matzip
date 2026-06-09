@@ -43,11 +43,34 @@ model User {
   reports      Report[]
   blocking     Block[]          @relation("Blocker")
   blockedBy    Block[]          @relation("Blocked")
+  notifications Notification[]  @relation("NotifRecipient")
+  notifActions  Notification[]  @relation("NotifActor")
   xpEvents    XpEvent[]        @relation("XpRecipient")
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 알림 (인앱) — 좋아요/댓글/답글 받으면 수신자에게 1건.
+// ─────────────────────────────────────────────────────────────
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String // 수신자
+  actorUserId String? // 행동한 사람 (탈퇴 시 null)
+  // type: like | comment | reply
+  type        String
+  postId      String?
+  commentId   String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user  User  @relation("NotifRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotifActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read, createdAt])
+  @@map("notifications")
 }
 
 // ─────────────────────────────────────────────────────────────

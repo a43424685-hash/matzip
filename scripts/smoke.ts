@@ -30,6 +30,7 @@ import {
 import { deletePost, searchPosts } from "../src/server/restaurant/RestaurantService";
 import { createReport, listReports } from "../src/server/report/ReportService";
 import { blockUser, unblockUser, getBlockedIds } from "../src/server/block/BlockService";
+import { unreadCount, markAllRead } from "../src/server/notification/NotificationService";
 import { regionFromAddress } from "../src/server/place/PlaceSearchService";
 import {
   addComment,
@@ -476,6 +477,34 @@ async function main() {
   await unblockUser(b.id, a.id);
   bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
   assert(bIds.includes(blkPost.postId), "차단 해제 후: b 에게 a 글 다시 보임");
+
+  console.log("\n[9g] 알림 + 키워드 검색");
+  const np = await createRestaurantPost({
+    userId: a.id, name: "알림테스트집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+  });
+  await toggleLike(b.id, np.postId);
+  assert(
+    !!(await prisma.notification.findFirst({ where: { userId: a.id, type: "like", postId: np.postId } })),
+    "좋아요 받으면 알림 생성"
+  );
+  await toggleLike(a.id, np.postId); // 자기 글 좋아요
+  assert(
+    (await prisma.notification.count({ where: { userId: a.id, type: "like", actorUserId: a.id } })) === 0,
+    "자기 글 좋아요는 알림 없음(셀프 제외)"
+  );
+  await addComment(b.id, np.postId, "알림용 댓글입니다");
+  assert(
+    !!(await prisma.notification.findFirst({ where: { userId: a.id, type: "comment", postId: np.postId } })),
+    "댓글 받으면 알림 생성"
+  );
+  assert((await unreadCount(a.id)) > 0, "안 읽은 알림 카운트 > 0");
+  await markAllRead(a.id);
+  assert((await unreadCount(a.id)) === 0, "전체 읽음 처리 후 0");
+
+  const kq = await searchPosts({ q: "알림테스트" });
+  assert(kq.some((p) => p.id === np.postId), "키워드 검색으로 가게 이름 매칭");
+  const kq2 = await searchPosts({ q: "존재하지않는가게명xyz" });
+  assert(!kq2.some((p) => p.id === np.postId), "없는 키워드는 결과 없음");
 
   console.log("\n[10] 장소 검색 — 주소 → 17개 시도 매핑");
   assert(regionFromAddress("서울특별시 중구 명동") === "서울", "서울특별시→서울");

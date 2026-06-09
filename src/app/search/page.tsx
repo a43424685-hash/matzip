@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveRegions, getActiveCategories, groupCategoriesByType } from "@/server/catalog";
 import {
@@ -44,6 +45,7 @@ export default async function SearchPage({
   const priceRange = (sp.priceRange as string) || "";
   const sort = ((sp.sort as string) || "latest") as SortKey;
   const categoryIds = asArray(sp.categoryIds);
+  const q = (sp.q as string) || "";
 
   const [user, regions, categories] = await Promise.all([
     getCurrentUser(),
@@ -68,6 +70,7 @@ export default async function SearchPage({
     priceRange: priceRange || null,
     categoryIds,
     sort,
+    q,
     excludeUserIds: await getBlockedIds(user?.id ?? null),
   });
   const { likedPosts, savedRestaurants } = await getViewerReactions(
@@ -82,6 +85,18 @@ export default async function SearchPage({
       <p className="mb-4 text-[13px] text-ink-muted">지역과 상황으로 가고 싶은 맛집을 찾아보세요.</p>
 
       <form method="get" className="space-y-4">
+        {/* 가게 이름 키워드 검색 */}
+        <div className="relative">
+          <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="가게 이름으로 검색"
+            className="input h-12 !pl-10"
+            autoComplete="off"
+          />
+        </div>
+
         {/* 추천 태그 — 핵심 카테고리 우선 */}
         <div className="flex flex-wrap gap-2">
           {recommended.map((c) => (

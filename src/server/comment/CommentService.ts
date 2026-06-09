@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/db";
 import { ABUSE_LIMITS } from "../xp/xpRules";
 import { getBlockedIds } from "../block/BlockService";
+import { createNotification } from "../notification/NotificationService";
 
 function startOfToday(): Date {
   const d = new Date();
@@ -44,17 +45,19 @@ export async function addComment(
 
   const post = await prisma.restaurantPost.findUnique({
     where: { id: postId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
   if (!post) throw new Error("POST_NOT_FOUND");
 
   // 대댓글이면 부모가 같은 글의 댓글인지만 검증 (깊이 제한 없음 — 무한 대댓글)
+  let parentAuthorId: string | null = null;
   if (parentId) {
     const parent = await prisma.comment.findUnique({
       where: { id: parentId },
-      select: { postId: true },
+      select: { postId: true, userId: true },
     });
     if (!parent || parent.postId !== postId) throw new Error("BAD_PARENT");
+    parentAuthorId = parent.userId;
   }
 
   // 도배 방지: 하루 상한
@@ -80,6 +83,25 @@ export async function addComment(
       where: { id: postId },
       data: { commentCount: { increment: 1 } },
     });
+
+    // 알림: 글 작성자에게 (셀프 제외는 서비스 내부 처리)
+    await createNotification(tx, {
+      userId: post.userId,
+      actorUserId: userId,
+      type: "comment",
+      postId,
+      commentId: c.id,
+    });
+    // 답글이면 부모 댓글 작성자에게도 (글 작성자와 다를 때만 — 중복 방지)
+    if (parentAuthorId && parentAuthorId !== post.userId) {
+      await createNotification(tx, {
+        userId: parentAuthorId,
+        actorUserId: userId,
+        type: "reply",
+        postId,
+        commentId: c.id,
+      });
+    }
     return { id: c.id };
   });
 }
