@@ -9,9 +9,10 @@ import {
   Trophy,
   ListChecks,
   Play,
+  Coins,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getHomeData, type HomeCollection } from "@/server/home";
+import { getHomeData, type HomeCollection, type PaidMapCard } from "@/server/home";
 import { unreadCount } from "@/server/notification/NotificationService";
 import type { PostCard } from "@/server/restaurant/RestaurantService";
 import type { UserRankRow } from "@/server/ranking/RankingService";
@@ -35,7 +36,7 @@ function formatPostDate(value: Date | string) {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const { weekly, verified, collections, topUsers, categories } = await getHomeData(user?.id);
+  const { weekly, verified, collections, paidMaps, topUsers, categories } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
@@ -146,6 +147,29 @@ export default async function HomePage() {
         <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">
           {collections.map((c) => (
             <CollectionCard key={c.id} c={c} />
+          ))}
+        </div>
+      )}
+
+      {/* 섹션 4-2. 유료 맛집 지도 (스토어) */}
+      <SectionHead title="유료 맛집 지도" sub="검증된 미식가의 맛집 묶음 · 990원부터" href="/store" />
+      {paidMaps.length === 0 ? (
+        <Link
+          href="/store"
+          className="mx-5 flex items-center justify-between rounded-2xl border border-forest/20 bg-forest-soft/25 p-4"
+        >
+          <div>
+            <div className="flex items-center gap-1.5 text-sm font-extrabold text-ink">
+              <Coins size={16} className="text-forest" /> 맛집 지도 상품
+            </div>
+            <p className="mt-0.5 text-[13px] text-ink-muted">검증된 맛집 목록을 990원~9,900원에 만나보세요.</p>
+          </div>
+          <span className="shrink-0 rounded-lg bg-forest px-3 py-1.5 text-[13px] font-bold text-white">990원~</span>
+        </Link>
+      ) : (
+        <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">
+          {paidMaps.map((m) => (
+            <PaidMapCardView key={m.id} m={m} />
           ))}
         </div>
       )}
@@ -339,6 +363,34 @@ function CollectionCard({ c }: { c: HomeCollection }) {
       {c.previewNames.length > 0 && (
         <div className="mt-0.5 truncate text-[11px] text-stone-400">{c.previewNames.join(" · ")}</div>
       )}
+    </Link>
+  );
+}
+
+function PaidMapCardView({ m }: { m: PaidMapCard }) {
+  return (
+    <Link
+      href={`/collections/${m.id}`}
+      className="flex h-[214px] w-[220px] shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-2"
+    >
+      <div className="relative h-[124px] overflow-hidden rounded-xl bg-stone-100">
+        {m.coverUrl ? (
+          <CardImage src={m.coverUrl} alt={m.title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-forest/30">
+            <Coins size={30} />
+          </div>
+        )}
+        <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-coral px-2 py-0.5 text-[11px] font-extrabold text-white">
+          <Coins size={11} /> {m.priceWon.toLocaleString()}원
+        </span>
+        <span className="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-bold text-white">
+          {m.itemCount}곳
+        </span>
+      </div>
+      <div className="mt-2 line-clamp-2 min-h-[36px] text-sm font-bold leading-tight text-ink">{m.title}</div>
+      <div className="truncate text-[12px] text-stone-400">{m.regionName} · {m.authorNickname}</div>
+      <div className="mt-auto text-[13px] font-black text-forest">{m.priceWon.toLocaleString()}원</div>
     </Link>
   );
 }

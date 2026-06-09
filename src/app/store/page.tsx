@@ -83,7 +83,7 @@ export default async function StorePage() {
         )}
 
         <p className="mt-6 text-[12px] leading-relaxed text-stone-400">
-          본 상품은 디지털 콘텐츠로, 구매 후 콘텐츠를 열람하면 청약철회가 제한될 수 있습니다. 자세한 내용은{" "}
+          본 상품은 디지털 콘텐츠로, 구매 즉시 콘텐츠 전체가 공개되며 공개 후에는 청약철회가 제한될 수 있습니다. 자세한 내용은{" "}
           <Link href="/refund" className="font-semibold text-forest underline">환불·취소정책</Link>을 확인해 주세요.
         </p>
       </div>

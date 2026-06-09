@@ -65,9 +65,61 @@ export async function getPublicCollections(
   }));
 }
 
+export interface PaidMapCard {
+  id: string;
+  title: string;
+  priceWon: number;
+  regionName: string;
+  authorNickname: string;
+  itemCount: number;
+  coverUrl: string | null;
+}
+
+/** 판매 중인 유료 맛집 지도 (홈 스토어 섹션 + 가격 노출용) */
+export async function getPaidMaps(
+  limit: number,
+  excludeUserIds: string[] = []
+): Promise<PaidMapCard[]> {
+  const cols = await prisma.collection.findMany({
+    where: {
+      isPaid: true,
+      isPublic: true,
+      items: { some: {} },
+      user: { deactivatedAt: null },
+      ...(excludeUserIds.length > 0 ? { userId: { notIn: excludeUserIds } } : {}),
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      title: true,
+      priceWon: true,
+      region: { select: { name: true } },
+      user: { select: { nickname: true } },
+      _count: { select: { items: true } },
+      items: {
+        orderBy: { sortOrder: "asc" },
+        take: 1,
+        select: {
+          post: { select: { media: { where: { type: "image" }, take: 1, select: { url: true, thumbnailUrl: true } } } },
+        },
+      },
+    },
+  });
+  return cols.map((c) => ({
+    id: c.id,
+    title: c.title,
+    priceWon: c.priceWon ?? 0,
+    regionName: c.region.name,
+    authorNickname: c.user.nickname,
+    itemCount: c._count.items,
+    coverUrl: c.items[0]?.post?.media[0]?.thumbnailUrl ?? c.items[0]?.post?.media[0]?.url ?? null,
+  }));
+}
+
 export async function getHomeData(viewerId?: string | null) {
   const blockedIds = await getBlockedIds(viewerId ?? null);
-  const [weekly, verified, collections, topUsers, categories] = await Promise.all([
+  const [weekly, verified, collections, paidMaps, topUsers, categories] = await Promise.all([
     searchPosts({ sort: "weekly", limit: 8, excludeUserIds: blockedIds }),
     prisma.restaurantPost
       .findMany({
@@ -82,6 +134,7 @@ export async function getHomeData(viewerId?: string | null) {
       })
       .then((rows) => rows.map(toPostCard)),
     getPublicCollections(8, blockedIds),
+    getPaidMaps(8, blockedIds),
     getOverallUserRankingCached(5),
     getActiveCategories(),
   ]);
@@ -89,6 +142,7 @@ export async function getHomeData(viewerId?: string | null) {
     weekly: weekly as PostCard[],
     verified,
     collections,
+    paidMaps,
     // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
     topUsers: blockedIds.length > 0 ? topUsers.filter((u) => !blockedIds.includes(u.userId)) : topUsers,
     categories,
