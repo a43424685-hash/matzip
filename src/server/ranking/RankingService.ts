@@ -126,6 +126,25 @@ export async function getMyOverallRank(userId: string): Promise<number> {
   return ahead + 1;
 }
 
+/** 내 특정 지역 순위 (없으면 0). */
+export async function getMyRegionRank(userId: string, regionId: string): Promise<number> {
+  const me = await prisma.userRegionStat.findUnique({
+    where: { userId_regionId: { userId, regionId } },
+    select: { regionLevel: true, regionXp: true },
+  });
+  if (!me) return 0;
+  const ahead = await prisma.userRegionStat.count({
+    where: {
+      regionId,
+      OR: [
+        { regionLevel: { gt: me.regionLevel } },
+        { regionLevel: me.regionLevel, regionXp: { gt: me.regionXp } },
+      ],
+    },
+  });
+  return ahead + 1;
+}
+
 // ─────────────────────────────────────────────────────────────
 // 2) 지역 랭킹
 // ─────────────────────────────────────────────────────────────
