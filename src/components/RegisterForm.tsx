@@ -28,6 +28,11 @@ interface PlaceResult {
   alreadyRegistered?: boolean;
 }
 
+interface UploadedImage {
+  url: string;
+  thumbnailUrl: string;
+}
+
 // 추천 태그 우선 노출 순서
 const CAT_PRIORITY = [
   "야장", "노포", "가성비", "데이트", "비 오는 날", "혼밥", "분위기",
@@ -46,8 +51,7 @@ export default function RegisterForm({
     undefined
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageThumb, setImageThumb] = useState("");
+  const [images, setImages] = useState<UploadedImage[]>([]);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
@@ -72,14 +76,18 @@ export default function RegisterForm({
     }
   }
 
-  async function onPickImage(file: File | undefined) {
-    if (!file) return;
+  async function onPickImages(files: FileList | null) {
+    const pickedFiles = Array.from(files ?? []).slice(0, Math.max(0, 5 - images.length));
+    if (pickedFiles.length === 0) return;
     setUploadingImg(true);
     setUploadErr("");
     try {
-      const { url, thumbnailUrl } = await uploadImage(file, "post");
-      setImageUrl(url);
-      setImageThumb(thumbnailUrl ?? url);
+      const uploaded: UploadedImage[] = [];
+      for (const file of pickedFiles) {
+        const { url, thumbnailUrl } = await uploadImage(file, "post");
+        uploaded.push({ url, thumbnailUrl: thumbnailUrl ?? url });
+      }
+      setImages((prev) => [...prev, ...uploaded].slice(0, 5));
     } catch {
       setUploadErr("사진 업로드에 실패했어요. 다시 시도해주세요.");
     } finally {
@@ -89,6 +97,7 @@ export default function RegisterForm({
   const [shortReview, setShortReview] = useState("");
   const [content, setContent] = useState("");
   const [priceRange, setPriceRange] = useState("");
+  const [priceMemo, setPriceMemo] = useState("");
   const [revisitIntent, setRevisitIntent] = useState("");
   const [waitingLevel, setWaitingLevel] = useState("");
   // 장소 검색 / 좌표
@@ -165,9 +174,11 @@ export default function RegisterForm({
   }, [categoryGroups]);
 
   // 위치 인증 시 받을 XP (등록 자체는 0 — 현장에서 위치 인증해야 아래 기록 XP가 한꺼번에 들어옴)
-  // 사진/영수증/메뉴판 XP는 인증 후 현장 카메라 촬영 시 별도로 들어와서 여기엔 포함 안 함.
+  // 등록 사진/영상 XP는 위치 인증 성공 시 보류분이 함께 지급된다.
   const verifyXp = useMemo(() => {
     let xp = XP_AMOUNT.location_verified + XP_AMOUNT.post_created; // 위치인증 150 + 기본기록 50
+    if (images.length > 0) xp += XP_AMOUNT.photo_added;
+    if (videoUrl) xp += XP_AMOUNT.video_added;
     if (shortReview.trim()) xp += XP_AMOUNT.short_review;
     if (content.trim()) xp += XP_AMOUNT.detail_review;
     if (selected.size >= 3) xp += XP_AMOUNT.categories;
@@ -175,7 +186,7 @@ export default function RegisterForm({
     if (waitingLevel) xp += XP_AMOUNT.waiting;
     if (revisitIntent) xp += XP_AMOUNT.revisit;
     return xp;
-  }, [shortReview, content, selected, priceRange, waitingLevel, revisitIntent]);
+  }, [shortReview, content, selected, priceRange, waitingLevel, revisitIntent, images.length, videoUrl]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -433,41 +444,56 @@ export default function RegisterForm({
       <div className="space-y-4">
         <div className="rounded-2xl bg-stone-50 p-4">
           <p className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted">
-            <Camera size={15} /> 대표 사진·영상 (선택)
+            <Camera size={15} /> 맛집 사진·영상 (선택)
           </p>
           <p className="mb-3 text-[11px] text-stone-400">
-            <b className="text-forest">대표 사진을 추가하면 홈과 검색에서 더 잘 보여요.</b> 음식·영수증·메뉴판 <b>인증</b>은 등록 후 현장에서 카메라로 찍어 올려요.
+            최대 5장까지 등록 가능해요. <b className="text-forest">첫 번째 사진이 대표사진</b>입니다.
+            음식 사진, 가게 전경, 건물 외관, 메뉴판처럼 나중에 다시 찾기 쉬운 사진을 올려주세요.
           </p>
-          {/* 대표 사진 — 파일 선택 업로드(스토리지). 사진첩/카메라 모두 가능 */}
-          {imageUrl ? (
-            <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imageThumb || imageUrl} alt="대표 사진" className="h-16 w-16 rounded-xl object-cover" />
-              <button
-                type="button"
-                onClick={() => { setImageUrl(""); setImageThumb(""); }}
-                className="text-sm font-semibold text-coral-dark"
-              >
-                사진 변경/삭제
-              </button>
+          {images.length > 0 && (
+            <div className="mb-3 flex gap-2 overflow-x-auto">
+              {images.map((img, index) => (
+                <div key={img.url} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.thumbnailUrl || img.url} alt={`맛집 사진 ${index + 1}`} className="h-full w-full object-cover" />
+                  {index === 0 && (
+                    <span className="absolute left-1 top-1 rounded-full bg-forest px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      대표
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setImages((prev) => prev.filter((_, i) => i !== index))}
+                    className="absolute bottom-1 right-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                    aria-label="사진 삭제"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
             </div>
-          ) : (
+          )}
+          {images.length < 5 && (
             <label className="flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold text-ink active:scale-[0.99]">
               <Camera size={16} className="text-forest" />
-              {uploadingImg ? "업로드 중…" : "대표 사진 추가"}
+              {uploadingImg ? "업로드 중…" : images.length === 0 ? "사진 추가" : `사진 더 추가 (${images.length}/5)`}
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 disabled={uploadingImg}
-                onChange={(e) => onPickImage(e.target.files?.[0])}
+                onChange={(e) => onPickImages(e.target.files)}
                 className="hidden"
               />
             </label>
           )}
           {uploadErr && <p className="mt-1 text-[12px] text-coral-dark">{uploadErr}</p>}
-          {/* 제출용 hidden (스토리지 URL) */}
-          <input type="hidden" name="imageUrl" value={imageUrl} />
-          <input type="hidden" name="imageThumbUrl" value={imageThumb} />
+          {images.map((img, index) => (
+            <input key={`${img.url}-${index}`} type="hidden" name="imageUrls" value={img.url} />
+          ))}
+          {images.map((img, index) => (
+            <input key={`${img.thumbnailUrl}-${index}`} type="hidden" name="imageThumbUrls" value={img.thumbnailUrl} />
+          ))}
 
           {/* 영상 — 앨범에서 선택 (최대 60초·50MB), 첫 프레임을 자동 썸네일로 */}
           {videoUrl ? (
@@ -508,6 +534,12 @@ export default function RegisterForm({
                 onChange={(e) => onPickVideo(e.target.files?.[0])}
                 className="hidden"
               />
+            </label>
+          )}
+          {videoUrl && (
+            <label className="mt-2 flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm font-semibold text-ink">
+              소리 없이 올리기
+              <input type="checkbox" name="videoMuted" className="h-4 w-4 accent-forest" />
             </label>
           )}
           {videoErr && <p className="mt-1 text-[12px] text-coral-dark">{videoErr}</p>}
@@ -551,6 +583,18 @@ export default function RegisterForm({
             />
           </div>
           <SelectField name="priceRange" label="가격대" hint="+10 XP" options={PRICE_RANGES} value={priceRange} onChange={setPriceRange} />
+          {priceRange === "over_200k" && (
+            <div>
+              <label className="label">20만원 이상 금액 직접 입력</label>
+              <input
+                value={priceMemo}
+                onChange={(e) => setPriceMemo(e.target.value)}
+                name="priceMemo"
+                className="input h-12"
+                placeholder="예) 1인 25만원 코스, 2인 48만원"
+              />
+            </div>
+          )}
           <SelectField name="revisitIntent" label="재방문 의사" hint="+10 XP" options={REVISIT_INTENTS} value={revisitIntent} onChange={setRevisitIntent} />
           <SelectField name="waitingLevel" label="웨이팅" hint="+10 XP" options={WAITING_LEVELS} value={waitingLevel} onChange={setWaitingLevel} />
         </div>
@@ -565,7 +609,7 @@ export default function RegisterForm({
           <span className="text-lg font-extrabold tabular-nums text-coral">+{verifyXp} XP</span>
         </div>
         <p className="mb-2 text-[11px] text-stone-400">
-          등록만으론 XP 0 · 현장에서 <b>위치 인증</b>하면 위 XP가 한꺼번에 들어와요 (영수증·메뉴판까지 하면 더!)
+          등록만으론 XP 0 · 현장에서 <b>위치 인증</b>하면 위 XP가 한꺼번에 들어와요.
         </p>
         <button
           type="submit"

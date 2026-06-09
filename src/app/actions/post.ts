@@ -13,6 +13,7 @@ const schema = z.object({
   shortReview: z.string().optional(),
   content: z.string().optional(),
   priceRange: z.string().optional(),
+  priceMemo: z.string().optional(),
   revisitIntent: z.string().optional(),
   waitingLevel: z.string().optional(),
   address: z.string().optional(),
@@ -21,9 +22,12 @@ const schema = z.object({
   kakaoPlaceId: z.string().optional(),
   imageUrl: z.string().optional(),
   imageThumbUrl: z.string().optional(),
+  imageUrls: z.array(z.string()).optional(),
+  imageThumbUrls: z.array(z.string()).optional(),
   videoUrl: z.string().optional(),
   videoThumbUrl: z.string().optional(),
   videoDuration: z.string().optional(),
+  videoMuted: z.string().optional(),
 });
 
 function parseCoord(v?: string): number | null {
@@ -48,6 +52,7 @@ export async function registerPostAction(
     shortReview: formData.get("shortReview") || undefined,
     content: formData.get("content") || undefined,
     priceRange: formData.get("priceRange") || undefined,
+    priceMemo: formData.get("priceMemo") || undefined,
     revisitIntent: formData.get("revisitIntent") || undefined,
     waitingLevel: formData.get("waitingLevel") || undefined,
     address: formData.get("address") || undefined,
@@ -56,26 +61,41 @@ export async function registerPostAction(
     kakaoPlaceId: formData.get("kakaoPlaceId") || undefined,
     imageUrl: formData.get("imageUrl") || undefined,
     imageThumbUrl: formData.get("imageThumbUrl") || undefined,
+    imageUrls: formData.getAll("imageUrls").map(String),
+    imageThumbUrls: formData.getAll("imageThumbUrls").map(String),
     videoUrl: formData.get("videoUrl") || undefined,
     videoThumbUrl: formData.get("videoThumbUrl") || undefined,
     videoDuration: formData.get("videoDuration") || undefined,
+    videoMuted: formData.get("videoMuted") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.errors[0].message };
   const d = parsed.data;
 
   const media = [];
-  if (d.imageUrl?.trim())
+  const imageUrls = d.imageUrls?.filter((url) => url.trim()) ?? [];
+  const imageThumbUrls = d.imageThumbUrls ?? [];
+  if (imageUrls.length > 0) {
+    imageUrls.slice(0, 5).forEach((url, index) => {
+      media.push({
+        type: "image" as const,
+        url: url.trim(),
+        thumbnailUrl: imageThumbUrls[index]?.trim() || url.trim(),
+      });
+    });
+  } else if (d.imageUrl?.trim()) {
     media.push({
       type: "image" as const,
       url: d.imageUrl.trim(),
       thumbnailUrl: d.imageThumbUrl?.trim() || null,
     });
+  }
   if (d.videoUrl?.trim())
     media.push({
       type: "video" as const,
       url: d.videoUrl.trim(),
       thumbnailUrl: d.videoThumbUrl?.trim() || null,
       duration: d.videoDuration ? Number(d.videoDuration) || null : null,
+      muted: d.videoMuted === "on",
     });
 
   let result;
@@ -91,6 +111,7 @@ export async function registerPostAction(
       shortReview: d.shortReview ?? null,
       content: d.content ?? null,
       priceRange: (d.priceRange as never) || null,
+      priceMemo: d.priceMemo ?? null,
       revisitIntent: (d.revisitIntent as never) || null,
       waitingLevel: (d.waitingLevel as never) || null,
       categoryIds: d.categoryIds,

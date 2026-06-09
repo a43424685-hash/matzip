@@ -56,10 +56,9 @@ async function fileToResizedDataUrl(file: File, maxDim = 1024, quality = 0.6): P
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-type PhotoKind = "photo" | "receipt" | "menu";
+type PhotoKind = "receipt" | "menu";
 
 const PHOTO_ROWS: { kind: PhotoKind; label: string; Icon: LucideIcon; xp: number; hint: string }[] = [
-  { kind: "photo", label: "음식·현장 사진", Icon: Camera, xp: 50, hint: "음식이나 가게 현장을 찍어주세요" },
   { kind: "receipt", label: "영수증", Icon: Receipt, xp: 100, hint: "가게명·날짜가 보이게 영수증을 찍어주세요" },
   { kind: "menu", label: "메뉴판", Icon: BookOpen, xp: 40, hint: "메뉴판이 보이게 찍어주세요" },
 ];
@@ -99,7 +98,6 @@ export default function VerifyPanel({
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [previews, setPreviews] = useState<Record<PhotoKind, string | null>>({
-    photo: null,
     receipt: null,
     menu: null,
   });
@@ -181,7 +179,6 @@ export default function VerifyPanel({
   }
 
   const PROOF_LABEL: Record<PhotoKind, string> = {
-    photo: "음식·현장 사진",
     receipt: "영수증",
     menu: "메뉴판",
   };
@@ -286,7 +283,7 @@ export default function VerifyPanel({
           )}
         </div>
 
-        {/* 증거 인증 — 현장 카메라 촬영만, 위치 인증 후에만 활성 */}
+        {/* 추가 증거 — 현장 카메라 촬영만, 위치 인증 후에만 활성 */}
         {PHOTO_ROWS.map(({ kind, label, Icon, xp, hint }) => (
           <div key={kind} className="py-3">
             <div className="mb-2 flex items-center justify-between">
@@ -332,12 +329,12 @@ export default function VerifyPanel({
 
       {!locVerified && (
         <p className="mt-2 text-[12px] font-medium text-stone-500">
-          📷 사진 인증은 <b>위치 인증 후</b> 현장에서 카메라로 촬영해야 해요. (사진첩 업로드 불가 — 엉뚱한 사진 방지)
+          음식·가게 전경 사진은 등록 사진으로 올려주세요. 별도 음식 사진 인증은 사용하지 않아요.
         </p>
       )}
 
       <p className="mt-2 text-[11px] text-stone-400">
-        영수증은 가게명·날짜를 AI가 확인해요. 음식·메뉴판은 현장 카메라+위치로 인정. 4종 모두 인증 시 +150 보너스.
+        영수증은 가게명·날짜를 AI가 확인해요. 메뉴판은 위치 인증 후 현장 카메라로만 첨부합니다.
       </p>
       {msg && <p className="mt-1.5 text-[13px] font-medium text-forest">{msg}</p>}
     </section>

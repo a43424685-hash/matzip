@@ -7,6 +7,11 @@ import CardImage from "./CardImage";
 import VerificationBadges from "./VerificationBadges";
 import { isVerified } from "@/lib/verification";
 
+function formatPostDate(value: Date | string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export default function PostCard({
   post,
   liked,
@@ -130,6 +135,7 @@ function Footer({
       <span className="flex items-center gap-1.5 text-xs text-stone-400">
         <span className="badge-lv">Lv.{post.authorLevel}</span>
         {post.authorNickname}
+        <span>· {formatPostDate(post.createdAt)} 등록</span>
       </span>
       <LikeSaveButtons
         postId={post.id}

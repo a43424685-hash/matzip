@@ -19,6 +19,7 @@ export interface MediaInput {
   url: string;
   thumbnailUrl?: string | null;
   duration?: number | null;
+  muted?: boolean;
 }
 
 export interface CreatePostInput {
@@ -32,7 +33,8 @@ export interface CreatePostInput {
   shortReview?: string | null;
   content?: string | null;
   revisitIntent?: "yes" | "maybe" | "no" | null;
-  priceRange?: "under_10k" | "10k_20k" | "20k_40k" | "over_40k" | null;
+  priceRange?: string | null;
+  priceMemo?: string | null;
   waitingLevel?: "none" | "short" | "long" | null;
   categoryIds: string[];
   media: MediaInput[];
@@ -113,6 +115,7 @@ export async function createRestaurantPost(
         content: input.content?.trim() || null,
         revisitIntent: input.revisitIntent ?? null,
         priceRange: input.priceRange ?? null,
+        priceMemo: input.priceMemo?.trim() || null,
         waitingLevel: input.waitingLevel ?? null,
       },
       select: { id: true },
@@ -127,6 +130,7 @@ export async function createRestaurantPost(
           url: m.url,
           thumbnailUrl: m.thumbnailUrl ?? null,
           duration: m.duration ?? null,
+          muted: m.type === "video" ? !!m.muted : false,
           sortOrder: i,
         })),
       });
@@ -491,6 +495,7 @@ export const postCardSelect = {
   id: true,
   shortReview: true,
   priceRange: true,
+  priceMemo: true,
   likeCount: true,
   saveCount: true,
   createdAt: true,
@@ -502,7 +507,7 @@ export const postCardSelect = {
     select: { id: true, name: true, primaryRegion: { select: { id: true, name: true } } },
   },
   user: { select: { id: true, nickname: true, totalLevel: true } },
-  media: { select: { type: true, url: true, thumbnailUrl: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
+  media: { select: { type: true, url: true, thumbnailUrl: true, muted: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
   categories: { select: { category: { select: { name: true } } } },
 } as const;
 
@@ -517,6 +522,7 @@ export function toPostCard(p: NonNullable<PostRow>) {
     id: p.id,
     shortReview: p.shortReview,
     priceRange: p.priceRange,
+    priceMemo: p.priceMemo,
     likeCount: p.likeCount,
     saveCount: p.saveCount,
     createdAt: p.createdAt,

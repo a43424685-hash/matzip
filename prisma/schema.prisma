@@ -182,6 +182,7 @@ model RestaurantPost {
   revisitIntent String?
   // priceRange: under_10k | 10k_20k | 20k_40k | over_40k | (null)
   priceRange   String?
+  priceMemo    String? // 20만원 이상 등 직접 입력 가격 메모
   // waitingLevel: none | short | long | (null)
   waitingLevel String?
   likeCount    Int      @default(0)
@@ -238,6 +239,7 @@ model Media {
   url          String
   thumbnailUrl String?
   duration     Int? // video 길이(초)
+  muted        Boolean  @default(false) // video 업로드 시 소리 제거/무음 표시 의도
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
 

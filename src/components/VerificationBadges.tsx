@@ -1,4 +1,4 @@
-import { MapPin, Camera, Receipt, BookOpen, type LucideIcon } from "lucide-react";
+import { MapPin, Receipt, BookOpen, type LucideIcon } from "lucide-react";
 import {
   VERIFICATION_KEYS,
   VERIFICATION_LABEL,
@@ -7,7 +7,6 @@ import {
 
 const ICON: Record<string, LucideIcon> = {
   location: MapPin,
-  photo: Camera,
   receipt: Receipt,
   menu: BookOpen,
 };
@@ -26,7 +25,7 @@ export default function VerificationBadges({
   compact?: boolean;
   showUnverified?: boolean;
 }) {
-  const keys = VERIFICATION_KEYS.filter((k) => v[k]);
+  const keys = VERIFICATION_KEYS.filter((k) => k !== "photo" && v[k]);
 
   if (keys.length === 0) {
     return showUnverified ? (

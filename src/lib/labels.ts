@@ -3,8 +3,14 @@
 export const PRICE_RANGES: { value: string; label: string }[] = [
   { value: "under_10k", label: "1만원 이하" },
   { value: "10k_20k", label: "1~2만원" },
-  { value: "20k_40k", label: "2~4만원" },
-  { value: "over_40k", label: "4만원 이상" },
+  { value: "20k_30k", label: "2~3만원" },
+  { value: "30k_40k", label: "3~4만원" },
+  { value: "40k_50k", label: "4~5만원" },
+  { value: "50k_70k", label: "5~7만원" },
+  { value: "70k_100k", label: "7~10만원" },
+  { value: "100k_150k", label: "10~15만원" },
+  { value: "150k_200k", label: "15~20만원" },
+  { value: "over_200k", label: "20만원 이상 직접입력" },
 ];
 
 export const REVISIT_INTENTS: { value: string; label: string }[] = [

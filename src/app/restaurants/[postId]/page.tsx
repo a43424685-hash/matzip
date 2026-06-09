@@ -20,6 +20,10 @@ import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
+function formatPostDate(value: Date) {
+  return `${value.getFullYear()}.${String(value.getMonth() + 1).padStart(2, "0")}.${String(value.getDate()).padStart(2, "0")}`;
+}
+
 export default async function PostDetailPage({
   params,
 }: {
@@ -36,6 +40,7 @@ export default async function PostDetailPage({
       shortReview: true,
       content: true,
       priceRange: true,
+      priceMemo: true,
       waitingLevel: true,
       revisitIntent: true,
       likeCount: true,
@@ -66,7 +71,7 @@ export default async function PostDetailPage({
           },
         },
       },
-      media: { orderBy: { sortOrder: "asc" }, select: { type: true, url: true, thumbnailUrl: true } },
+      media: { orderBy: { sortOrder: "asc" }, select: { type: true, url: true, thumbnailUrl: true, muted: true } },
       categories: { select: { category: { select: { name: true } } } },
     },
   });
@@ -128,6 +133,7 @@ export default async function PostDetailPage({
                   poster={m.thumbnailUrl ?? undefined}
                   controls
                   playsInline
+                  muted={m.muted}
                   className="aspect-[4/3] w-full shrink-0 snap-center object-cover"
                 />
               ) : (
@@ -150,6 +156,7 @@ export default async function PostDetailPage({
             <h1 className="text-2xl font-extrabold">{post.restaurant.name}</h1>
             <span className="text-sm text-neutral-400">{post.restaurant.primaryRegion.name}</span>
           </div>
+          <p className="mt-1 text-[13px] text-stone-400">{formatPostDate(post.createdAt)} 등록</p>
         </header>
 
         {/* 지도 — 좌표가 있을 때만 */}
@@ -195,7 +202,7 @@ export default async function PostDetailPage({
 
         {/* 메타 */}
         <div className="grid grid-cols-3 gap-2 text-center">
-          <Meta label="가격대" value={priceLabel(post.priceRange) || "-"} />
+          <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
           <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
           <Meta label="재방문" value={revisitLabel(post.revisitIntent) || "-"} />
         </div>
