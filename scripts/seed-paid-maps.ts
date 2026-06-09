@@ -12,6 +12,20 @@ import { createRestaurantPost } from "../src/server/restaurant/RestaurantService
 const OPERATOR_EMAIL = "zzllaa7788@daum.net";
 const IMG = "/sample-food.svg";
 
+// 지역별 중심 좌표 — 핀이 한 점에 겹치지 않게 가게마다 살짝 흩뿌린다.
+const REGION_BASE: Record<string, { lat: number; lng: number }> = {
+  서울: { lat: 37.5665, lng: 126.978 },
+  부산: { lat: 35.1796, lng: 129.0756 },
+};
+function spreadCoord(region: string, idx: number) {
+  const base = REGION_BASE[region] ?? REGION_BASE["서울"];
+  // 인덱스마다 격자처럼 흩뿌림 (대략 0.6~1.2km 간격)
+  return {
+    latitude: base.lat + ((idx % 3) - 1) * 0.008 + Math.floor(idx / 3) * 0.006,
+    longitude: base.lng + (((idx + 1) % 3) - 1) * 0.009,
+  };
+}
+
 interface SeedMap {
   title: string;
   description: string;
@@ -84,8 +98,10 @@ async function main() {
     }
 
     const items: { restaurantId: string; postId: string }[] = [];
+    let idx = 0;
     for (const r of m.restaurants) {
       const categoryIds = r.cats.map(catId).filter((x): x is string => !!x);
+      const { latitude, longitude } = spreadCoord(m.region, idx++);
       const res = await createRestaurantPost({
         userId: op.id,
         name: r.name,
@@ -94,8 +110,8 @@ async function main() {
         content: `${r.name} — ${r.review}`,
         priceRange: "10k_20k",
         revisitIntent: "yes",
-        latitude: 37.5665,
-        longitude: 126.978,
+        latitude,
+        longitude,
         categoryIds,
         media: [{ type: "image", url: IMG }],
       });

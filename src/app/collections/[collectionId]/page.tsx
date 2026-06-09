@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Share2, MapPin, Store, Lock, Coins } from "lucide-react";
+import { Share2, MapPin, Lock, Coins } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getCollectionDetail, canSellPaidMaps } from "@/server/collection/CollectionService";
 import { getBlockedIds } from "@/server/block/BlockService";
-import CardImage from "@/components/CardImage";
-import VerificationBadges from "@/components/VerificationBadges";
 import PaidMapToggle from "@/components/PaidMapToggle";
 import PurchaseMapButton from "@/components/PurchaseMapButton";
+import PaidMapViewer from "@/components/PaidMapViewer";
 
 export const dynamic = "force-dynamic";
 
@@ -121,61 +120,24 @@ export default async function CollectionDetailPage({
               </div>
             </div>
           </div>
+        ) : col.items.length === 0 ? (
+          <div className="card mt-5 p-6 text-center text-sm text-ink-muted">
+            아직 담긴 맛집이 없어요.
+            {isOwner && (
+              <span className="mt-1 block text-[13px]">
+                맛집 상세 페이지에서 <b className="text-forest">내 리스트에 담기</b>로 추가하세요.
+              </span>
+            )}
+          </div>
         ) : (
-        /* 맛집 목록 */
-        <div className="mt-5 space-y-3">
-          {col.items.length === 0 ? (
-            <div className="card p-6 text-center text-sm text-ink-muted">
-              아직 담긴 맛집이 없어요.
-              {isOwner && (
-                <span className="mt-1 block text-[13px]">
-                  맛집 상세 페이지에서 <b className="text-forest">내 리스트에 담기</b>로 추가하세요.
-                </span>
-              )}
-            </div>
-          ) : (
-            col.items.map((it, i) => {
-              const href = it.postId ? `/restaurants/${it.postId}` : "#";
-              return (
-                <Link
-                  key={it.restaurantId}
-                  href={href}
-                  className="card flex items-center gap-3 p-3"
-                >
-                  <span className="badge-rank bg-stone-100 text-stone-500">{i + 1}</span>
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
-                    {it.media && it.media.type === "image" ? (
-                      <CardImage
-                        src={it.media.url}
-                        alt={it.restaurantName}
-                        className="h-14 w-14 object-cover"
-                      />
-                    ) : (
-                      <div className="thumb-empty flex h-14 w-14 items-center justify-center text-forest/40">
-                        <Store size={20} strokeWidth={1.7} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-bold text-ink">{it.restaurantName}</div>
-                    <div className="text-[11px] text-stone-400">
-                      {it.regionName}
-                      {it.categories.length > 0 && ` · ${it.categories.slice(0, 2).join(", ")}`}
-                    </div>
-                    {it.shortReview && (
-                      <p className="mt-0.5 line-clamp-1 text-[13px] text-ink-muted">
-                        {it.shortReview}
-                      </p>
-                    )}
-                    <div className="mt-1">
-                      <VerificationBadges v={it.verification} compact />
-                    </div>
-                  </div>
-                </Link>
-              );
-            })
-          )}
-        </div>
+          <PaidMapViewer
+            collectionId={col.id}
+            items={col.items}
+            regionCounts={col.regionCounts}
+            initialVisited={col.visitedIds}
+            initialSaved={col.savedIds}
+            canTrack={!!user}
+          />
         )}
 
         {/* 소유자: 유료 판매 설정 */}

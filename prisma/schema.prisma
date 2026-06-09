@@ -555,10 +555,28 @@ model Collection {
   region Region           @relation(fields: [regionId], references: [id])
   items  CollectionItem[]
   purchases MapPurchase[]
+  visits  CollectionVisit[]
 
   @@index([userId])
   @@index([isPublic])
   @@map("collections")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 지도 방문 도장깨기 — 구매자/소유자가 지도 안의 가게를 가봤는지 체크
+// ─────────────────────────────────────────────────────────────
+model CollectionVisit {
+  id           String   @id @default(cuid())
+  userId       String
+  collectionId String
+  restaurantId String
+  visitedAt    DateTime @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, collectionId, restaurantId])
+  @@index([userId, collectionId])
+  @@map("collection_visits")
 }
 
 // ─────────────────────────────────────────────────────────────

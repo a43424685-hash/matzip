@@ -155,7 +155,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
         orderBy: { sortOrder: "asc" },
         select: {
           restaurant: {
-            select: { id: true, name: true, primaryRegion: { select: { name: true } } },
+            select: { id: true, name: true, latitude: true, longitude: true, primaryRegion: { select: { name: true } } },
           },
           post: {
             select: {
@@ -185,6 +185,27 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
   // 유료인데 소유자도 구매자도 아니면 잠금(미리보기 블러)
   const locked = col.isPaid && !isOwner && !purchased;
 
+  // 접근 가능한 뷰어(소유자/구매자)의 방문·저장 상태 (도장깨기·저장 버튼 초기값)
+  let visitedIds: string[] = [];
+  let savedIds: string[] = [];
+  if (viewerId && !locked) {
+    const restaurantIds = col.items.map((i) => i.restaurant.id);
+    const [visits, saves] = await Promise.all([
+      prisma.collectionVisit.findMany({
+        where: { userId: viewerId, collectionId },
+        select: { restaurantId: true },
+      }),
+      restaurantIds.length > 0
+        ? prisma.save.findMany({
+            where: { userId: viewerId, restaurantId: { in: restaurantIds } },
+            select: { restaurantId: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    visitedIds = visits.map((v) => v.restaurantId);
+    savedIds = saves.map((s) => s.restaurantId);
+  }
+
   // 지역별 맛집 개수 (잠금 상태에서도 보여줄 teaser)
   const regionMap = new Map<string, number>();
   for (const i of col.items) {
@@ -206,6 +227,8 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     purchased,
     locked,
     regionCounts,
+    visitedIds,
+    savedIds,
     ownerId: col.userId,
     ownerNickname: col.user.nickname,
     ownerLevel: col.user.totalLevel,
@@ -217,6 +240,8 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
       : col.items.map((i) => ({
       restaurantId: i.restaurant.id,
       restaurantName: i.restaurant.name,
+      latitude: i.restaurant.latitude,
+      longitude: i.restaurant.longitude,
       regionName: i.restaurant.primaryRegion.name,
       postId: i.post?.id ?? null,
       shortReview: i.post?.shortReview ?? null,
@@ -232,6 +257,49 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
 }
 
 export type CollectionDetail = NonNullable<Awaited<ReturnType<typeof getCollectionDetail>>>;
+
+/** 컬렉션 전체 열람 권한 (소유자이거나, 무료 공개이거나, 유료를 구매한 경우) */
+export async function hasCollectionAccess(userId: string, collectionId: string): Promise<boolean> {
+  const col = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    select: { userId: true, isPaid: true },
+  });
+  if (!col) return false;
+  if (col.userId === userId) return true;
+  if (!col.isPaid) return true;
+  const bought = await prisma.mapPurchase.findUnique({
+    where: { buyerId_collectionId: { buyerId: userId, collectionId } },
+    select: { id: true },
+  });
+  return !!bought;
+}
+
+/** 지도 방문 도장 토글 (열람 권한 있는 가게만) */
+export async function toggleVisit(
+  userId: string,
+  collectionId: string,
+  restaurantId: string,
+  visited: boolean
+): Promise<{ ok: boolean; reason?: string; visited?: boolean }> {
+  if (!(await hasCollectionAccess(userId, collectionId))) return { ok: false, reason: "NO_ACCESS" };
+  // 해당 가게가 이 컬렉션에 실제로 담겨 있는지 확인
+  const item = await prisma.collectionItem.findUnique({
+    where: { collectionId_restaurantId: { collectionId, restaurantId } },
+    select: { id: true },
+  });
+  if (!item) return { ok: false, reason: "NOT_IN_MAP" };
+
+  if (visited) {
+    await prisma.collectionVisit.upsert({
+      where: { userId_collectionId_restaurantId: { userId, collectionId, restaurantId } },
+      create: { userId, collectionId, restaurantId },
+      update: {},
+    });
+  } else {
+    await prisma.collectionVisit.deleteMany({ where: { userId, collectionId, restaurantId } });
+  }
+  return { ok: true, visited };
+}
 
 // ─────────────────────────────────────────────────────────────
 // 유료 지도 판매
