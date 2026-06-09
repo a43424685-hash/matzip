@@ -39,9 +39,12 @@ export default function NearbyMapScreen() {
   const mapBoxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<any[]>([]);
+  const userMarkerRef = useRef<any>(null);
+  const watchIdRef = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
 
   const [center, setCenter] = useState<LatLng>(SEOUL_CENTER);
+  const [userLoc, setUserLoc] = useState<LatLng | null>(null);
   const [items, setItems] = useState<NearbyItem[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -60,6 +63,11 @@ export default function NearbyMapScreen() {
         window.localStorage.removeItem(LAST_LOCATION_KEY);
       }
     }
+    return () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -91,6 +99,21 @@ export default function NearbyMapScreen() {
     if (!kakao || !map) return;
     map.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
   }, [center]);
+
+  useEffect(() => {
+    const kakao = window.kakao;
+    const map = mapRef.current;
+    if (!kakao || !map || !userLoc) return;
+
+    const pos = new kakao.maps.LatLng(userLoc.lat, userLoc.lng);
+    if (userMarkerRef.current) userMarkerRef.current.setMap(null);
+    userMarkerRef.current = new kakao.maps.CustomOverlay({
+      position: pos,
+      yAnchor: 0.5,
+      content: '<div class="nearby-user-marker" aria-label="내 위치"></div>',
+      map,
+    });
+  }, [userLoc]);
 
   useEffect(() => {
     void loadNearby(center);
@@ -147,16 +170,35 @@ export default function NearbyMapScreen() {
     }
   }
 
+  function applyUserLocation(next: LatLng) {
+    window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(next));
+    setUserLoc(next);
+    setCenter(next);
+  }
+
   function locateMe() {
     if (!navigator.geolocation) return;
+
+    if (watchIdRef.current != null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(next));
-        setCenter(next);
+        applyUserLocation(next);
       },
       () => undefined,
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        applyUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => undefined,
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
     );
   }
 
