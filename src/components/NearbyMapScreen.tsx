@@ -196,7 +196,11 @@ export default function NearbyMapScreen() {
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        applyUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        // 추적 갱신은 '내 위치 마커'만 옮긴다. 지도 중심은 건드리지 않아 드래그가 유지됨.
+        // (지도를 내 위치로 다시 맞추려면 '내 위치' 버튼을 누르면 됨)
+        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(next));
+        setUserLoc(next);
       },
       () => undefined,
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }

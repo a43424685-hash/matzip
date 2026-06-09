@@ -79,7 +79,9 @@ async function recent30dXpByUser(
 // ─────────────────────────────────────────────────────────────
 export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[]> {
   // 동점 tie-break(30일 활동)가 50위 경계를 넘나들 수 있어 버퍼를 두고 가져온다
+  // 운영자(admin)는 랭킹에서 제외 (Lv.200 고정·의미 없음)
   const candidates = await prisma.user.findMany({
+    where: { isAdmin: false },
     orderBy: [{ totalLevel: "desc" }, { totalXp: "desc" }, { createdAt: "asc" }],
     take: limit + 20,
     select: { id: true, nickname: true, avatarUrl: true, totalLevel: true, totalXp: true },
@@ -112,11 +114,12 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
 export async function getMyOverallRank(userId: string): Promise<number> {
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    select: { totalLevel: true, totalXp: true },
+    select: { totalLevel: true, totalXp: true, isAdmin: true },
   });
-  if (!me) return 0;
+  if (!me || me.isAdmin) return 0; // 운영자는 랭킹 비대상
   const ahead = await prisma.user.count({
     where: {
+      isAdmin: false,
       OR: [
         { totalLevel: { gt: me.totalLevel } },
         { totalLevel: me.totalLevel, totalXp: { gt: me.totalXp } },
@@ -130,12 +133,13 @@ export async function getMyOverallRank(userId: string): Promise<number> {
 export async function getMyRegionRank(userId: string, regionId: string): Promise<number> {
   const me = await prisma.userRegionStat.findUnique({
     where: { userId_regionId: { userId, regionId } },
-    select: { regionLevel: true, regionXp: true },
+    select: { regionLevel: true, regionXp: true, user: { select: { isAdmin: true } } },
   });
-  if (!me) return 0;
+  if (!me || me.user.isAdmin) return 0; // 운영자는 랭킹 비대상
   const ahead = await prisma.userRegionStat.count({
     where: {
       regionId,
+      user: { isAdmin: false },
       OR: [
         { regionLevel: { gt: me.regionLevel } },
         { regionLevel: me.regionLevel, regionXp: { gt: me.regionXp } },
@@ -153,7 +157,7 @@ export async function getRegionUserRanking(
   limit = TOP_N
 ): Promise<UserRankRow[]> {
   const candidates = await prisma.userRegionStat.findMany({
-    where: { regionId },
+    where: { regionId, user: { isAdmin: false } },
     orderBy: [{ regionLevel: "desc" }, { regionXp: "desc" }, { createdAt: "asc" }],
     take: limit + 20,
     select: {

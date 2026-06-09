@@ -15,6 +15,7 @@ import {
   getOverallUserRanking,
   getRegionUserRanking,
   getWeeklyRestaurantRanking,
+  getMyOverallRank,
   refreshRankingCache,
 } from "../src/server/ranking/RankingService";
 import {
@@ -48,7 +49,7 @@ function startOfTodayDate(): Date {
   return d;
 }
 
-const EMAILS = ["demo_a@test.com", "demo_b@test.com"];
+const EMAILS = ["demo_a@test.com", "demo_b@test.com", "demo_op@test.com"];
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error("ASSERT FAILED: " + msg);
@@ -78,7 +79,6 @@ async function main() {
       passwordHash: pw,
       emailVerifiedAt: new Date(),
       nicknameConfirmedAt: new Date(),
-      isAdmin: true, // 운영자(노출 정책 검증용)
     },
   });
   const b = await prisma.user.create({
@@ -88,6 +88,17 @@ async function main() {
       passwordHash: pw,
       emailVerifiedAt: new Date(),
       nicknameConfirmedAt: new Date(),
+    },
+  });
+  // 운영자(admin) — 노출 정책/랭킹 제외 검증용
+  const op = await prisma.user.create({
+    data: {
+      email: EMAILS[2],
+      nickname: "운영자OP",
+      passwordHash: pw,
+      emailVerifiedAt: new Date(),
+      nicknameConfirmedAt: new Date(),
+      isAdmin: true,
     },
   });
   const seoul = await prisma.region.findUniqueOrThrow({ where: { name: "서울" } });
@@ -224,6 +235,8 @@ async function main() {
   const region = await getRegionUserRanking(seoul.id);
   const weekly = await getWeeklyRestaurantRanking();
   assert(overall.some((r) => r.userId === a.id), "전체 랭킹에 A 등장");
+  assert(!overall.some((r) => r.userId === op.id), "운영자(admin)는 전체 랭킹에서 제외");
+  assert((await getMyOverallRank(op.id)) === 0, "운영자 내 순위는 0(— 표시)");
   assert(region.some((r) => r.userId === a.id), "서울 지역 랭킹에 A 등장");
   assert(weekly.length > 0, `이번 주 인기 맛집 ${weekly.length}곳`);
   console.log("    전체 1위:", overall[0]?.nickname, "Lv." + overall[0]?.level);
@@ -448,16 +461,13 @@ async function main() {
   );
 
   console.log("\n[9f] 차단 — 글/댓글 숨김 + 해제");
-  const blkPost = await createRestaurantPost({
-    userId: a.id, name: "차단테스트집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
-  });
   await addComment(a.id, seoulPost.id, "차단 테스트용 댓글 by A");
   const hasA = (nodes: { user: { id: string }; replies: unknown[] }[]): boolean =>
     nodes.some((n) => n.user.id === a.id || hasA(n.replies as typeof nodes));
 
   // 차단 전: b 에게 a 글/댓글 보임
   let bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
-  assert(bIds.includes(blkPost.postId), "차단 전: b 검색에 a 글 보임");
+  assert(bIds.includes(seoulPost.id), "차단 전: b 검색에 a 글 보임");
   assert(hasA(await getComments(seoulPost.id, b.id)), "차단 전: b 에게 a 댓글 보임");
 
   const bl = await blockUser(b.id, a.id);
@@ -466,16 +476,16 @@ async function main() {
 
   // 차단 후: b 에게 a 글/댓글 숨김
   bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
-  assert(!bIds.includes(blkPost.postId), "차단 후: b 검색에서 a 글 사라짐");
+  assert(!bIds.includes(seoulPost.id), "차단 후: b 검색에서 a 글 사라짐");
   assert(!hasA(await getComments(seoulPost.id, b.id)), "차단 후: b 에게 a 댓글 안 보임");
 
   // a 본인은 영향 없음 (자기 글 보임)
   const aIds = (await searchPosts({ excludeUserIds: await getBlockedIds(a.id) })).map((p) => p.id);
-  assert(aIds.includes(blkPost.postId), "a 본인은 자기 글 그대로 보임 (단방향 차단)");
+  assert(aIds.includes(seoulPost.id), "a 본인은 자기 글 그대로 보임 (단방향 차단)");
 
   await unblockUser(b.id, a.id);
   bIds = (await searchPosts({ excludeUserIds: await getBlockedIds(b.id) })).map((p) => p.id);
-  assert(bIds.includes(blkPost.postId), "차단 해제 후: b 에게 a 글 다시 보임");
+  assert(bIds.includes(seoulPost.id), "차단 해제 후: b 에게 a 글 다시 보임");
 
   console.log("\n[9g] 알림 + 키워드 검색");
   const np = await createRestaurantPost({
@@ -521,17 +531,17 @@ async function main() {
   await markAllRead(a.id);
   assert((await unreadCount(a.id)) === 0, "전체 읽음 처리 후 0");
 
-  const kq = await searchPosts({ q: "알림테스트" });
-  assert(kq.some((p) => p.id === np.postId), "키워드 검색으로 가게 이름 매칭");
+  const kq = await searchPosts({ q: "을지로" });
+  assert(kq.some((p) => p.id === seoulPost.id), "키워드 검색으로 가게 이름 매칭(인증 글)");
   const kq2 = await searchPosts({ q: "존재하지않는가게명xyz" });
-  assert(!kq2.some((p) => p.id === np.postId), "없는 키워드는 결과 없음");
+  assert(kq2.length === 0, "없는 키워드는 결과 없음");
 
   console.log("\n[9h] 노출 정책 — 일반 미인증 숨김 / 운영자 글 노출");
   const userUnverified = await createRestaurantPost({
     userId: b.id, name: "일반미인증노출집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
   });
   const adminUnverified = await createRestaurantPost({
-    userId: a.id, name: "운영자미인증노출집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
+    userId: op.id, name: "운영자미인증노출집", primaryRegionId: seoul.id, categoryIds: [cats[0].id], media: [],
   });
   const exposeIds = (await searchPosts({ q: "노출집" })).map((p) => p.id);
   assert(!exposeIds.includes(userUnverified.postId), "일반 사용자 미인증 글은 검색/피드에서 숨김");

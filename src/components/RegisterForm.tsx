@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { uploadImage } from "@/lib/imageUpload";
@@ -54,6 +54,7 @@ export default function RegisterForm({
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
+  const [dragOver, setDragOver] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoThumb, setVideoThumb] = useState("");
   const [videoDuration, setVideoDuration] = useState("");
@@ -76,8 +77,10 @@ export default function RegisterForm({
     }
   }
 
-  async function onPickImages(files: FileList | null) {
-    const pickedFiles = Array.from(files ?? []).slice(0, Math.max(0, 5 - images.length));
+  async function uploadFiles(files: File[]) {
+    const pickedFiles = files
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, Math.max(0, 5 - images.length));
     if (pickedFiles.length === 0) return;
     setUploadingImg(true);
     setUploadErr("");
@@ -93,6 +96,39 @@ export default function RegisterForm({
     } finally {
       setUploadingImg(false);
     }
+  }
+
+  function onPickImages(files: FileList | null) {
+    if (files) void uploadFiles(Array.from(files));
+  }
+
+  // PC: 클립보드 붙여넣기(Ctrl+V) — 화면 어디서든 이미지 붙여넣으면 업로드
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const it of Array.from(items)) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        void uploadFiles(files);
+      }
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images.length]);
+
+  function onDropImages(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (files.length > 0) void uploadFiles(files);
   }
   const [shortReview, setShortReview] = useState("");
   const [content, setContent] = useState("");
@@ -474,9 +510,24 @@ export default function RegisterForm({
             </div>
           )}
           {images.length < 5 && (
-            <label className="flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold text-ink active:scale-[0.99]">
-              <Camera size={16} className="text-forest" />
-              {uploadingImg ? "업로드 중…" : images.length === 0 ? "사진 추가" : `사진 더 추가 (${images.length}/5)`}
+            <label
+              onDrop={onDropImages}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              className={`flex h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl border text-sm font-semibold active:scale-[0.99] ${
+                dragOver ? "border-forest bg-forest-soft/40 text-forest" : "border-stone-200 bg-white text-ink"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Camera size={16} className="text-forest" />
+                {uploadingImg ? "업로드 중…" : images.length === 0 ? "사진 추가" : `사진 더 추가 (${images.length}/5)`}
+              </span>
+              <span className="text-[11px] font-normal text-stone-400">
+                PC는 붙여넣기(Ctrl+V)·드래그도 돼요
+              </span>
               <input
                 type="file"
                 accept="image/*"
