@@ -33,7 +33,12 @@ export interface CreatePostInput {
   longitude?: number | null;
   shortReview?: string | null;
   content?: string | null;
-  revisitIntent?: "yes" | "maybe" | "no" | null;
+  tasteRating?: string | null;
+  tasteTags?: string[];
+  serviceRating?: string | null;
+  serviceTags?: string[];
+  atmosphereTags?: string[];
+  revisitIntent?: string | null;
   priceRange?: string | null;
   priceMemo?: string | null;
   waitingLevel?: "none" | "short" | "long" | null;
@@ -114,6 +119,11 @@ export async function createRestaurantPost(
         userId,
         shortReview: input.shortReview?.trim() || null,
         content: input.content?.trim() || null,
+        tasteRating: input.tasteRating ?? null,
+        tasteTags: input.tasteTags ?? [],
+        serviceRating: input.serviceRating ?? null,
+        serviceTags: input.serviceTags ?? [],
+        atmosphereTags: input.atmosphereTags ?? [],
         revisitIntent: input.revisitIntent ?? null,
         priceRange: input.priceRange ?? null,
         priceMemo: input.priceMemo?.trim() || null,
@@ -504,6 +514,11 @@ export async function searchPosts(input: SearchInput) {
 export const postCardSelect = {
   id: true,
   shortReview: true,
+  tasteRating: true,
+  tasteTags: true,
+  serviceRating: true,
+  serviceTags: true,
+  atmosphereTags: true,
   priceRange: true,
   priceMemo: true,
   likeCount: true,
@@ -530,6 +545,11 @@ export function toPostCard(p: NonNullable<PostRow>) {
   return {
     id: p.id,
     shortReview: p.shortReview,
+    tasteRating: p.tasteRating,
+    tasteTags: p.tasteTags,
+    serviceRating: p.serviceRating,
+    serviceTags: p.serviceTags,
+    atmosphereTags: p.atmosphereTags,
     priceRange: p.priceRange,
     priceMemo: p.priceMemo,
     likeCount: p.likeCount,

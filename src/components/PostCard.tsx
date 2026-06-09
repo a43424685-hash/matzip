@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MapPin, Play } from "lucide-react";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
-import { priceLabel } from "@/lib/labels";
+import { priceLabel, tasteRatingLabel } from "@/lib/labels";
 import LikeSaveButtons from "./LikeSaveButtons";
 import CardImage from "./CardImage";
 import VerificationBadges from "./VerificationBadges";
@@ -33,7 +33,7 @@ export default function PostCard({
         {post.shortReview && (
           <p className="mt-1 line-clamp-1 text-sm text-ink-muted">{post.shortReview}</p>
         )}
-        <Tags tags={tags} priceRange={post.priceRange} />
+        <Tags tags={tags} priceRange={post.priceRange} tasteRating={post.tasteRating} />
         {isVerified(post.verification) && (
           <div className="mt-2">
             <VerificationBadges v={post.verification} compact />
@@ -78,7 +78,7 @@ export default function PostCard({
         {post.shortReview && (
           <p className="mt-1.5 line-clamp-2 text-[15px] text-ink-muted">{post.shortReview}</p>
         )}
-        <Tags tags={tags} priceRange={post.priceRange} />
+        <Tags tags={tags} priceRange={post.priceRange} tasteRating={post.tasteRating} />
         {isVerified(post.verification) && (
           <div className="mt-2">
             <VerificationBadges v={post.verification} compact />
@@ -111,10 +111,24 @@ function Header({ post }: { post: PostCardData }) {
   );
 }
 
-function Tags({ tags, priceRange }: { tags: string[]; priceRange: string | null }) {
-  if (tags.length === 0 && !priceRange) return null;
+function Tags({
+  tags,
+  priceRange,
+  tasteRating,
+}: {
+  tags: string[];
+  priceRange: string | null;
+  tasteRating?: string | null;
+}) {
+  const taste = tasteRatingLabel(tasteRating);
+  if (tags.length === 0 && !priceRange && !taste) return null;
   return (
     <div className="mt-2.5 flex flex-wrap gap-1.5">
+      {taste && (
+        <span className="rounded-md bg-coral/10 px-2 py-0.5 text-xs font-bold text-coral-dark">
+          {taste}
+        </span>
+      )}
       {tags.map((c) => (
         <span
           key={c}

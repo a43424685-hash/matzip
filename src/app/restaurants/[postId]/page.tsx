@@ -17,7 +17,17 @@ import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { getComments } from "@/server/comment/CommentService";
-import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
+import {
+  ATMOSPHERE_TAGS,
+  SERVICE_TAGS,
+  TASTE_TAGS,
+  labelMany,
+  priceLabel,
+  revisitLabel,
+  serviceRatingLabel,
+  tasteRatingLabel,
+  waitingLabel,
+} from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +50,11 @@ export default async function PostDetailPage({
       userId: true,
       shortReview: true,
       content: true,
+      tasteRating: true,
+      tasteTags: true,
+      serviceRating: true,
+      serviceTags: true,
+      atmosphereTags: true,
       priceRange: true,
       priceMemo: true,
       waitingLevel: true,
@@ -211,6 +226,25 @@ export default async function PostDetailPage({
         {post.shortReview && <p className="text-base font-semibold">“{post.shortReview}”</p>}
         {post.content && <p className="whitespace-pre-line text-sm text-neutral-600">{post.content}</p>}
 
+        {(post.tasteRating || post.tasteTags.length > 0 || post.serviceRating || post.serviceTags.length > 0 || post.atmosphereTags.length > 0) && (
+          <section className="space-y-3 rounded-2xl bg-stone-50 p-4">
+            <ReviewTags
+              title="맛"
+              primary={tasteRatingLabel(post.tasteRating)}
+              tags={labelMany(post.tasteTags, TASTE_TAGS)}
+            />
+            <ReviewTags
+              title="서비스"
+              primary={serviceRatingLabel(post.serviceRating)}
+              tags={labelMany(post.serviceTags, SERVICE_TAGS)}
+            />
+            <ReviewTags
+              title="분위기"
+              tags={labelMany(post.atmosphereTags, ATMOSPHERE_TAGS)}
+            />
+          </section>
+        )}
+
         {/* 메타 */}
         <div className="grid grid-cols-3 gap-2 text-center">
           <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
@@ -337,6 +371,23 @@ function Meta({ label, value }: { label: string; value: string }) {
     <div className="card p-2.5">
       <div className="text-[11px] text-neutral-400">{label}</div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function ReviewTags({ title, primary, tags }: { title: string; primary?: string; tags?: string[] }) {
+  const all = [primary, ...(tags ?? [])].filter(Boolean) as string[];
+  if (all.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-1.5 text-[12px] font-bold text-stone-500">{title}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {all.map((label) => (
+          <span key={label} className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink">
+            {label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

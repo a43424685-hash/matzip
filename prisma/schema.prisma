@@ -201,7 +201,14 @@ model RestaurantPost {
   userId       String
   content      String? // 상세 리뷰
   shortReview  String? // 한줄평
-  // revisitIntent: yes | maybe | no | (null)
+  // tasteRating: life_best | great | memorable | better_than_expected | solid | okay | etc
+  tasteRating String?
+  tasteTags   String[] @default([]) // 담백함/자극적/가성비맛 등 복수 선택
+  // serviceRating: kind | normal | uncomfortable | unfriendly | dont_expect
+  serviceRating String?
+  serviceTags   String[] @default([]) // 빠름/설명좋음/셀프많음 등 복수 선택
+  atmosphereTags String[] @default([]) // 데이트/혼밥/노포/야장 등 복수 선택
+  // revisitIntent: must | nearby | with_others | once_enough | not_revisit | pass | (null)
   revisitIntent String?
   // priceRange: under_10k | 10k_20k | 20k_40k | over_40k | (null)
   priceRange   String?

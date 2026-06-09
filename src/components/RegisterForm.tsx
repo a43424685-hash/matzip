@@ -1,12 +1,21 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { uploadImage } from "@/lib/imageUpload";
 import { uploadVideo } from "@/lib/videoUpload";
 import { registerPostAction, type RegisterState } from "@/app/actions/post";
-import { PRICE_RANGES, REVISIT_INTENTS, WAITING_LEVELS } from "@/lib/labels";
+import {
+  ATMOSPHERE_TAGS,
+  PRICE_RANGES,
+  REVISIT_INTENTS,
+  SERVICE_RATINGS,
+  SERVICE_TAGS,
+  TASTE_RATINGS,
+  TASTE_TAGS,
+  WAITING_LEVELS,
+} from "@/lib/labels";
 import { XP_AMOUNT } from "@/server/xp/xpRules";
 
 interface Region {
@@ -134,6 +143,11 @@ export default function RegisterForm({
   const [content, setContent] = useState("");
   const [priceRange, setPriceRange] = useState("");
   const [priceMemo, setPriceMemo] = useState("");
+  const [tasteRating, setTasteRating] = useState("");
+  const [tasteTags, setTasteTags] = useState<Set<string>>(new Set());
+  const [serviceRating, setServiceRating] = useState("");
+  const [serviceTags, setServiceTags] = useState<Set<string>>(new Set());
+  const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set());
   const [revisitIntent, setRevisitIntent] = useState("");
   const [waitingLevel, setWaitingLevel] = useState("");
   // 장소 검색 / 좌표
@@ -232,6 +246,14 @@ export default function RegisterForm({
     });
   }
 
+  function toggleValue(setter: Dispatch<SetStateAction<Set<string>>>, value: string) {
+    setter((prev) => {
+      const next = new Set(prev);
+      next.has(value) ? next.delete(value) : next.add(value);
+      return next;
+    });
+  }
+
   function Chip({ id, name }: { id: string; name: string }) {
     const on = selected.has(id);
     return (
@@ -251,6 +273,15 @@ export default function RegisterForm({
     <form action={action} className="space-y-7 pb-28">
       {[...selected].map((id) => (
         <input key={id} type="hidden" name="categoryIds" value={id} />
+      ))}
+      {[...tasteTags].map((id) => (
+        <input key={id} type="hidden" name="tasteTags" value={id} />
+      ))}
+      {[...serviceTags].map((id) => (
+        <input key={id} type="hidden" name="serviceTags" value={id} />
+      ))}
+      {[...atmosphereTags].map((id) => (
+        <input key={id} type="hidden" name="atmosphereTags" value={id} />
       ))}
 
       {/* 필수: 가게 — 카카오 장소 검색이 기본, 직접 입력은 예외 */}
@@ -623,6 +654,48 @@ export default function RegisterForm({
         </summary>
         <div className="space-y-4 px-4 pb-4">
           <div>
+            <label className="label">맛 평가</label>
+            <SingleChoice
+              name="tasteRating"
+              value={tasteRating}
+              onChange={setTasteRating}
+              options={TASTE_RATINGS}
+            />
+          </div>
+          <div>
+            <label className="label">맛 특징 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
+            <MultiChoice
+              selected={tasteTags}
+              onToggle={(v) => toggleValue(setTasteTags, v)}
+              options={TASTE_TAGS}
+            />
+          </div>
+          <div>
+            <label className="label">서비스</label>
+            <SingleChoice
+              name="serviceRating"
+              value={serviceRating}
+              onChange={setServiceRating}
+              options={SERVICE_RATINGS}
+            />
+          </div>
+          <div>
+            <label className="label">서비스 특징 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
+            <MultiChoice
+              selected={serviceTags}
+              onToggle={(v) => toggleValue(setServiceTags, v)}
+              options={SERVICE_TAGS}
+            />
+          </div>
+          <div>
+            <label className="label">분위기 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
+            <MultiChoice
+              selected={atmosphereTags}
+              onToggle={(v) => toggleValue(setAtmosphereTags, v)}
+              options={ATMOSPHERE_TAGS}
+            />
+          </div>
+          <div>
             <label className="label">상세 리뷰 <span className="font-normal text-stone-400">+70 XP</span></label>
             <textarea
               value={content}
@@ -707,6 +780,71 @@ function SelectField({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function SingleChoice({
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <input type="hidden" name={name} value={value} />
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => {
+          const on = value === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onChange(on ? "" : o.value)}
+              className={`rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${
+                on ? "bg-forest text-white" : "border border-stone-200 bg-white text-ink"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MultiChoice({
+  selected,
+  onToggle,
+  options,
+}: {
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = selected.has(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onToggle(o.value)}
+            className={`rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${
+              on ? "bg-forest text-white" : "border border-stone-200 bg-white text-ink"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
