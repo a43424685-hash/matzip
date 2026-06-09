@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Trophy, MapPin, User } from "lucide-react";
+import { BadgePercent, Search, Trophy, MapPin, User } from "lucide-react";
 
 const TABS = [
-  { href: "/", label: "홈", Icon: Home },
+  { href: "/benefits", label: "혜택모음", Icon: BadgePercent },
   { href: "/search", label: "검색", Icon: Search },
   { href: "/nearby", label: "주변", Icon: MapPin },
   { href: "/rankings", label: "랭킹", Icon: Trophy },
