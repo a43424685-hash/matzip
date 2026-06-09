@@ -135,8 +135,8 @@ export async function getMyCollectionsWithPreview(userId: string) {
   }));
 }
 
-/** 컬렉션 상세 (공유/공개 페이지용) */
-export async function getCollectionDetail(collectionId: string) {
+/** 컬렉션 상세 (공유/공개 페이지용). 유료 지도면 비구매자는 잠금(블러). */
+export async function getCollectionDetail(collectionId: string, viewerId?: string | null) {
   const col = await prisma.collection.findUnique({
     where: { id: collectionId },
     select: {
@@ -144,6 +144,8 @@ export async function getCollectionDetail(collectionId: string) {
       title: true,
       description: true,
       isPublic: true,
+      isPaid: true,
+      priceWon: true,
       userId: true,
       createdAt: true,
       region: { select: { name: true } },
@@ -171,17 +173,48 @@ export async function getCollectionDetail(collectionId: string) {
     },
   });
   if (!col) return null;
+
+  const isOwner = !!viewerId && viewerId === col.userId;
+  let purchased = false;
+  if (viewerId && col.isPaid && !isOwner) {
+    purchased = !!(await prisma.mapPurchase.findUnique({
+      where: { buyerId_collectionId: { buyerId: viewerId, collectionId } },
+      select: { id: true },
+    }));
+  }
+  // 유료인데 소유자도 구매자도 아니면 잠금(미리보기 블러)
+  const locked = col.isPaid && !isOwner && !purchased;
+
+  // 지역별 맛집 개수 (잠금 상태에서도 보여줄 teaser)
+  const regionMap = new Map<string, number>();
+  for (const i of col.items) {
+    const r = i.restaurant.primaryRegion.name;
+    regionMap.set(r, (regionMap.get(r) ?? 0) + 1);
+  }
+  const regionCounts = [...regionMap.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     id: col.id,
     title: col.title,
     description: col.description,
     isPublic: col.isPublic,
+    isPaid: col.isPaid,
+    priceWon: col.priceWon,
+    isOwner,
+    purchased,
+    locked,
+    regionCounts,
     ownerId: col.userId,
     ownerNickname: col.user.nickname,
     ownerLevel: col.user.totalLevel,
     regionName: col.region.name,
     itemCount: col._count.items,
-    items: col.items.map((i) => ({
+    // 잠금 상태면 항목 자체를 내려주지 않음 (이름·위치 유출 방지)
+    items: locked
+      ? []
+      : col.items.map((i) => ({
       restaurantId: i.restaurant.id,
       restaurantName: i.restaurant.name,
       regionName: i.restaurant.primaryRegion.name,
@@ -199,3 +232,52 @@ export async function getCollectionDetail(collectionId: string) {
 }
 
 export type CollectionDetail = NonNullable<Awaited<ReturnType<typeof getCollectionDetail>>>;
+
+// ─────────────────────────────────────────────────────────────
+// 유료 지도 판매
+// ─────────────────────────────────────────────────────────────
+export const PAID_MAP_MIN_WON = 990;
+export const PAID_MAP_MAX_WON = 9900;
+
+/** 유료 지도 판매 자격 (Lv.50 + 위치 인증 100곳) */
+export async function canSellPaidMaps(userId: string): Promise<boolean> {
+  const [user, verifiedCount] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true } }),
+    prisma.restaurantPost.count({ where: { userId, locationVerified: true } }),
+  ]);
+  return !!user && user.totalLevel >= 50 && verifiedCount >= 100;
+}
+
+/** 컬렉션을 유료 지도로 전환/해제 (소유자 + 자격 + 가격 990~9900). 유료면 공개로 강제. */
+export async function setPaidMap(
+  userId: string,
+  collectionId: string,
+  isPaid: boolean,
+  priceWon: number | null
+): Promise<{ ok: boolean; reason?: string }> {
+  const col = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    select: { userId: true, _count: { select: { items: true } } },
+  });
+  if (!col) return { ok: false, reason: "NOT_FOUND" };
+  if (col.userId !== userId) return { ok: false, reason: "FORBIDDEN" };
+
+  if (!isPaid) {
+    await prisma.collection.update({
+      where: { id: collectionId },
+      data: { isPaid: false, priceWon: null },
+    });
+    return { ok: true };
+  }
+
+  if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
+  if (col._count.items < 1) return { ok: false, reason: "EMPTY" };
+  const price = Math.round(priceWon ?? 0);
+  if (price < PAID_MAP_MIN_WON || price > PAID_MAP_MAX_WON) return { ok: false, reason: "BAD_PRICE" };
+
+  await prisma.collection.update({
+    where: { id: collectionId },
+    data: { isPaid: true, priceWon: price, isPublic: true },
+  });
+  return { ok: true };
+}

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Share2, MapPin, Store, Lock } from "lucide-react";
+import { Share2, MapPin, Store, Lock, Coins } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getCollectionDetail } from "@/server/collection/CollectionService";
+import { getCollectionDetail, canSellPaidMaps } from "@/server/collection/CollectionService";
 import { getBlockedIds } from "@/server/block/BlockService";
 import CardImage from "@/components/CardImage";
 import VerificationBadges from "@/components/VerificationBadges";
+import PaidMapToggle from "@/components/PaidMapToggle";
+import PurchaseMapButton from "@/components/PurchaseMapButton";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +17,8 @@ export default async function CollectionDetailPage({
   params: Promise<{ collectionId: string }>;
 }) {
   const { collectionId } = await params;
-  const [user, col] = await Promise.all([
-    getCurrentUser(),
-    getCollectionDetail(collectionId),
-  ]);
+  const user = await getCurrentUser();
+  const col = await getCollectionDetail(collectionId, user?.id ?? null);
   if (!col) notFound();
 
   const isOwner = user?.id === col.ownerId;
@@ -29,6 +29,8 @@ export default async function CollectionDetailPage({
     const blocked = await getBlockedIds(user.id);
     if (blocked.includes(col.ownerId)) notFound();
   }
+
+  const canSell = isOwner ? await canSellPaidMaps(col.ownerId) : false;
 
   return (
     <main className="pb-10">
@@ -43,6 +45,11 @@ export default async function CollectionDetailPage({
           {!col.isPublic && (
             <span className="flex items-center gap-0.5">
               <Lock size={12} /> 비공개
+            </span>
+          )}
+          {col.isPaid && (
+            <span className="flex items-center gap-0.5 rounded-md bg-coral px-1.5 py-0.5 text-[11px] font-extrabold text-white">
+              <Coins size={11} /> 유료 {col.priceWon?.toLocaleString()}원
             </span>
           )}
         </div>
@@ -64,7 +71,58 @@ export default async function CollectionDetailPage({
           <Share2 size={18} /> 이 리스트 공유하기
         </Link>
 
-        {/* 맛집 목록 */}
+        {/* 유료 잠금: 지역별 개수만 보여주고 본문은 블러 */}
+        {col.locked ? (
+          <div className="mt-5">
+            <div className="card p-5">
+              <div className="flex items-center gap-1.5 text-sm font-extrabold text-ink">
+                <Coins size={16} className="text-forest" /> 유료 맛집 지도
+              </div>
+              <p className="mt-1 text-[13px] text-ink-muted">
+                구매하면 {col.itemCount}곳의 가게 이름·위치·후기·인증이 모두 열려요.
+              </p>
+
+              {/* 지역별 보유 개수 (구매 전 미리보기) */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {col.regionCounts.map((r) => (
+                  <span
+                    key={r.name}
+                    className="rounded-lg bg-forest-soft/40 px-2.5 py-1 text-[13px] font-semibold text-forest"
+                  >
+                    {r.name} {r.count}곳
+                  </span>
+                ))}
+              </div>
+
+              {/* 가려진 목록 미리보기 */}
+              <div className="relative mt-4 select-none">
+                <div className="space-y-3 blur-[6px]">
+                  {Array.from({ length: Math.min(col.itemCount, 4) }).map((_, i) => (
+                    <div key={i} className="card flex items-center gap-3 p-3">
+                      <span className="badge-rank bg-stone-100 text-stone-400">{i + 1}</span>
+                      <div className="h-14 w-14 shrink-0 rounded-xl bg-stone-200" />
+                      <div className="min-w-0 flex-1">
+                        <div className="h-3.5 w-2/3 rounded bg-stone-200" />
+                        <div className="mt-2 h-2.5 w-1/3 rounded bg-stone-100" />
+                        <div className="mt-2 h-2.5 w-1/2 rounded bg-stone-100" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="flex items-center gap-1.5 rounded-full bg-ink/80 px-3 py-1.5 text-[13px] font-bold text-white">
+                    <Lock size={14} /> 구매 후 공개
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <PurchaseMapButton priceWon={col.priceWon} />
+              </div>
+            </div>
+          </div>
+        ) : (
+        /* 맛집 목록 */
         <div className="mt-5 space-y-3">
           {col.items.length === 0 ? (
             <div className="card p-6 text-center text-sm text-ink-muted">
@@ -118,6 +176,17 @@ export default async function CollectionDetailPage({
             })
           )}
         </div>
+        )}
+
+        {/* 소유자: 유료 판매 설정 */}
+        {isOwner && (
+          <PaidMapToggle
+            collectionId={col.id}
+            initialIsPaid={col.isPaid}
+            initialPrice={col.priceWon}
+            canSell={canSell}
+          />
+        )}
       </div>
     </main>
   );

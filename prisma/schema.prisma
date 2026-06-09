@@ -49,6 +49,7 @@ model User {
   blockedBy    Block[]          @relation("Blocked")
   notifications Notification[]  @relation("NotifRecipient")
   notifActions  Notification[]  @relation("NotifActor")
+  mapPurchases  MapPurchase[]   @relation("MapBuyer")
   xpEvents    XpEvent[]        @relation("XpRecipient")
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
@@ -544,6 +545,8 @@ model Collection {
   title       String
   description String?
   isPublic    Boolean  @default(true)
+  isPaid       Boolean  @default(false) // 유료 지도 판매 여부 (자격 유저만)
+  priceWon     Int?     // 판매가(원). 990~9900
   regionId    String // 대표 지역(필수). 카테고리 태그는 담긴 맛집에서 파생 표시.
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -551,10 +554,36 @@ model Collection {
   user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   region Region           @relation(fields: [regionId], references: [id])
   items  CollectionItem[]
+  purchases MapPurchase[]
 
   @@index([userId])
   @@index([isPublic])
   @@map("collections")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 유료 지도 구매 (구매자×지도 1회). 정산 기록의 출처.
+// ─────────────────────────────────────────────────────────────
+model MapPurchase {
+  id           String   @id @default(cuid())
+  buyerId      String
+  collectionId String
+  amountWon    Int // 결제 금액
+  feeWon       Int // 플랫폼 수수료(30%)
+  sellerNetWon Int // 판매자 정산액(70%)
+  // status: paid | refunded
+  status       String   @default("paid")
+  provider     String? // kakaopay | naverpay | card ...
+  paymentKey   String? // PG 결제 식별자
+  orderId      String?  @unique
+  paidAt       DateTime @default(now())
+
+  buyer      User       @relation("MapBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([buyerId, collectionId])
+  @@index([collectionId])
+  @@map("map_purchases")
 }
 
 model CollectionItem {

@@ -23,6 +23,7 @@ import {
   toggleItem,
   getCollectionDetail,
   getMyCollectionsWithPreview,
+  setPaidMap,
 } from "../src/server/collection/CollectionService";
 import {
   attachPhoto,
@@ -286,6 +287,35 @@ async function main() {
   assert(forbidden, "소유자 아닌 사용자의 항목 변경 거부(FORBIDDEN)");
   const mine = await getMyCollectionsWithPreview(a.id);
   assert(mine.some((c) => c.id === col.id && c.itemCount === 2), "내 컬렉션 미리보기에 노출");
+
+  console.log("\n[8b] 유료 맛집 지도 — 자격/소유자 검증 + 잠금(블러) 미리보기");
+  const paidByOther = await setPaidMap(b.id, col.id, true, 2900);
+  assert(paidByOther.reason === "FORBIDDEN", "남의 리스트는 유료 전환 불가(FORBIDDEN)");
+  const paidNotElig = await setPaidMap(a.id, col.id, true, 2900);
+  assert(paidNotElig.reason === "NOT_ELIGIBLE", "자격(Lv.50·인증100) 미달이면 유료 전환 불가");
+
+  // 자격 검증을 우회해 잠금/미리보기 로직 자체를 점검
+  await prisma.collection.update({
+    where: { id: col.id },
+    data: { isPaid: true, priceWon: 2900, isPublic: true },
+  });
+  const ownerView = await getCollectionDetail(col.id, a.id);
+  assert(ownerView!.isOwner && !ownerView!.locked && ownerView!.items.length === 2, "소유자는 유료여도 전체가 보임");
+  const lockedView = await getCollectionDetail(col.id, b.id);
+  assert(lockedView!.locked && lockedView!.items.length === 0, "비구매자는 잠김 — 항목 미노출");
+  assert(
+    lockedView!.regionCounts.length === 2 &&
+      lockedView!.regionCounts.reduce((s, r) => s + r.count, 0) === 2,
+    "잠금 상태에서도 지역별 개수 teaser 노출 (서울1·부산1)"
+  );
+  await prisma.mapPurchase.create({
+    data: { buyerId: b.id, collectionId: col.id, amountWon: 2900, feeWon: 870, sellerNetWon: 2030 },
+  });
+  const boughtView = await getCollectionDetail(col.id, b.id);
+  assert(boughtView!.purchased && !boughtView!.locked && boughtView!.items.length === 2, "구매하면 전체가 열림");
+  // 정리: 무료로 되돌리고 구매기록 제거 (이후 테스트에 영향 없도록)
+  await prisma.mapPurchase.deleteMany({ where: { collectionId: col.id } });
+  await setPaidMap(a.id, col.id, false, null);
 
   console.log("\n[9] 방문 인증 정책 (위치 50m·정확도 50m·좌표필수 / 증거=인증 후 첨부+뱃지+XP / 소유자만)");
 
