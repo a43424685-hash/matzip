@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin, Play } from "lucide-react";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import { priceLabel } from "@/lib/labels";
 import LikeSaveButtons from "./LikeSaveButtons";
@@ -49,13 +49,21 @@ export default function PostCard({
     <article className="card overflow-hidden">
       <Link href={`/restaurants/${post.id}`} className="block">
         {post.media.type === "video" ? (
-          <video
-            src={post.media.url}
-            poster={post.media.thumbnailUrl ?? undefined}
-            className="aspect-[4/3] w-full bg-stone-900 object-cover"
-            muted
-            playsInline
-          />
+          // 피드에서는 영상 파일을 불러오지 않고 포스터+재생아이콘만 (탭하면 상세에서 재생)
+          <div className="relative aspect-[4/3] w-full bg-stone-800">
+            {post.media.thumbnailUrl && (
+              <CardImage
+                src={post.media.thumbnailUrl}
+                alt={post.restaurantName}
+                className="h-full w-full object-cover"
+              />
+            )}
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white">
+                <Play size={22} fill="currentColor" />
+              </span>
+            </span>
+          </div>
         ) : (
           <CardImage
             src={post.media.url}

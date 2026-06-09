@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
@@ -363,16 +363,26 @@ export default function NearbyMapScreen() {
 }
 
 function NearbyCard({ item }: { item: NearbyItem }) {
-  const img = item.post.media?.thumbnailUrl || item.post.media?.url || null;
+  const isVideo = item.post.media?.type === "video";
+  const img = item.post.media?.thumbnailUrl || (isVideo ? null : item.post.media?.url) || null;
   return (
     <Link href={`/restaurants/${item.post.id}`} className="flex gap-3 rounded-2xl bg-white py-2 active:scale-[0.99]">
-      <div className="h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-stone-100">
+      <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-stone-100">
         {img ? (
           <CardImage src={img} alt={item.post.restaurantName} className="h-full w-full object-cover" />
+        ) : isVideo ? (
+          <div className="h-full w-full bg-stone-800" />
         ) : (
           <div className="thumb-empty flex h-full w-full items-center justify-center text-[11px] font-bold text-forest">
             먹고핀
           </div>
+        )}
+        {isVideo && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white">
+              <Play size={14} fill="currentColor" />
+            </span>
+          </span>
         )}
       </div>
       <div className="min-w-0 flex-1 py-1">

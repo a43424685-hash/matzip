@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Trophy,
   ListChecks,
+  Play,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getHomeData, type HomeCollection } from "@/server/home";
@@ -198,7 +199,9 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 
 function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: boolean }) {
-  const img = post.media?.thumbnailUrl || post.media?.url || null;
+  const isVideo = post.media?.type === "video";
+  // 영상은 포스터(thumbnailUrl)만 사용 — 영상 URL을 <img>에 넣어 깨지는 것 방지
+  const img = post.media?.thumbnailUrl || (isVideo ? null : post.media?.url) || null;
   return (
     <Link
       href={`/restaurants/${post.id}`}
@@ -207,8 +210,17 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
       <div className="relative h-[132px] overflow-hidden rounded-xl bg-stone-100">
         {img ? (
           <CardImage src={img} alt={post.restaurantName} label="사진 준비 중" className="h-full w-full object-cover" />
+        ) : isVideo ? (
+          <div className="h-full w-full bg-stone-800" />
         ) : (
           <div className="thumb-empty h-full w-full" />
+        )}
+        {isVideo && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white">
+              <Play size={16} fill="currentColor" />
+            </span>
+          </span>
         )}
         {(showVerified || post.verification.location) && (
           <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">

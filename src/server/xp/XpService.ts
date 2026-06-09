@@ -84,35 +84,40 @@ export async function awardXp(
     throw e;
   }
 
-  // 3) 전체 XP 적립 + 전체 레벨 재계산
-  const user = await db.user.update({
-    where: { id: input.userId },
-    data: { totalXp: { increment: amount } },
-    select: { totalXp: true },
-  });
-  const totalLevel = calculateLevel(user.totalXp).level;
-  await db.user.update({
-    where: { id: input.userId },
-    data: { totalLevel },
-  });
+  // 3+4) 전체/지역 XP 적립 + 레벨 재계산.
+  //   increment 와 레벨 update 가 분리돼 있어 동시 적립 시 레벨이 옛 값으로 덮일 수 있음(TOCTOU).
+  //   같은 트랜잭션 안에서 처리하면 UPDATE 행 잠금으로 직렬화돼 레벨이 항상 최신 totalXp 기준이 된다.
+  //   이미 tx 로 호출됐으면(db !== prisma) 그대로, 아니면 새 트랜잭션으로 감싼다.
+  const regionId = input.regionId ?? null;
+  const userId = input.userId;
+  const applyLevels = async (tx: Db) => {
+    const user = await tx.user.update({
+      where: { id: userId },
+      data: { totalXp: { increment: amount } },
+      select: { totalXp: true },
+    });
+    await tx.user.update({
+      where: { id: userId },
+      data: { totalLevel: calculateLevel(user.totalXp).level },
+    });
+    if (regionId) {
+      const stat = await tx.userRegionStat.upsert({
+        where: { userId_regionId: { userId, regionId } },
+        create: { userId, regionId, regionXp: amount },
+        update: { regionXp: { increment: amount } },
+        select: { regionXp: true },
+      });
+      await tx.userRegionStat.update({
+        where: { userId_regionId: { userId, regionId } },
+        data: { regionLevel: calculateLevel(stat.regionXp).level },
+      });
+    }
+  };
 
-  // 4) 지역 XP 적립 + 지역 레벨 재계산 (regionId 있을 때만)
-  if (input.regionId) {
-    const stat = await db.userRegionStat.upsert({
-      where: { userId_regionId: { userId: input.userId, regionId: input.regionId } },
-      create: {
-        userId: input.userId,
-        regionId: input.regionId,
-        regionXp: amount,
-      },
-      update: { regionXp: { increment: amount } },
-      select: { regionXp: true },
-    });
-    const regionLevel = calculateLevel(stat.regionXp).level;
-    await db.userRegionStat.update({
-      where: { userId_regionId: { userId: input.userId, regionId: input.regionId } },
-      data: { regionLevel },
-    });
+  if (db === prisma) {
+    await prisma.$transaction((tx) => applyLevels(tx));
+  } else {
+    await applyLevels(db);
   }
 
   return { awarded: true, amount };

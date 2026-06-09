@@ -485,6 +485,15 @@ async function main() {
     !!(await prisma.notification.findFirst({ where: { userId: a.id, type: "like", postId: np.postId } })),
     "좋아요 받으면 알림 생성"
   );
+  // 재좋아요(취소→다시) 해도 좋아요 알림은 1개만 (멱등)
+  await toggleLike(b.id, np.postId); // 취소
+  await toggleLike(b.id, np.postId); // 다시
+  assert(
+    (await prisma.notification.count({
+      where: { userId: a.id, actorUserId: b.id, type: "like", postId: np.postId },
+    })) === 1,
+    "재좋아요해도 좋아요 알림 1개(멱등)"
+  );
   await toggleLike(a.id, np.postId); // 자기 글 좋아요
   assert(
     (await prisma.notification.count({ where: { userId: a.id, type: "like", actorUserId: a.id } })) === 0,
