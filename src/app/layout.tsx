@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import AppSplash from "@/components/AppSplash";
 
 export const metadata: Metadata = {
   title: "먹고핀",
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <div className="app-shell">{children}</div>
         <BottomNav />
+        <AppSplash />
       </body>
     </html>
   );

@@ -50,9 +50,9 @@ export default async function HomePage() {
       {/* 1. 헤더 (스크롤 시 사라짐 — sticky 아님) */}
       <header className="px-5 pt-4">
         <div className="flex items-center justify-between">
-          <span className="text-2xl font-extrabold tracking-tight">
-            <span className="text-ink">먹고</span>
-            <span className="text-forest">핀</span>
+          <span className="brand-logo text-[28px] leading-none">
+            <span>먹고</span>
+            <span className="brand-logo-point">핀</span>
           </span>
           <div className="flex items-center gap-3">
             {user ? (

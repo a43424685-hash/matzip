@@ -52,6 +52,18 @@ body {
   .section-title {
     @apply text-[17px] font-extrabold tracking-tight text-ink;
   }
+  .brand-logo {
+    color: #1f2a24;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+    text-shadow: 0 1px 0 rgba(31, 61, 43, 0.12);
+  }
+  .brand-logo-point {
+    color: #f2553f;
+    display: inline-block;
+    transform: skewX(-8deg);
+    text-shadow: 0 2px 0 rgba(31, 61, 43, 0.12);
+  }
   /* 순위/레벨 배지 — 숫자 중심, 깔끔하게 */
   .badge-rank {
     @apply inline-flex h-6 w-6 items-center justify-center rounded-md text-[13px] font-bold tabular-nums;

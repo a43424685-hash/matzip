@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { Camera, MapPin, Share2 } from "lucide-react";
 import { prisma } from "@/lib/db";
-import CardImage from "@/components/CardImage";
 import KakaoMap from "@/components/KakaoMap";
 import ShareButton from "@/components/ShareButton";
 import CopyAddressButton from "@/components/CopyAddressButton";
@@ -12,6 +11,8 @@ import Comments from "@/components/Comments";
 import ReportButton from "@/components/ReportButton";
 import BlockButton from "@/components/BlockButton";
 import DeletePostButton from "@/components/DeletePostButton";
+import DetailBackButton from "@/components/DetailBackButton";
+import DetailMediaCarousel from "@/components/DetailMediaCarousel";
 import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
@@ -132,41 +133,23 @@ export default async function PostDetailPage({
 
   return (
     <main className="pb-6">
-      {/* 미디어 — 사진 없으면 큰 빈 박스 대신 작은 안내 카드 */}
+      {/* 미디어 — 뒤로가기 + 장수 표시 + 점 인디케이터 */}
       {post.media.length === 0 ? (
-        <div className="mx-5 mt-5 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
+        <div className="mx-5 mt-4">
+          <DetailBackButton />
+        </div>
+      ) : (
+        <DetailMediaCarousel media={post.media} title={post.restaurant.name} />
+      )}
+
+      {post.media.length === 0 && (
+        <div className="mx-5 mt-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
             <Camera size={16} className="text-forest" /> 아직 대표 사진이 없어요
           </p>
           <p className="mt-1 text-[13px] text-ink-muted">
             현장에서 사진을 추가하면 더 신뢰도 높은 기록이 됩니다.
           </p>
-        </div>
-      ) : (
-        <div>
-          <div className="flex snap-x snap-mandatory overflow-x-auto bg-stone-900">
-            {post.media.map((m, i) =>
-              m.type === "video" ? (
-                <video
-                  key={i}
-                  src={m.url}
-                  poster={m.thumbnailUrl ?? undefined}
-                  controls
-                  playsInline
-                  muted={m.muted}
-                  className="aspect-[4/3] w-full shrink-0 snap-center object-cover"
-                />
-              ) : (
-                <CardImage
-                  key={i}
-                  src={m.url}
-                  alt={post.restaurant.name}
-                  label="사진 준비 중"
-                  className="aspect-[4/3] w-full shrink-0 snap-center object-cover"
-                />
-              )
-            )}
-          </div>
         </div>
       )}
 
@@ -299,21 +282,30 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* 방문 인증하기 — 본인 기록만 */}
+        {/* 방문 인증하기 — 본인 기록만, 기본 접기 */}
         {user?.id === post.userId && (
-          <VerifyPanel
-            postId={post.id}
-            restaurant={{
-              name: post.restaurant.name,
-              lat: post.restaurant.latitude,
-              lng: post.restaurant.longitude,
-            }}
-            initial={{
-              locationVerified: post.locationVerified,
-              receiptAttached: !!post.receiptPhotoUrl,
-              menuAttached: !!post.menuPhotoUrl,
-            }}
-          />
+          <details className="card overflow-hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
+              방문 인증하기
+              <span className="text-xs font-semibold text-forest">열기</span>
+            </summary>
+            <div className="border-t border-stone-100">
+              <VerifyPanel
+                postId={post.id}
+                embedded
+                restaurant={{
+                  name: post.restaurant.name,
+                  lat: post.restaurant.latitude,
+                  lng: post.restaurant.longitude,
+                }}
+                initial={{
+                  locationVerified: post.locationVerified,
+                  receiptAttached: !!post.receiptPhotoUrl,
+                  menuAttached: !!post.menuPhotoUrl,
+                }}
+              />
+            </div>
+          </details>
         )}
 
         {/* 리스트 담기 + 공유 */}

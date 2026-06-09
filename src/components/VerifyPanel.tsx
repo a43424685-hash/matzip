@@ -73,11 +73,13 @@ export default function VerifyPanel({
   postId,
   initial,
   restaurant,
+  embedded = false,
 }: {
   postId: string;
   initial: VerifyInitial;
   /** 가게 권위 좌표 — 있으면 지도 표시 */
   restaurant?: { name: string; lat: number | null; lng: number | null };
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [locVerified, setLocVerified] = useState(initial.locationVerified);
@@ -217,7 +219,7 @@ export default function VerifyPanel({
   }
 
   return (
-    <section className="card p-4">
+    <section className={embedded ? "p-4" : "card p-4"}>
       <h3 className="mb-1 text-sm font-extrabold text-ink">방문 인증하기</h3>
       <p className="mb-1 text-[12px] text-ink-muted">
         인증은 내 기록에만 적용돼요. 위치 인증은 가게 50m 이내에서 자동으로 됩니다.
