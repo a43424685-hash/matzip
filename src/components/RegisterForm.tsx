@@ -556,9 +556,6 @@ export default function RegisterForm({
                 <Camera size={16} className="text-forest" />
                 {uploadingImg ? "업로드 중…" : images.length === 0 ? "사진 추가" : `사진 더 추가 (${images.length}/5)`}
               </span>
-              <span className="text-[11px] font-normal text-stone-400">
-                PC는 붙여넣기(Ctrl+V)·드래그도 돼요
-              </span>
               <input
                 type="file"
                 accept="image/*"

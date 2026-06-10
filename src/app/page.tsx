@@ -200,7 +200,7 @@ export default async function HomePage() {
             <span className="flex items-center gap-1.5 rounded-full bg-ink/80 px-3.5 py-1.5 text-[13px] font-bold text-white">
               <Lock size={14} /> 곧 오픈
             </span>
-            <p className="text-[13px] font-semibold text-ink">Lv.50 달성 시 오픈돼요</p>
+            <p className="text-[13px] font-semibold text-ink">Lv.20 달성 시 오픈돼요</p>
           </div>
         </div>
       </div>
