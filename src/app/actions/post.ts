@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSessionUserId } from "@/lib/auth";
-import { createRestaurantPost } from "@/server/restaurant/RestaurantService";
+import { createRestaurantPost, updateRestaurantPost } from "@/server/restaurant/RestaurantService";
 import { XP_AMOUNT } from "@/server/xp/xpRules";
 
 const schema = z.object({
@@ -154,4 +154,101 @@ export async function registerPostAction(
       result.regionName
     )}&postId=${result.postId}`
   );
+}
+
+// ── 내 글 수정 (가게·지역·좌표는 변경 불가, 내용·사진·카테고리만) ──────────────
+const updateSchema = z.object({
+  postId: z.string().min(1),
+  categoryIds: z.array(z.string()).min(1, "카테고리를 1개 이상 선택하세요."),
+  shortReview: z.string().optional(),
+  content: z.string().optional(),
+  tasteRating: z.string().optional(),
+  tasteTags: z.array(z.string()).optional(),
+  serviceRating: z.string().optional(),
+  serviceTags: z.array(z.string()).optional(),
+  atmosphereTags: z.array(z.string()).optional(),
+  priceRange: z.string().optional(),
+  priceMemo: z.string().optional(),
+  revisitIntent: z.string().optional(),
+  waitingLevel: z.string().optional(),
+  imageUrl: z.string().optional(),
+  imageThumbUrl: z.string().optional(),
+  imageUrls: z.array(z.string()).optional(),
+  imageThumbUrls: z.array(z.string()).optional(),
+  videoUrl: z.string().optional(),
+  videoThumbUrl: z.string().optional(),
+  videoDuration: z.string().optional(),
+  videoMuted: z.string().optional(),
+});
+
+export async function updatePostAction(
+  _prev: RegisterState,
+  formData: FormData
+): Promise<RegisterState> {
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/login");
+
+  const parsed = updateSchema.safeParse({
+    postId: formData.get("postId"),
+    categoryIds: formData.getAll("categoryIds").map(String),
+    shortReview: formData.get("shortReview") || undefined,
+    content: formData.get("content") || undefined,
+    tasteRating: formData.get("tasteRating") || undefined,
+    tasteTags: formData.getAll("tasteTags").map(String),
+    serviceRating: formData.get("serviceRating") || undefined,
+    serviceTags: formData.getAll("serviceTags").map(String),
+    atmosphereTags: formData.getAll("atmosphereTags").map(String),
+    priceRange: formData.get("priceRange") || undefined,
+    priceMemo: formData.get("priceMemo") || undefined,
+    revisitIntent: formData.get("revisitIntent") || undefined,
+    waitingLevel: formData.get("waitingLevel") || undefined,
+    imageUrl: formData.get("imageUrl") || undefined,
+    imageThumbUrl: formData.get("imageThumbUrl") || undefined,
+    imageUrls: formData.getAll("imageUrls").map(String),
+    imageThumbUrls: formData.getAll("imageThumbUrls").map(String),
+    videoUrl: formData.get("videoUrl") || undefined,
+    videoThumbUrl: formData.get("videoThumbUrl") || undefined,
+    videoDuration: formData.get("videoDuration") || undefined,
+    videoMuted: formData.get("videoMuted") || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+  const d = parsed.data;
+
+  const media = [];
+  const imageUrls = d.imageUrls?.filter((url) => url.trim()) ?? [];
+  const imageThumbUrls = d.imageThumbUrls ?? [];
+  if (imageUrls.length > 0) {
+    imageUrls.slice(0, 5).forEach((url, index) => {
+      media.push({ type: "image" as const, url: url.trim(), thumbnailUrl: imageThumbUrls[index]?.trim() || url.trim() });
+    });
+  } else if (d.imageUrl?.trim()) {
+    media.push({ type: "image" as const, url: d.imageUrl.trim(), thumbnailUrl: d.imageThumbUrl?.trim() || null });
+  }
+  if (d.videoUrl?.trim())
+    media.push({
+      type: "video" as const,
+      url: d.videoUrl.trim(),
+      thumbnailUrl: d.videoThumbUrl?.trim() || null,
+      duration: d.videoDuration ? Number(d.videoDuration) || null : null,
+      muted: d.videoMuted === "on",
+    });
+
+  const r = await updateRestaurantPost(userId, d.postId, {
+    shortReview: d.shortReview ?? null,
+    content: d.content ?? null,
+    tasteRating: d.tasteRating ?? null,
+    tasteTags: d.tasteTags ?? [],
+    serviceRating: d.serviceRating ?? null,
+    serviceTags: d.serviceTags ?? [],
+    atmosphereTags: d.atmosphereTags ?? [],
+    priceRange: (d.priceRange as never) || null,
+    priceMemo: d.priceMemo ?? null,
+    revisitIntent: (d.revisitIntent as never) || null,
+    waitingLevel: (d.waitingLevel as never) || null,
+    categoryIds: d.categoryIds,
+    media,
+  });
+  if (!r.ok) return { error: r.reason === "FORBIDDEN" ? "내 글만 수정할 수 있어요." : "수정 중 오류가 발생했어요." };
+
+  redirect(`/restaurants/${d.postId}`);
 }

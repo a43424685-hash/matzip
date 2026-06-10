@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check } from "lucide-react";
+import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { uploadImage } from "@/lib/imageUpload";
 import { uploadVideo } from "@/lib/videoUpload";
-import { registerPostAction, type RegisterState } from "@/app/actions/post";
+import { registerPostAction, updatePostAction, type RegisterState } from "@/app/actions/post";
 import {
   ATMOSPHERE_TAGS,
   PRICE_RANGES,
@@ -48,25 +48,53 @@ const CAT_PRIORITY = [
   "부모님 모시기 좋음", "가족", "겨울 국물", "신상", "회식",
 ];
 
+export interface InitialPost {
+  postId: string;
+  name: string;
+  regionId: string;
+  address: string;
+  shortReview: string;
+  content: string;
+  priceRange: string;
+  priceMemo: string;
+  tasteRating: string;
+  tasteTags: string[];
+  serviceRating: string;
+  serviceTags: string[];
+  atmosphereTags: string[];
+  revisitIntent: string;
+  waitingLevel: string;
+  categoryIds: string[];
+  images: UploadedImage[];
+  videoUrl: string;
+  videoThumb: string;
+  videoDuration: string;
+}
+
 export default function RegisterForm({
   regions,
   categoryGroups,
+  mode = "create",
+  initial,
 }: {
   regions: Region[];
   categoryGroups: CatGroup[];
+  mode?: "create" | "edit";
+  initial?: InitialPost;
 }) {
+  const isEdit = mode === "edit";
   const [state, action, pending] = useActionState<RegisterState, FormData>(
-    registerPostAction,
+    isEdit ? updatePostAction : registerPostAction,
     undefined
   );
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set(initial?.categoryIds ?? []));
+  const [images, setImages] = useState<UploadedImage[]>(initial?.images ?? []);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [videoUrl, setVideoUrl] = useState("");
-  const [videoThumb, setVideoThumb] = useState("");
-  const [videoDuration, setVideoDuration] = useState("");
+  const [videoUrl, setVideoUrl] = useState(initial?.videoUrl ?? "");
+  const [videoThumb, setVideoThumb] = useState(initial?.videoThumb ?? "");
+  const [videoDuration, setVideoDuration] = useState(initial?.videoDuration ?? "");
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoErr, setVideoErr] = useState("");
 
@@ -139,21 +167,32 @@ export default function RegisterForm({
     const files = Array.from(e.dataTransfer?.files ?? []);
     if (files.length > 0) void uploadFiles(files);
   }
-  const [shortReview, setShortReview] = useState("");
-  const [content, setContent] = useState("");
-  const [priceRange, setPriceRange] = useState("");
-  const [priceMemo, setPriceMemo] = useState("");
-  const [tasteRating, setTasteRating] = useState("");
-  const [tasteTags, setTasteTags] = useState<Set<string>>(new Set());
-  const [serviceRating, setServiceRating] = useState("");
-  const [serviceTags, setServiceTags] = useState<Set<string>>(new Set());
-  const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set());
-  const [revisitIntent, setRevisitIntent] = useState("");
-  const [waitingLevel, setWaitingLevel] = useState("");
+
+  // 사진 순서 변경 (앞으로/뒤로) — 첫 번째가 대표사진
+  function moveImage(index: number, dir: -1 | 1) {
+    setImages((prev) => {
+      const next = [...prev];
+      const to = index + dir;
+      if (to < 0 || to >= next.length) return prev;
+      [next[index], next[to]] = [next[to], next[index]];
+      return next;
+    });
+  }
+  const [shortReview, setShortReview] = useState(initial?.shortReview ?? "");
+  const [content, setContent] = useState(initial?.content ?? "");
+  const [priceRange, setPriceRange] = useState(initial?.priceRange ?? "");
+  const [priceMemo, setPriceMemo] = useState(initial?.priceMemo ?? "");
+  const [tasteRating, setTasteRating] = useState(initial?.tasteRating ?? "");
+  const [tasteTags, setTasteTags] = useState<Set<string>>(new Set(initial?.tasteTags ?? []));
+  const [serviceRating, setServiceRating] = useState(initial?.serviceRating ?? "");
+  const [serviceTags, setServiceTags] = useState<Set<string>>(new Set(initial?.serviceTags ?? []));
+  const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set(initial?.atmosphereTags ?? []));
+  const [revisitIntent, setRevisitIntent] = useState(initial?.revisitIntent ?? "");
+  const [waitingLevel, setWaitingLevel] = useState(initial?.waitingLevel ?? "");
   // 장소 검색 / 좌표
-  const [name, setName] = useState("");
-  const [regionId, setRegionId] = useState("");
-  const [address, setAddress] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [regionId, setRegionId] = useState(initial?.regionId ?? "");
+  const [address, setAddress] = useState(initial?.address ?? "");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [kakaoPlaceId, setKakaoPlaceId] = useState("");
   const [query, setQuery] = useState("");
@@ -271,6 +310,7 @@ export default function RegisterForm({
 
   return (
     <form action={action} className="space-y-7 pb-28">
+      {isEdit && initial && <input type="hidden" name="postId" value={initial.postId} />}
       {[...selected].map((id) => (
         <input key={id} type="hidden" name="categoryIds" value={id} />
       ))}
@@ -286,8 +326,8 @@ export default function RegisterForm({
 
       {/* 필수: 가게 — 카카오 장소 검색이 기본, 직접 입력은 예외 */}
       <div className="space-y-4">
-        {/* (A) 장소 검색 흐름 — 기본값 */}
-        {!picked && !manualMode && (
+        {/* (A) 장소 검색 흐름 — 기본값 (수정 모드에선 가게 변경 불가) */}
+        {!isEdit && !picked && !manualMode && (
           <div className="rounded-2xl bg-stone-50 p-4">
             <p className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted">
               <MapPin size={15} /> 어떤 가게인가요? *{" "}
@@ -355,21 +395,24 @@ export default function RegisterForm({
           </div>
         )}
 
-        {/* (B) 선택된 가게 */}
-        {picked && (
+        {/* (B) 선택된 가게 (수정 모드에선 가게 고정·읽기전용) */}
+        {(picked || isEdit) && (
           <div className="rounded-2xl border border-forest/30 bg-forest-soft/40 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="truncate text-base font-bold text-ink">{name}</div>
                 {address && <div className="mt-0.5 truncate text-[12px] text-stone-500">{address}</div>}
+                {isEdit && <div className="mt-0.5 text-[11px] text-stone-400">가게·지역은 수정할 수 없어요</div>}
               </div>
-              <button
-                type="button"
-                onClick={clearPick}
-                className="shrink-0 text-[13px] font-semibold text-stone-500"
-              >
-                다른 가게 선택
-              </button>
+              {!isEdit && (
+                <button
+                  type="button"
+                  onClick={clearPick}
+                  className="shrink-0 text-[13px] font-semibold text-stone-500"
+                >
+                  다른 가게 선택
+                </button>
+              )}
             </div>
 
             {/* 지역 — 자동 매핑, 실패 시 직접 선택 (필수) */}
@@ -380,7 +423,8 @@ export default function RegisterForm({
                 onChange={(e) => setRegionId(e.target.value)}
                 name="primaryRegionId"
                 required
-                className="input h-11"
+                disabled={isEdit}
+                className="input h-11 disabled:opacity-60"
               >
                 <option value="" disabled>
                   지역 선택
@@ -406,10 +450,12 @@ export default function RegisterForm({
                 className="mt-3"
               />
             )}
-            <p className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-forest">
-              <Check size={13} /> 이 가게는 위치 인증이 가능해요 (등록 후 현장에서 방문 인증)
-            </p>
-            {picked.alreadyRegistered && (
+            {!isEdit && (
+              <p className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-forest">
+                <Check size={13} /> 이 가게는 위치 인증이 가능해요 (등록 후 현장에서 방문 인증)
+              </p>
+            )}
+            {picked?.alreadyRegistered && (
               <p className="mt-1 text-[12px] text-ink-muted">
                 이미 등록된 가게예요. 내 방문 기록으로 추가됩니다.
               </p>
@@ -421,7 +467,7 @@ export default function RegisterForm({
         )}
 
         {/* (C) 직접 입력 — 예외 흐름 (좌표 없음 = 위치 인증 어려움) */}
-        {manualMode && (
+        {!isEdit && manualMode && (
           <div className="rounded-2xl border border-stone-200 p-4">
             <div className="space-y-3">
               <div>
@@ -528,6 +574,27 @@ export default function RegisterForm({
                       대표
                     </span>
                   )}
+                  {/* 순서 변경 */}
+                  <div className="absolute inset-x-0 top-0 flex justify-between px-0.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => moveImage(index, -1)}
+                      disabled={index === 0}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white disabled:opacity-30"
+                      aria-label="앞으로"
+                    >
+                      <ChevronLeft size={13} strokeWidth={3} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveImage(index, 1)}
+                      disabled={index === images.length - 1}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white disabled:opacity-30"
+                      aria-label="뒤로"
+                    >
+                      <ChevronRight size={13} strokeWidth={3} />
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setImages((prev) => prev.filter((_, i) => i !== index))}
@@ -725,19 +792,33 @@ export default function RegisterForm({
 
       {/* 하단 고정: 실시간 예상 XP + 등록 */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-stone-200 bg-white px-5 pb-4 pt-3">
-        <div className="mb-0.5 flex items-center justify-between">
-          <span className="text-sm text-ink-muted">위치 인증하면 받을 XP</span>
-          <span className="text-lg font-extrabold tabular-nums text-coral">+{verifyXp} XP</span>
-        </div>
-        <p className="mb-2 text-[11px] text-stone-400">
-          등록만으론 XP 0 · 현장에서 <b>위치 인증</b>하면 위 XP가 한꺼번에 들어와요.
-        </p>
+        {!isEdit && (
+          <>
+            <div className="mb-0.5 flex items-center justify-between">
+              <span className="text-sm text-ink-muted">위치 인증하면 받을 XP</span>
+              <span className="text-lg font-extrabold tabular-nums text-coral">+{verifyXp} XP</span>
+            </div>
+            <p className="mb-2 text-[11px] text-stone-400">
+              등록만으론 XP 0 · 현장에서 <b>위치 인증</b>하면 위 XP가 한꺼번에 들어와요.
+            </p>
+          </>
+        )}
         <button
           type="submit"
           disabled={pending || !name.trim() || !regionId}
           className="btn-primary h-12 w-full !text-base"
         >
-          {pending ? "등록 중…" : !name.trim() ? "가게를 먼저 선택하세요" : !regionId ? "지역을 선택하세요" : "맛집 등록하기"}
+          {isEdit
+            ? pending
+              ? "수정 중…"
+              : "수정 완료"
+            : pending
+              ? "등록 중…"
+              : !name.trim()
+                ? "가게를 먼저 선택하세요"
+                : !regionId
+                  ? "지역을 선택하세요"
+                  : "맛집 등록하기"}
         </button>
       </div>
     </form>

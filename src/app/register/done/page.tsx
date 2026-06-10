@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, MapPin, Lock } from "lucide-react";
+import { Check, MapPin, Lock, ChevronLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,15 @@ export default async function RegisterDonePage({
   const postId = sp.postId;
 
   return (
-    <main className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
+    <main className="relative flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
+      <Link
+        href="/"
+        aria-label="홈으로"
+        className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-ink active:scale-95"
+      >
+        <ChevronLeft size={26} strokeWidth={2.4} />
+      </Link>
+
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-forest-soft text-forest">
         <Check size={40} strokeWidth={3} />
       </div>

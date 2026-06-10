@@ -179,6 +179,84 @@ export async function createRestaurantPost(
 }
 
 // ─────────────────────────────────────────────────────────────
+// 내 글 수정 (작성자 본인) — 가게/지역/좌표는 그대로, 내용·카테고리·미디어만 교체
+// ─────────────────────────────────────────────────────────────
+export interface UpdatePostInput {
+  shortReview?: string | null;
+  content?: string | null;
+  tasteRating?: string | null;
+  tasteTags?: string[];
+  serviceRating?: string | null;
+  serviceTags?: string[];
+  atmosphereTags?: string[];
+  revisitIntent?: string | null;
+  priceRange?: string | null;
+  priceMemo?: string | null;
+  waitingLevel?: "none" | "short" | "long" | null;
+  categoryIds: string[];
+  media: MediaInput[];
+}
+
+export async function updateRestaurantPost(
+  userId: string,
+  postId: string,
+  input: UpdatePostInput
+): Promise<{ ok: boolean; reason?: string }> {
+  const post = await prisma.restaurantPost.findUnique({
+    where: { id: postId },
+    select: { userId: true },
+  });
+  if (!post) return { ok: false, reason: "NOT_FOUND" };
+  if (post.userId !== userId) return { ok: false, reason: "FORBIDDEN" };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.restaurantPost.update({
+      where: { id: postId },
+      data: {
+        shortReview: input.shortReview?.trim() || null,
+        content: input.content?.trim() || null,
+        tasteRating: input.tasteRating ?? null,
+        tasteTags: input.tasteTags ?? [],
+        serviceRating: input.serviceRating ?? null,
+        serviceTags: input.serviceTags ?? [],
+        atmosphereTags: input.atmosphereTags ?? [],
+        revisitIntent: input.revisitIntent ?? null,
+        priceRange: input.priceRange ?? null,
+        priceMemo: input.priceMemo?.trim() || null,
+        waitingLevel: input.waitingLevel ?? null,
+      },
+    });
+
+    // 카테고리 교체
+    await tx.restaurantPostCategory.deleteMany({ where: { postId } });
+    const uniqueCats = Array.from(new Set(input.categoryIds));
+    if (uniqueCats.length > 0) {
+      await tx.restaurantPostCategory.createMany({
+        data: uniqueCats.map((categoryId) => ({ postId, categoryId })),
+      });
+    }
+
+    // 미디어 교체 (배열 순서 = sortOrder → 사진 순서 반영)
+    await tx.media.deleteMany({ where: { postId } });
+    if (input.media.length > 0) {
+      await tx.media.createMany({
+        data: input.media.map((m, i) => ({
+          postId,
+          type: m.type,
+          url: m.url,
+          thumbnailUrl: m.thumbnailUrl ?? null,
+          duration: m.duration ?? null,
+          muted: m.type === "video" ? !!m.muted : false,
+          sortOrder: i,
+        })),
+      });
+    }
+  });
+
+  return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────
 // 글 삭제 (작성자 본인 또는 운영자)
 // ─────────────────────────────────────────────────────────────
 export async function deletePost(

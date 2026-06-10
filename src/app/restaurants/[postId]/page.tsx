@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Camera, MapPin, Share2, Check } from "lucide-react";
+import Link from "next/link";
+import { Camera, MapPin, Share2, Check, Pencil } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
 import { prisma } from "@/lib/db";
 import KakaoMap from "@/components/KakaoMap";
@@ -271,6 +272,11 @@ export default async function PostDetailPage({
         {/* 신고 / 삭제 (작성자 본인 또는 운영자) */}
         {user && (
           <div className="flex items-center justify-end gap-4 text-[13px]">
+            {user.id === post.userId && (
+              <Link href={`/restaurants/${post.id}/edit`} className="flex items-center gap-1 font-semibold text-forest">
+                <Pencil size={14} /> 수정
+              </Link>
+            )}
             {user.id !== post.userId && (
               <BlockButton userId={post.userId} nickname={post.user.nickname} />
             )}
