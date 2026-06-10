@@ -163,6 +163,13 @@ export default async function MePage() {
         <Row href="/me/reports" icon={<ShieldAlert size={18} />} label="신고/제재 내역" />
       </Section>
 
+      {/* 운영자 전용 */}
+      {user.isAdmin && (
+        <Section title="운영자">
+          <Row href="/admin" icon={<ShieldAlert size={18} />} label="관리자 콘솔" sub="정산·환불·신고 관리" />
+        </Section>
+      )}
+
       {/* 고객 · 설정 */}
       <Section title="고객 · 설정">
         <Row href="/me/notices" icon={<Info size={18} />} label="공지사항" />

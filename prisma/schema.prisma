@@ -50,6 +50,7 @@ model User {
   notifications Notification[]  @relation("NotifRecipient")
   notifActions  Notification[]  @relation("NotifActor")
   mapPurchases  MapPurchase[]   @relation("MapBuyer")
+  withdrawals   Withdrawal[]    @relation("SellerWithdrawals")
   xpEvents    XpEvent[]        @relation("XpRecipient")
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
@@ -602,6 +603,29 @@ model MapPurchase {
   @@unique([buyerId, collectionId])
   @@index([collectionId])
   @@map("map_purchases")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 판매 수익 출금(정산 지급) — 판매자가 신청, 운영자가 입금 후 '지급완료' 처리
+// ─────────────────────────────────────────────────────────────
+model Withdrawal {
+  id            String    @id @default(cuid())
+  sellerId      String
+  amountWon     Int // 신청 시점 출금 가능 잔액
+  // status: requested(신청) | paid(지급완료) | rejected(반려)
+  status        String    @default("requested")
+  bankName      String
+  accountNumber String
+  accountHolder String
+  memo          String? // 운영자 메모(이체 일자 등)
+  requestedAt   DateTime  @default(now())
+  processedAt   DateTime?
+
+  seller User @relation("SellerWithdrawals", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([status])
+  @@map("withdrawals")
 }
 
 model CollectionItem {

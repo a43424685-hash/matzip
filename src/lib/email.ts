@@ -35,10 +35,15 @@ export async function sendVerificationEmail(to: string, url: string): Promise<vo
       <p style="font-size:11px;color:#b3b9b5">${BUSINESS.company} · ${BUSINESS.email}</p>
     </div>`;
 
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to,
     subject: "[먹고핀] 이메일 인증을 완료해 주세요",
     html,
   });
+  if (error) {
+    console.error("[email] Resend 오류:", error);
+    throw new Error(typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "EMAIL_SEND_FAILED");
+  }
+  console.log("[email] 발송 성공 id:", data?.id);
 }

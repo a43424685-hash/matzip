@@ -2,15 +2,32 @@ import { redirect } from "next/navigation";
 import { Coins } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getSellerEarnings } from "@/server/payment/PaymentService";
+import { getSellerBalance, listMyWithdrawals, MIN_WITHDRAW_WON } from "@/server/payment/WithdrawalService";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
+import WithdrawForm from "@/components/WithdrawForm";
 
 export const dynamic = "force-dynamic";
+
+const WD_STATUS: Record<string, { label: string; cls: string }> = {
+  requested: { label: "처리 중", cls: "bg-amber-100 text-amber-700" },
+  paid: { label: "지급완료", cls: "bg-forest-soft text-forest" },
+  rejected: { label: "반려", cls: "bg-stone-100 text-stone-500" },
+};
+
+function fmtDate(d: Date | string) {
+  const x = new Date(d);
+  return `${x.getFullYear()}.${String(x.getMonth() + 1).padStart(2, "0")}.${String(x.getDate()).padStart(2, "0")}`;
+}
 
 export default async function EarningsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const e = await getSellerEarnings(user.id);
+  const [e, balance, withdrawals] = await Promise.all([
+    getSellerEarnings(user.id),
+    getSellerBalance(user.id),
+    listMyWithdrawals(user.id),
+  ]);
 
   return (
     <main className="px-5 pb-24 pt-5">
@@ -18,13 +35,59 @@ export default async function EarningsPage() {
 
       {/* 정산 요약 */}
       <div className="rounded-2xl bg-forest p-5 text-white">
-        <div className="text-[13px] text-white/75">정산 예정 금액 (수수료 30% 차감 후)</div>
-        <div className="mt-1 text-3xl font-black tabular-nums">{e.totalNetWon.toLocaleString()}원</div>
-        <div className="mt-3 flex gap-4 text-[12px] text-white/80">
-          <span>총 판매 {e.salesCount}건</span>
-          <span>총 판매액 {e.totalGrossWon.toLocaleString()}원</span>
-          <span>수수료 {e.totalFeeWon.toLocaleString()}원</span>
+        <div className="text-[13px] text-white/75">출금 가능 잔액</div>
+        <div className="mt-1 text-3xl font-black tabular-nums">{balance.availableWon.toLocaleString()}원</div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-white/80">
+          <span>누적 정산액 {balance.totalNetWon.toLocaleString()}원</span>
+          <span>지급완료 {balance.withdrawnWon.toLocaleString()}원</span>
+          {balance.pendingWon > 0 && <span>신청 중 {balance.pendingWon.toLocaleString()}원</span>}
         </div>
+      </div>
+
+      {/* 출금 신청 */}
+      <WithdrawForm
+        availableWon={balance.availableWon}
+        minWon={MIN_WITHDRAW_WON}
+        canWithdraw={balance.canWithdraw}
+        hasPending={balance.hasPending}
+      />
+
+      {/* 출금 내역 */}
+      {withdrawals.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-sm font-extrabold text-ink">출금 내역</h2>
+          <div className="space-y-2">
+            {withdrawals.map((w) => {
+              const s = WD_STATUS[w.status] ?? WD_STATUS.requested;
+              return (
+                <div key={w.id} className="card flex items-center justify-between p-3.5">
+                  <div>
+                    <div className="text-sm font-bold text-ink">{w.amountWon.toLocaleString()}원</div>
+                    <div className="mt-0.5 text-[11px] text-stone-400">
+                      {fmtDate(w.requestedAt)} 신청
+                      {w.processedAt && ` · ${fmtDate(w.processedAt)} 처리`}
+                    </div>
+                  </div>
+                  <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 판매 통계 */}
+      <div className="mt-6 grid grid-cols-3 gap-2 text-center">
+        {[
+          { label: "총 판매", v: `${e.salesCount}건` },
+          { label: "총 판매액", v: `${e.totalGrossWon.toLocaleString()}원` },
+          { label: "수수료(30%)", v: `${e.totalFeeWon.toLocaleString()}원` },
+        ].map((s) => (
+          <div key={s.label} className="rounded-2xl border border-stone-200 p-3">
+            <div className="text-[15px] font-extrabold tabular-nums text-ink">{s.v}</div>
+            <div className="mt-0.5 text-[11px] text-stone-400">{s.label}</div>
+          </div>
+        ))}
       </div>
 
       {/* 지도별 수익 */}
