@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveRegions } from "@/server/catalog";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { searchPosts, type SortKey } from "@/server/restaurant/RestaurantService";
-import BackButton from "@/components/BackButton";
 import FeedControls from "@/components/FeedControls";
 import FeedListItem from "@/components/FeedListItem";
 
@@ -45,10 +46,10 @@ export default async function FeedPage({
   return (
     <main className="pb-10">
       <header className="sticky top-0 z-10 flex items-center gap-1 border-b border-stone-100 bg-white/95 px-3 py-3 backdrop-blur">
-        <BackButton fallback="/" className="-ml-1 text-ink" />
-        <div>
-          <h1 className="text-[16px] font-extrabold text-ink">{cfg.title}</h1>
-        </div>
+        <Link href="/" aria-label="홈으로" className="flex h-9 w-9 items-center justify-center rounded-full text-ink active:scale-95">
+          <ChevronLeft size={24} strokeWidth={2.4} />
+        </Link>
+        <h1 className="text-[16px] font-extrabold text-ink">{cfg.title}</h1>
       </header>
 
       <div className="px-5">

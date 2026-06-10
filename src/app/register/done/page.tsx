@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PartyPopper, MapPin } from "lucide-react";
+import { Check, MapPin, Lock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -16,23 +16,28 @@ export default async function RegisterDonePage({
   return (
     <main className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-forest-soft text-forest">
-        <PartyPopper size={36} />
+        <Check size={40} strokeWidth={3} />
       </div>
       <h1 className="mt-5 text-2xl font-extrabold text-ink">맛집 등록 완료!</h1>
 
-      <p className="mt-4 text-sm text-ink-muted">현장에서 위치 인증하면</p>
-      <div className="mt-1 text-5xl font-black tabular-nums text-coral">
-        +{xp.toLocaleString()}
-        <span className="ml-1 text-2xl">XP</span>
+      {/* 핵심: 등록만으론 경험치 0, 인증해야 들어옴 */}
+      <div className="mt-5 w-full rounded-2xl border border-coral/25 bg-coral/5 p-5">
+        <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-coral-dark">
+          <Lock size={16} /> 아직 경험치는 0이에요
+        </p>
+        <div className="mt-2 text-4xl font-black tabular-nums text-stone-300">
+          +{xp.toLocaleString()}
+          <span className="ml-1 text-xl">XP</span>
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
+          <b className="text-ink">현장에서 위치 인증</b>해야 위 경험치가 한꺼번에 들어와요.
+          {region && <> 인증하면 <b className="text-ink">{region}</b> 지역·전체 레벨이 같이 올라요.</>}
+          <br />
+          등록만으론 경험치가 쌓이지 않아요.
+        </p>
       </div>
-      <p className="mt-2 text-sm text-ink-muted">
-        한꺼번에 받아요{region && <> · <b className="text-ink">{region}</b> 지역·전체 레벨 동시 상승</>}
-      </p>
-      <p className="mt-1 text-[12px] text-stone-400">
-        영수증·메뉴판까지 인증하면 XP가 더 커지고, 공유도 인증 후에 열려요.
-      </p>
 
-      <div className="mt-10 w-full space-y-2.5">
+      <div className="mt-8 w-full space-y-2.5">
         {postId && (
           <Link href={`/restaurants/${postId}`} className="btn-primary h-12 w-full !text-base">
             <MapPin size={18} /> 지금 위치 인증하러 가기

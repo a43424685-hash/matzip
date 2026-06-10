@@ -27,6 +27,7 @@ import { logoutAction } from "@/app/actions/auth";
 import OfficialBadge from "@/components/OfficialBadge";
 import { getMyOverallRank, getMyRegionRank } from "@/server/ranking/RankingService";
 import { unreadCount } from "@/server/notification/NotificationService";
+import { calculateLevel } from "@/server/xp/LevelService";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,8 @@ const VERIFY_GOAL = 30;
 export default async function MePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const prog = calculateLevel(user.totalXp);
 
   const topRegion = await prisma.userRegionStat.findFirst({
     where: { userId: user.id, regionXp: { gt: 0 } },
@@ -98,6 +101,17 @@ export default async function MePage() {
                 {topRegion.region.name} <b className="text-ink">{regionRank}위</b>
               </span>
             )}
+          </div>
+          {/* 경험치 게이지 */}
+          <div className="mt-2">
+            <div className="h-1.5 overflow-hidden rounded-full bg-stone-100">
+              <div className="h-full rounded-full bg-forest" style={{ width: `${Math.round(prog.progress * 100)}%` }} />
+            </div>
+            <div className="mt-1 text-[11px] tabular-nums text-stone-400">
+              {prog.isMaxLevel
+                ? "만렙 달성 🎉"
+                : `${prog.xpIntoLevel.toLocaleString()} / ${(prog.nextLevelXp - prog.currentLevelFloorXp).toLocaleString()} XP`}
+            </div>
           </div>
         </div>
         <ChevronRight size={20} className="shrink-0 text-stone-300" />

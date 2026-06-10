@@ -47,7 +47,7 @@ export default function NearbyHomeSection() {
       <div className="flex items-end justify-between px-5 pb-3 pt-9">
         <div>
           <h2 className="section-title">내 주변 인증 맛집</h2>
-          <p className="mt-1 text-[13px] text-ink-muted">GPS로 진짜 가까운 인증 맛집만</p>
+          <p className="mt-1 text-[13px] text-ink-muted">GPS 기준 3km 이내 인증 맛집만</p>
         </div>
         <Link href="/nearby" className="flex items-center text-[13px] font-semibold text-forest">
           더보기 <ChevronRight size={15} />
@@ -85,7 +85,7 @@ export default function NearbyHomeSection() {
         </div>
       ) : items.length === 0 ? (
         <p className="mx-5 rounded-2xl bg-stone-50 py-6 text-center text-sm text-stone-400">
-          주변에 아직 인증 맛집이 없어요.
+          3km 안에 인증 맛집이 아직 없어요.
         </p>
       ) : (
         <div className="no-scrollbar flex gap-3 overflow-x-auto px-5 pb-1">

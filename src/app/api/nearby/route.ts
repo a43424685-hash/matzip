@@ -31,6 +31,8 @@ export async function GET(request: Request) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return NextResponse.json({ ok: false, error: "위치 정보가 필요합니다." }, { status: 400 });
   }
+  // 반경 제한(기본 3km) — 이 안의 맛집만 "주변"으로 인정
+  const radius = Number(url.searchParams.get("radius")) || 3000;
 
   const user = await getCurrentUser();
   const blockedIds = await getBlockedIds(user?.id ?? null);
@@ -68,6 +70,7 @@ export async function GET(request: Request) {
           : distanceMeters(lat, lng, p.restaurant.latitude, p.restaurant.longitude),
     }))
     .filter((p): p is { post: ReturnType<typeof toPostCard>; latitude: number; longitude: number; distanceMeters: number } => p.distanceMeters != null && p.latitude != null && p.longitude != null)
+    .filter((p) => p.distanceMeters <= radius)
     .sort((a, b) => a.distanceMeters - b.distanceMeters)
     .slice(0, 50);
 
