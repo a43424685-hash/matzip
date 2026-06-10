@@ -10,11 +10,6 @@ import {
   hashPassword,
   verifyPassword,
 } from "@/lib/auth";
-import {
-  buildVerificationUrl,
-  createEmailVerificationToken,
-} from "@/server/auth/EmailVerificationService";
-import { sendVerificationEmail } from "@/lib/email";
 import { nicknameSchema } from "@/lib/nickname";
 
 const signupSchema = z.object({
@@ -44,21 +39,12 @@ export async function signupAction(
   }
   const { email, nickname, password } = parsed.data;
 
+  // 이메일은 중복 불가(unique). 같은 이메일이면 가입 막음.
   const exists = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, emailVerifiedAt: true },
+    select: { id: true },
   });
-  if (exists?.emailVerifiedAt) return { error: "이미 가입된 이메일입니다." };
-  if (exists && !exists.emailVerifiedAt) {
-    const { token } = await createEmailVerificationToken(exists.id);
-    const url = buildVerificationUrl(token);
-    console.log(`[auth] 이메일 인증 링크 재발급: ${url}`);
-    await sendVerificationEmail(email, url).catch((e) => console.error("[email] 발송 실패", e));
-    const dev = process.env.NODE_ENV !== "production"
-      ? `&devUrl=${encodeURIComponent(url)}`
-      : "";
-    redirect(`/verify-email/sent?email=${encodeURIComponent(email)}${dev}`);
-  }
+  if (exists) return { error: "이미 가입된 이메일입니다." };
 
   let user: { id: string };
   try {
@@ -68,6 +54,8 @@ export async function signupAction(
         nickname,
         passwordHash: await hashPassword(password),
         nicknameConfirmedAt: new Date(),
+        // 이메일 인증 없이 바로 가입 (도메인 발송 준비되면 인증 재도입)
+        emailVerifiedAt: new Date(),
       },
       select: { id: true },
     });
@@ -77,32 +65,14 @@ export async function signupAction(
       if (target.includes("nickname")) {
         return { error: "이미 사용 중인 닉네임입니다." };
       }
-      const existing = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true, emailVerifiedAt: true },
-      });
-      if (existing && !existing.emailVerifiedAt) {
-        const { token } = await createEmailVerificationToken(existing.id);
-        const url = buildVerificationUrl(token);
-        console.log(`[auth] 이메일 인증 링크 재발급: ${url}`);
-        const dev = process.env.NODE_ENV !== "production"
-          ? `&devUrl=${encodeURIComponent(url)}`
-          : "";
-        redirect(`/verify-email/sent?email=${encodeURIComponent(email)}${dev}`);
-      }
       return { error: "이미 가입된 이메일입니다." };
     }
     throw e;
   }
-  const { token } = await createEmailVerificationToken(user.id);
-  const url = buildVerificationUrl(token);
-  console.log(`[auth] 이메일 인증 링크: ${url}`);
-  await sendVerificationEmail(email, url).catch((e) => console.error("[email] 발송 실패", e));
 
-  const dev = process.env.NODE_ENV !== "production"
-    ? `&devUrl=${encodeURIComponent(url)}`
-    : "";
-  redirect(`/verify-email/sent?email=${encodeURIComponent(email)}${dev}`);
+  // 가입 즉시 로그인
+  await createSession(user.id);
+  redirect("/");
 }
 
 export async function loginAction(
@@ -114,11 +84,8 @@ export async function loginAction(
   const password = String(formData.get("password") ?? "");
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+  if (!user || !user.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
-  }
-  if (!user.emailVerifiedAt) {
-    return { error: "이메일 인증 후 로그인할 수 있습니다." };
   }
   await createSession(user.id);
   redirect("/");
