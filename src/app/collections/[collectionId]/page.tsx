@@ -8,6 +8,7 @@ import PaidMapToggle from "@/components/PaidMapToggle";
 import PurchaseMapButton from "@/components/PurchaseMapButton";
 import PaidMapViewer from "@/components/PaidMapViewer";
 import BackButton from "@/components/BackButton";
+import OfficialBadge from "@/components/OfficialBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,7 @@ export default async function CollectionDetailPage({
             Lv.{col.ownerLevel}
           </span>
           <span className="font-semibold">{col.ownerNickname}</span>
+          {col.ownerIsAdmin && <OfficialBadge size={15} />}
           <span className="text-white/60">· 맛집 {col.itemCount}곳</span>
         </div>
       </header>

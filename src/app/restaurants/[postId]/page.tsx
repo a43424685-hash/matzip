@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Camera, MapPin, Share2 } from "lucide-react";
+import { Camera, MapPin, Share2, Check } from "lucide-react";
+import OfficialBadge from "@/components/OfficialBadge";
 import { prisma } from "@/lib/db";
 import KakaoMap from "@/components/KakaoMap";
 import ShareButton from "@/components/ShareButton";
@@ -158,8 +159,8 @@ export default async function PostDetailPage({
           <div className="flex items-center justify-between">
             <h1 className="flex items-center gap-2 text-2xl font-extrabold">
               {post.user.isAdmin && (
-                <span className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[12px] font-extrabold text-white">
-                  운영자
+                <span className="flex items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[12px] font-extrabold text-white">
+                  <Check size={12} strokeWidth={3.5} /> 운영자
                 </span>
               )}
               {post.restaurant.name}
@@ -253,8 +254,9 @@ export default async function PostDetailPage({
 
         {/* 작성자 + 지도 */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-muted">
-            등록 by <b className="text-ink">{post.user.nickname}</b> · Lv.{post.user.totalLevel}
+          <span className="flex items-center gap-1 text-ink-muted">
+            등록 by <b className="text-ink">{post.user.nickname}</b>
+            {post.user.isAdmin && <OfficialBadge size={15} />} · Lv.{post.user.totalLevel}
           </span>
           <a
             href={mapUrl}

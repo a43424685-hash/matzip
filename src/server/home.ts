@@ -18,6 +18,7 @@ export interface HomeCollection {
   title: string;
   authorNickname: string;
   authorLevel: number;
+  authorIsOfficial: boolean;
   itemCount: number;
   previewNames: string[];
   coverUrl: string | null;
@@ -39,7 +40,7 @@ export async function getPublicCollections(
     select: {
       id: true,
       title: true,
-      user: { select: { nickname: true, totalLevel: true } },
+      user: { select: { nickname: true, totalLevel: true, isAdmin: true } },
       _count: { select: { items: true } },
       items: {
         orderBy: { sortOrder: "asc" },
@@ -56,6 +57,7 @@ export async function getPublicCollections(
     title: c.title,
     authorNickname: c.user.nickname,
     authorLevel: c.user.totalLevel,
+    authorIsOfficial: c.user.isAdmin,
     itemCount: c._count.items,
     previewNames: c.items.map((i) => i.restaurant.name),
     coverUrl:

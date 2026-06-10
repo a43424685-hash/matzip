@@ -11,6 +11,7 @@ import {
   Coins,
   Plus,
   Lock,
+  Check,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getHomeData, type HomeCollection } from "@/server/home";
@@ -20,6 +21,7 @@ import type { UserRankRow } from "@/server/ranking/RankingService";
 import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
+import OfficialBadge from "@/components/OfficialBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -290,8 +292,8 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
           </span>
         )}
         {post.isOfficial ? (
-          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[11px] font-bold text-white">
-            <ShieldCheck size={11} /> 운영자
+          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+            <Check size={11} strokeWidth={3.2} /> 운영자
           </span>
         ) : showVerified || post.verification.location ? (
           <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
@@ -324,8 +326,8 @@ function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: b
       <div className="relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl bg-forest-soft p-3">
         <div className="absolute inset-0 opacity-60 thumb-empty" />
         {post.isOfficial ? (
-          <span className="relative z-[1] inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/95 px-2 py-0.5 text-[11px] font-bold text-white">
-            <ShieldCheck size={11} /> 운영자
+          <span className="relative z-[1] inline-flex w-fit items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+            <Check size={11} strokeWidth={3.2} /> 운영자
           </span>
         ) : showVerified || post.verification.location ? (
           <span className="relative z-[1] inline-flex w-fit items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
@@ -372,7 +374,8 @@ function CollectionCard({ c }: { c: HomeCollection }) {
         </div>
         <div className="mt-2 line-clamp-2 text-sm font-bold text-ink">{c.title}</div>
         <div className="mt-0.5 truncate text-[12px] text-stone-400">
-          {c.authorNickname} · Lv.{c.authorLevel}
+          {c.authorNickname}
+          {c.authorIsOfficial && <OfficialBadge size={12} className="mx-0.5 align-middle" />} · Lv.{c.authorLevel}
         </div>
         {c.previewNames.length > 0 && (
           <div className="mt-1.5 line-clamp-2 text-[12px] text-ink-muted">

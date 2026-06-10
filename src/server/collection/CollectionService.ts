@@ -149,7 +149,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
       userId: true,
       createdAt: true,
       region: { select: { name: true } },
-      user: { select: { nickname: true, totalLevel: true } },
+      user: { select: { nickname: true, totalLevel: true, isAdmin: true } },
       _count: { select: { items: true } },
       items: {
         orderBy: { sortOrder: "asc" },
@@ -233,6 +233,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     ownerId: col.userId,
     ownerNickname: col.user.nickname,
     ownerLevel: col.user.totalLevel,
+    ownerIsAdmin: col.user.isAdmin,
     regionName: col.region.name,
     itemCount: col._count.items,
     // 잠금 상태면 항목 자체를 내려주지 않음 (이름·위치 유출 방지)

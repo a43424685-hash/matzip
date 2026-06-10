@@ -24,6 +24,7 @@ import {
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
+import OfficialBadge from "@/components/OfficialBadge";
 import { getMyOverallRank, getMyRegionRank } from "@/server/ranking/RankingService";
 import { unreadCount } from "@/server/notification/NotificationService";
 
@@ -83,8 +84,9 @@ export default async function MePage() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="truncate text-xl font-extrabold text-ink">{user.nickname}</span>
+            {user.isAdmin && <OfficialBadge size={18} />}
             <span className="badge-lv shrink-0">Lv.{user.totalLevel}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-ink-muted">

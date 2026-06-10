@@ -19,6 +19,7 @@ export interface CommentUser {
   nickname: string;
   level: number;
   avatarUrl: string | null;
+  isOfficial: boolean;
 }
 export interface CommentNode {
   id: string;
@@ -200,7 +201,7 @@ export async function getComments(
       isPinned: true,
       parentId: true,
       userId: true,
-      user: { select: { id: true, nickname: true, totalLevel: true, avatarUrl: true } },
+      user: { select: { id: true, nickname: true, totalLevel: true, avatarUrl: true, isAdmin: true } },
       likes: currentUserId
         ? { where: { userId: currentUserId }, select: { id: true } }
         : false,
@@ -215,7 +216,7 @@ export async function getComments(
     likedByMe: Array.isArray(r.likes) ? r.likes.length > 0 : false,
     isPinned: r.isPinned,
     isMine: !!currentUserId && r.userId === currentUserId,
-    user: { id: r.user.id, nickname: r.user.nickname, level: r.user.totalLevel, avatarUrl: r.user.avatarUrl },
+    user: { id: r.user.id, nickname: r.user.nickname, level: r.user.totalLevel, avatarUrl: r.user.avatarUrl, isOfficial: r.user.isAdmin },
     replies: [],
   });
 

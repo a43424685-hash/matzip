@@ -4,12 +4,14 @@ import { useState } from "react";
 import { MessageCircle, Heart, Pin, Trash2 } from "lucide-react";
 import ReportButton from "./ReportButton";
 import BlockButton from "./BlockButton";
+import OfficialBadge from "./OfficialBadge";
 
 interface CUser {
   id: string;
   nickname: string;
   level: number;
   avatarUrl: string | null;
+  isOfficial: boolean;
 }
 export interface CNode {
   id: string;
@@ -64,6 +66,7 @@ function CommentItem({ c, depth, ctx }: { c: CNode; depth: number; ctx: Ctx }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[12px]">
             <b className="text-ink">{c.user.nickname}</b>
+            {c.user.isOfficial && <OfficialBadge size={14} />}
             <span className="text-stone-400">Lv.{c.user.level}</span>
             <span className="text-stone-300">· {ago(c.createdAt)}</span>
             {c.isPinned && (

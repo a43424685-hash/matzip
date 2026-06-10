@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Heart, MessageCircle, CornerDownRight } from "lucide-react";
 import type { NotificationRow } from "@/server/notification/NotificationService";
+import OfficialBadge from "@/components/OfficialBadge";
 
 const LABEL: Record<string, string> = {
   like: "회원님의 글을 좋아해요",
@@ -42,7 +43,8 @@ export default function NotificationListView({ rows }: { rows: NotificationRow[]
             <span className="mt-0.5 shrink-0">{iconFor(n.type)}</span>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-ink">
-                <b>{n.actorNickname ?? "알 수 없음"}</b>님이 {LABEL[n.type] ?? "활동했어요"}
+                <b>{n.actorNickname ?? "알 수 없음"}</b>
+                {n.actorIsOfficial && <OfficialBadge size={13} className="mx-0.5 align-middle" />}님이 {LABEL[n.type] ?? "활동했어요"}
               </p>
               {n.restaurantName && (
                 <p className="mt-0.5 truncate text-[12px] text-stone-400">{n.restaurantName}</p>

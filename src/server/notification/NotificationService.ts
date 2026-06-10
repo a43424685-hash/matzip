@@ -81,6 +81,7 @@ export interface NotificationRow {
   read: boolean;
   createdAt: string;
   actorNickname: string | null;
+  actorIsOfficial: boolean;
   postId: string | null;
   restaurantName: string | null;
 }
@@ -98,7 +99,7 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
       createdAt: true,
       postId: true,
       actorUserId: true,
-      actor: { select: { nickname: true } },
+      actor: { select: { nickname: true, isAdmin: true } },
     },
   });
   // 차단한 사용자의 활동 알림은 숨김
@@ -120,6 +121,7 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
     read: r.read,
     createdAt: r.createdAt.toISOString(),
     actorNickname: r.actor?.nickname ?? null,
+    actorIsOfficial: r.actor?.isAdmin ?? false,
     postId: r.postId,
     restaurantName: r.postId ? nameById.get(r.postId) ?? null : null,
   }));
