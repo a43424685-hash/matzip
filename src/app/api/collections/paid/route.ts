@@ -5,7 +5,7 @@ import { setPaidMap } from "@/server/collection/CollectionService";
 const MESSAGE: Record<string, string> = {
   NOT_FOUND: "리스트를 찾을 수 없어요.",
   FORBIDDEN: "내 리스트만 설정할 수 있어요.",
-  NOT_ELIGIBLE: "판매 자격(Lv.50·위치 인증 100곳)을 아직 못 채웠어요.",
+  NOT_ELIGIBLE: "판매 자격(Lv.20·위치 인증 30곳)을 아직 못 채웠어요.",
   EMPTY: "맛집이 1곳 이상 담긴 리스트만 판매할 수 있어요.",
   BAD_PRICE: "가격은 990~9,900원 사이여야 해요.",
 };

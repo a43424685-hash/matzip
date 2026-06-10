@@ -63,7 +63,7 @@ export default async function RankingsPage({
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <BenefitMini title="지역 TOP 50" body="캠페인 신청" />
           <BenefitMini title="월간 TOP 10" body="우선권" />
-          <BenefitMini title="Lv.50+" body="유료지도 도전" />
+          <BenefitMini title="Lv.20+" body="유료지도 도전" />
         </div>
       </section>
 
@@ -146,8 +146,8 @@ function MyRankCard({
   eligibility: CreatorEligibility | null;
 }) {
   const top50Left = rank > 50 ? `${rank - 50}명` : "달성";
-  const levelLeft = Math.max(0, 50 - user.totalLevel);
-  const verifiedLeft = Math.max(0, 100 - (eligibility?.verifiedCount ?? 0));
+  const levelLeft = Math.max(0, 20 - user.totalLevel);
+  const verifiedLeft = Math.max(0, 30 - (eligibility?.verifiedCount ?? 0));
 
   return (
     <section className="rounded-3xl bg-forest px-5 py-5 text-white">
@@ -166,8 +166,8 @@ function MyRankCard({
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
         <ProgressMini label="TOP 50까지" value={top50Left} />
-        <ProgressMini label="Lv.50까지" value={levelLeft === 0 ? "달성" : `${levelLeft}Lv`} />
-        <ProgressMini label="인증 100곳까지" value={verifiedLeft === 0 ? "달성" : `${verifiedLeft}곳`} />
+        <ProgressMini label="Lv.20까지" value={levelLeft === 0 ? "달성" : `${levelLeft}Lv`} />
+        <ProgressMini label="인증 30곳까지" value={verifiedLeft === 0 ? "달성" : `${verifiedLeft}곳`} />
       </div>
     </section>
   );
@@ -193,8 +193,8 @@ function ProgressMini({ label, value }: { label: string; value: string }) {
 
 function CreatorMapCard({ eligibility }: { eligibility: CreatorEligibility | null }) {
   const checks = [
-    { label: "Lv.50 이상", ok: (eligibility?.level ?? 1) >= 50, value: `Lv.${eligibility?.level ?? 1}/50` },
-    { label: "위치 인증 맛집 100곳", ok: (eligibility?.verifiedCount ?? 0) >= 100, value: `${eligibility?.verifiedCount ?? 0}/100` },
+    { label: "Lv.20 이상", ok: (eligibility?.level ?? 1) >= 20, value: `Lv.${eligibility?.level ?? 1}/20` },
+    { label: "위치 인증 맛집 30곳", ok: (eligibility?.verifiedCount ?? 0) >= 30, value: `${eligibility?.verifiedCount ?? 0}/30` },
     { label: "공개 리스트 3개", ok: (eligibility?.publicCollections ?? 0) >= 3, value: `${eligibility?.publicCollections ?? 0}/3` },
     { label: "한 지역 인증 30곳", ok: (eligibility?.bestRegionVerified ?? 0) >= 30, value: `${eligibility?.bestRegionVerified ?? 0}/30` },
     { label: "미해결 신고 0건", ok: (eligibility?.openReports ?? 0) === 0, value: `${eligibility?.openReports ?? 0}건` },

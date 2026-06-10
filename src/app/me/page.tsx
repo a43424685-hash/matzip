@@ -30,8 +30,8 @@ import { unreadCount } from "@/server/notification/NotificationService";
 export const dynamic = "force-dynamic";
 
 // 유료 맛집지도 오픈 조건 (확장 가능 — 나중에 무료 공개 맛집 20개 등 추가)
-const LEVEL_GOAL = 50;
-const VERIFY_GOAL = 100;
+const LEVEL_GOAL = 20;
+const VERIFY_GOAL = 30;
 
 export default async function MePage() {
   const user = await getCurrentUser();

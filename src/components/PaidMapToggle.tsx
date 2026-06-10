@@ -47,7 +47,7 @@ export default function PaidMapToggle({
           <Coins size={16} className="text-forest" /> 유료 지도로 판매
         </h2>
         <p className="mt-1 text-[13px] text-ink-muted">
-          판매 자격(Lv.50 · 위치 인증 100곳) 달성 후 이 리스트를 유료로 팔 수 있어요.
+          판매 자격(Lv.20 · 위치 인증 30곳) 달성 후 이 리스트를 유료로 팔 수 있어요.
         </p>
       </section>
     );

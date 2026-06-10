@@ -5,7 +5,7 @@
  */
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
-import { getPortOnePayment } from "@/lib/portone";
+import { getPortOnePayment, cancelPortOnePayment } from "@/lib/portone";
 
 export const PAID_MAP_FEE_RATE = 0.3; // 플랫폼 수수료 30%
 
@@ -29,9 +29,9 @@ export async function preparePurchase(userId: string, collectionId: string): Pro
 
   const existing = await prisma.mapPurchase.findUnique({
     where: { buyerId_collectionId: { buyerId: userId, collectionId } },
-    select: { id: true },
+    select: { status: true },
   });
-  if (existing) return { ok: false, reason: "ALREADY" };
+  if (existing?.status === "paid") return { ok: false, reason: "ALREADY" }; // 환불(refunded)이면 재구매 허용
 
   const paymentId = `mz_${randomUUID()}`;
   return {
@@ -90,27 +90,31 @@ export async function confirmPurchase(
   const sellerNetWon = amountWon - feeWon;
   const provider = payment.channel?.pgProvider || payment.method?.provider || null;
 
-  try {
-    await prisma.mapPurchase.create({
-      data: {
-        buyerId,
-        collectionId,
-        amountWon,
-        feeWon,
-        sellerNetWon,
-        status: "paid",
-        provider,
-        paymentKey: paymentId,
-        orderId: paymentId,
-      },
-    });
-  } catch (e: unknown) {
-    // 이미 확정된 결제(중복 confirm/webhook) — 멱등 처리
-    if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
-      return { ok: true, collectionId };
-    }
-    throw e;
-  }
+  // 멱등 + 환불 후 재구매 대응 (buyerId×collectionId 유니크라 upsert)
+  await prisma.mapPurchase.upsert({
+    where: { buyerId_collectionId: { buyerId, collectionId } },
+    create: {
+      buyerId,
+      collectionId,
+      amountWon,
+      feeWon,
+      sellerNetWon,
+      status: "paid",
+      provider,
+      paymentKey: paymentId,
+      orderId: paymentId,
+    },
+    update: {
+      amountWon,
+      feeWon,
+      sellerNetWon,
+      status: "paid",
+      provider,
+      paymentKey: paymentId,
+      orderId: paymentId,
+      paidAt: new Date(),
+    },
+  });
 
   return { ok: true, collectionId };
 }
@@ -147,6 +151,47 @@ export async function getMyPurchases(buyerId: string) {
     amountWon: r.amountWon,
     paidAt: r.paidAt,
   }));
+}
+
+/** 관리자 환불용 — 최근 결제(구매) 목록 */
+export async function listRecentPurchases(limit = 100) {
+  const rows = await prisma.mapPurchase.findMany({
+    orderBy: { paidAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      amountWon: true,
+      status: true,
+      paidAt: true,
+      orderId: true,
+      buyer: { select: { nickname: true, email: true } },
+      collection: { select: { id: true, title: true, user: { select: { nickname: true } } } },
+    },
+  });
+  return rows;
+}
+
+/** 관리자: 환불 처리 — 포트원 결제취소 + 구매 상태 refunded (정산은 status="paid"만 집계되어 자동 차감) */
+export async function refundPurchase(purchaseId: string): Promise<{ ok: boolean; reason?: string }> {
+  const p = await prisma.mapPurchase.findUnique({
+    where: { id: purchaseId },
+    select: { id: true, status: true, orderId: true, paymentKey: true, collection: { select: { title: true } } },
+  });
+  if (!p) return { ok: false, reason: "NOT_FOUND" };
+  if (p.status !== "paid") return { ok: false, reason: "NOT_REFUNDABLE" };
+
+  const paymentId = p.orderId || p.paymentKey;
+  if (!paymentId) return { ok: false, reason: "NO_PAYMENT_ID" };
+
+  try {
+    await cancelPortOnePayment(paymentId, `환불: ${p.collection.title}`);
+  } catch (e) {
+    console.error("[refund] PortOne 취소 실패", e);
+    return { ok: false, reason: "PG_CANCEL_FAILED" };
+  }
+
+  await prisma.mapPurchase.update({ where: { id: purchaseId }, data: { status: "refunded" } });
+  return { ok: true };
 }
 
 export interface SellerEarnings {

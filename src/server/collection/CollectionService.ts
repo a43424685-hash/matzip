@@ -177,10 +177,11 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
   const isOwner = !!viewerId && viewerId === col.userId;
   let purchased = false;
   if (viewerId && col.isPaid && !isOwner) {
-    purchased = !!(await prisma.mapPurchase.findUnique({
+    const mp = await prisma.mapPurchase.findUnique({
       where: { buyerId_collectionId: { buyerId: viewerId, collectionId } },
-      select: { id: true },
-    }));
+      select: { status: true },
+    });
+    purchased = mp?.status === "paid"; // 환불(refunded)되면 접근 회수
   }
   // 유료인데 소유자도 구매자도 아니면 잠금(미리보기 블러)
   const locked = col.isPaid && !isOwner && !purchased;
@@ -269,9 +270,9 @@ export async function hasCollectionAccess(userId: string, collectionId: string):
   if (!col.isPaid) return true;
   const bought = await prisma.mapPurchase.findUnique({
     where: { buyerId_collectionId: { buyerId: userId, collectionId } },
-    select: { id: true },
+    select: { status: true },
   });
-  return !!bought;
+  return bought?.status === "paid";
 }
 
 /** 지도 방문 도장 토글 (열람 권한 있는 가게만) */
@@ -307,13 +308,17 @@ export async function toggleVisit(
 export const PAID_MAP_MIN_WON = 990;
 export const PAID_MAP_MAX_WON = 9900;
 
-/** 유료 지도 판매 자격 (Lv.50 + 위치 인증 100곳) */
+// 유료 지도 판매 자격 (출시 초반 허들 — 마켓이 살아나도록 낮게, 이후 상향 가능)
+export const SELL_MIN_LEVEL = 20;
+export const SELL_MIN_VERIFIED = 30;
+
+/** 유료 지도 판매 자격 (Lv.20 + 위치 인증 30곳) */
 export async function canSellPaidMaps(userId: string): Promise<boolean> {
   const [user, verifiedCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true } }),
     prisma.restaurantPost.count({ where: { userId, locationVerified: true } }),
   ]);
-  return !!user && user.totalLevel >= 50 && verifiedCount >= 100;
+  return !!user && user.totalLevel >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED;
 }
 
 /** 컬렉션을 유료 지도로 전환/해제 (소유자 + 자격 + 가격 990~9900). 유료면 공개로 강제. */

@@ -14,6 +14,22 @@ export interface PortOnePayment {
   method?: { provider?: string };
 }
 
+/** 결제 취소(환불). 전액 취소. */
+export async function cancelPortOnePayment(paymentId: string, reason: string): Promise<void> {
+  const secret = process.env.PORTONE_API_SECRET;
+  if (!secret) throw new Error("PORTONE_API_SECRET_MISSING");
+  const res = await fetch(`${API_BASE}/payments/${encodeURIComponent(paymentId)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `PortOne ${secret}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`PORTONE_CANCEL_FAILED ${res.status} ${body}`);
+  }
+}
+
 /** 결제 단건 조회 */
 export async function getPortOnePayment(paymentId: string): Promise<PortOnePayment> {
   const secret = process.env.PORTONE_API_SECRET;

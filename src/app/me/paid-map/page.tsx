@@ -7,8 +7,8 @@ import MeSubPageHeader from "@/components/MeSubPageHeader";
 
 export const dynamic = "force-dynamic";
 
-const LEVEL_GOAL = 50;
-const VERIFY_GOAL = 100;
+const LEVEL_GOAL = 20;
+const VERIFY_GOAL = 30;
 
 function Progress({ label, now, goal, pct }: { label: string; now: string; goal: string; pct: number }) {
   return (

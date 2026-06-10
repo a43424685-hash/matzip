@@ -204,8 +204,8 @@ function HonestReviewPolicy() {
 
 function CreatorMapSection({ stats }: { stats: BenefitStats | null }) {
   const checks = [
-    { label: "Lv.50 이상", ok: (stats?.level ?? 1) >= 50, value: `Lv.${stats?.level ?? 1}/50` },
-    { label: "위치 인증 맛집 100곳 이상", ok: (stats?.verifiedCount ?? 0) >= 100, value: `${stats?.verifiedCount ?? 0}/100` },
+    { label: "Lv.20 이상", ok: (stats?.level ?? 1) >= 20, value: `Lv.${stats?.level ?? 1}/20` },
+    { label: "위치 인증 맛집 30곳 이상", ok: (stats?.verifiedCount ?? 0) >= 30, value: `${stats?.verifiedCount ?? 0}/30` },
     { label: "공개 맛집 리스트 3개 이상", ok: (stats?.publicCollections ?? 0) >= 3, value: `${stats?.publicCollections ?? 0}/3` },
     { label: "한 지역 인증 30곳 이상", ok: (stats?.bestRegionVerified ?? 0) >= 30, value: `${stats?.bestRegionVerified ?? 0}/30` },
     { label: "미해결 신고 0건", ok: (stats?.openReports ?? 0) === 0, value: `${stats?.openReports ?? 0}건` },
