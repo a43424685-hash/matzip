@@ -1,3 +1,31 @@
+import BackHomeHeader from "@/components/BackHomeHeader";
+import { Sparkles } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+
+// 혜택모음은 '사장님이 혜택을 등록하는 쪽'이 아직 없어 준비중 처리.
+// 사장님 센터(혜택·쿠폰·체험권 등록)가 붙으면 아래 보관된 구현을 복원한다.
+export default function BenefitsPage() {
+  return (
+    <main className="px-5 py-6">
+      <BackHomeHeader title="혜택 모음" />
+      <section className="mt-10 rounded-3xl border border-stone-200 bg-stone-50 px-6 py-14 text-center">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-forest-soft text-forest">
+          <Sparkles size={26} />
+        </span>
+        <h1 className="mt-4 text-lg font-black text-ink">혜택 모음 준비 중</h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          사장님 쿠폰·체험권·소식 등 혜택 기능을 준비하고 있어요.
+          <br />곧 더 좋은 모습으로 만나요!
+        </p>
+      </section>
+    </main>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────
+ * 준비중 보관 — 기존 혜택모음 구현 (사장님 혜택/캠페인 등록 붙이면 복원)
+ * ───────────────────────────────────────────────────────────────
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -284,3 +312,4 @@ function CampaignSection({ promotions }: { promotions: Awaited<ReturnType<typeof
     </section>
   );
 }
+*/
