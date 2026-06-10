@@ -6,7 +6,6 @@ import { getActiveRegions } from "@/server/catalog";
 import {
   getOverallUserRankingCached,
   getRegionUserRankingCached,
-  getWeeklyRestaurantRankingCached,
   getMyOverallRank,
 } from "@/server/ranking/RankingService";
 import BackHomeHeader from "@/components/BackHomeHeader";
@@ -32,13 +31,12 @@ export default async function RankingsPage({
   const user = await getCurrentUser();
   const regions = await getActiveRegions();
   const regionId = sp.regionId || regions[0]?.id || "";
-  const safeTab = sp.tab === "region" || sp.tab === "weekly" ? sp.tab : "overall";
-  const [myRank, eligibility, initialOverall, initialRegion, initialWeekly] = await Promise.all([
+  const safeTab = sp.tab === "region" ? "region" : "overall";
+  const [myRank, eligibility, initialOverall, initialRegion] = await Promise.all([
     user ? getMyOverallRank(user.id) : Promise.resolve(0),
     user ? getCreatorEligibility(user.id) : Promise.resolve(null),
     getOverallUserRankingCached(),
     regionId ? getRegionUserRankingCached(regionId) : Promise.resolve([]),
-    getWeeklyRestaurantRankingCached(sp.regionId || null),
   ]);
 
   // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
@@ -76,7 +74,6 @@ export default async function RankingsPage({
         initialRegionId={sp.regionId || regionId}
         initialOverall={overall}
         initialRegion={region}
-        initialWeekly={initialWeekly}
       />
     </main>
   );

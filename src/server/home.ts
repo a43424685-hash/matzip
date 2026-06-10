@@ -135,31 +135,17 @@ export async function getMySavedPreview(viewerId: string, limit: number): Promis
 
 export async function getHomeData(viewerId?: string | null) {
   const blockedIds = await getBlockedIds(viewerId ?? null);
-  const [weekly, verified, collections, paidMaps, saved, topUsers, categories] = await Promise.all([
+  const [weekly, recent, saved, topUsers, categories] = await Promise.all([
     searchPosts({ sort: "weekly", limit: 8, excludeUserIds: blockedIds }),
-    prisma.restaurantPost
-      .findMany({
-        where: {
-          OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
-          user: { deactivatedAt: null },
-          ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
-        },
-        orderBy: [{ visitedAt: "desc" }, { createdAt: "desc" }],
-        take: 8,
-        select: postCardSelect,
-      })
-      .then((rows) => rows.map(toPostCard)),
-    getPublicCollections(8, blockedIds),
-    getPaidMaps(8, blockedIds),
+    // 갓 올라온 맛집 — 미인증 포함, 최신순
+    searchPosts({ sort: "latest", limit: 8, excludeUserIds: blockedIds, includeUnverified: true }),
     viewerId ? getMySavedPreview(viewerId, 10) : Promise.resolve([] as PostCard[]),
     getOverallUserRankingCached(5),
     getActiveCategories(),
   ]);
   return {
     weekly: weekly as PostCard[],
-    verified,
-    collections,
-    paidMaps,
+    recent: recent as PostCard[],
     saved,
     // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
     topUsers: blockedIds.length > 0 ? topUsers.filter((u) => !blockedIds.includes(u.userId)) : topUsers,

@@ -436,7 +436,7 @@ export async function recordShare(
 // ─────────────────────────────────────────────────────────────
 // 검색
 // ─────────────────────────────────────────────────────────────
-export type SortKey = "latest" | "saves" | "likes" | "weekly";
+export type SortKey = "latest" | "saves" | "likes" | "weekly" | "name";
 
 export interface SearchInput {
   regionId?: string | null;
@@ -446,10 +446,11 @@ export interface SearchInput {
   limit?: number;
   excludeUserIds?: string[]; // 차단한 사용자 글 제외
   q?: string | null; // 가게 이름 키워드 검색
+  includeUnverified?: boolean; // true면 미인증 글도 노출(갓 올라온 맛집)
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, includeUnverified } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
@@ -464,7 +465,10 @@ export async function searchPosts(input: SearchInput) {
     where.userId = { notIn: excludeUserIds };
   }
   // 노출 게이트: 위치 인증된 글만. 단 운영자(admin) 글은 미인증이어도 노출(운영자 맛집).
-  where.OR = [{ locationVerified: true }, { user: { isAdmin: true } }];
+  // includeUnverified면 게이트 없이 전체 노출(갓 올라온 맛집 — 인증 안 돼도 보임).
+  if (!includeUnverified) {
+    where.OR = [{ locationVerified: true }, { user: { isAdmin: true } }];
+  }
   // 비활성화한 사용자의 글은 숨김
   where.user = { deactivatedAt: null };
 
@@ -473,7 +477,9 @@ export async function searchPosts(input: SearchInput) {
       ? [{ saveCount: "desc" as const }]
       : sort === "likes"
         ? [{ likeCount: "desc" as const }]
-        : [{ createdAt: "desc" as const }];
+        : sort === "name"
+          ? [{ restaurant: { name: "asc" as const } }]
+          : [{ createdAt: "desc" as const }];
 
   const posts = await prisma.restaurantPost.findMany({
     where,

@@ -2,14 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { Crown, Medal } from "lucide-react";
-import type { RestaurantRankRow, UserRankRow } from "@/server/ranking/RankingService";
+import type { UserRankRow } from "@/server/ranking/RankingService";
 
-type TabKey = "overall" | "region" | "weekly";
+type TabKey = "overall" | "region";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overall", label: "전체" },
   { key: "region", label: "지역" },
-  { key: "weekly", label: "이번 주 인기" },
 ];
 
 export default function RankingClient({
@@ -19,7 +18,6 @@ export default function RankingClient({
   initialRegionId,
   initialOverall,
   initialRegion,
-  initialWeekly,
 }: {
   initialTab: TabKey;
   userId: string | null;
@@ -27,13 +25,11 @@ export default function RankingClient({
   initialRegionId: string;
   initialOverall: UserRankRow[];
   initialRegion: UserRankRow[];
-  initialWeekly: RestaurantRankRow[];
 }) {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [regionId, setRegionId] = useState(initialRegionId);
   const [overallRows] = useState(initialOverall);
   const [regionRows, setRegionRows] = useState(initialRegion);
-  const [weeklyRows, setWeeklyRows] = useState(initialWeekly);
   const [loading, setLoading] = useState(false);
 
   async function fetchRows(nextTab: TabKey, nextRegionId = regionId) {
@@ -42,13 +38,10 @@ export default function RankingClient({
     setLoading(true);
     try {
       const params = new URLSearchParams({ tab: nextTab });
-      if (nextTab === "region" || nextRegionId) params.set("regionId", nextRegionId);
+      if (nextRegionId) params.set("regionId", nextRegionId);
       const res = await fetch(`/api/rankings?${params.toString()}`);
-      const data = (await res.json()) as { ok?: boolean; rows?: UserRankRow[] | RestaurantRankRow[] };
-      if (res.ok && data.ok) {
-        if (nextTab === "region") setRegionRows((data.rows ?? []) as UserRankRow[]);
-        if (nextTab === "weekly") setWeeklyRows((data.rows ?? []) as RestaurantRankRow[]);
-      }
+      const data = (await res.json()) as { ok?: boolean; rows?: UserRankRow[] };
+      if (res.ok && data.ok) setRegionRows((data.rows ?? []) as UserRankRow[]);
     } finally {
       setLoading(false);
     }
@@ -59,8 +52,7 @@ export default function RankingClient({
     await fetchRows(tab, nextRegionId);
   }
 
-  const showRegionPicker = tab === "region" || tab === "weekly";
-  const regionValue = useMemo(() => (tab === "weekly" ? regionId : regionId || regions[0]?.id || ""), [regionId, regions, tab]);
+  const regionValue = useMemo(() => regionId || regions[0]?.id || "", [regionId, regions]);
 
   return (
     <section className="mt-6">
@@ -72,9 +64,8 @@ export default function RankingClient({
         ))}
       </div>
 
-      {showRegionPicker && (
+      {tab === "region" && (
         <select value={regionValue} onChange={(e) => changeRegion(e.target.value)} className="input mb-4">
-          {tab === "weekly" && <option value="">전국</option>}
           {regions.map((region) => (
             <option key={region.id} value={region.id}>
               {region.name}
@@ -86,7 +77,6 @@ export default function RankingClient({
       {loading && <p className="mb-3 text-center text-[12px] text-stone-400">불러오는 중...</p>}
       {tab === "overall" && <RankList rows={overallRows} userId={userId} emptyText="아직 랭킹이 없어요. 첫 맛집을 등록해보세요." />}
       {tab === "region" && <RankList rows={regionRows} userId={null} emptyText="이 지역은 아직 랭킹이 없어요." />}
-      {tab === "weekly" && <RestaurantRankList rows={weeklyRows} />}
     </section>
   );
 }
@@ -154,25 +144,5 @@ function PodiumCard({ row, height, primary }: { row?: UserRankRow; height: strin
       <div className="mt-0.5 truncate text-[12px] font-bold text-ink">{row.nickname}</div>
       <div className="mt-1 text-[11px] text-stone-400">Lv.{row.level}</div>
     </div>
-  );
-}
-
-function RestaurantRankList({ rows }: { rows: RestaurantRankRow[] }) {
-  if (rows.length === 0) return <p className="py-8 text-center text-sm text-ink-muted">아직 이번 주 반응이 없어요.</p>;
-  return (
-    <ol className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200/80">
-      {rows.map((row) => (
-        <li key={row.restaurantId} className="flex items-center gap-3 bg-white p-3.5">
-          <RankBadge rank={row.rank} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-ink">{row.name}</div>
-            <div className="text-[11px] text-stone-400">{row.regionName} · 좋아요 {row.weekLikes} · 저장 {row.weekSaves}</div>
-          </div>
-          <span className="text-sm font-extrabold tabular-nums text-forest">
-            {row.score}<span className="ml-0.5 text-[11px] font-medium text-stone-400">점</span>
-          </span>
-        </li>
-      ))}
-    </ol>
   );
 }
