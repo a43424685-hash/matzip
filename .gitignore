@@ -14,3 +14,7 @@ tsconfig.tsbuildinfo
 uploads/
 .claude/settings.local.json
 .gstack/
+
+# Capacitor 네이티브 프로젝트 (맥/안드로이드에서 cap add 로 생성)
+/ios
+/android

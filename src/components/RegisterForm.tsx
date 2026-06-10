@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { uploadImage } from "@/lib/imageUpload";
@@ -83,10 +84,16 @@ export default function RegisterForm({
   initial?: InitialPost;
 }) {
   const isEdit = mode === "edit";
+  const router = useRouter();
   const [state, action, pending] = useActionState<RegisterState, FormData>(
     isEdit ? updatePostAction : registerPostAction,
     undefined
   );
+  // 수정 완료 시: 수정 페이지를 히스토리에서 치우고 상세로 (replace) → 뒤로가기하면 홈/이전으로
+  useEffect(() => {
+    if (state && "redirectTo" in state && state.redirectTo) router.replace(state.redirectTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initial?.categoryIds ?? []));
   const [images, setImages] = useState<UploadedImage[]>(initial?.images ?? []);
   const [uploadingImg, setUploadingImg] = useState(false);

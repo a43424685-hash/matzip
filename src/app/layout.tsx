@@ -6,12 +6,19 @@ import AppSplash from "@/components/AppSplash";
 export const metadata: Metadata = {
   title: "먹고핀",
   description: "먹고 핀 꽂고 — 내 맛집 지도를 키우고 레벨업하는 소셜 맛집 앱",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "먹고핀" },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#1f4d3f",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

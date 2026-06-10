@@ -41,7 +41,7 @@ function parseCoord(v?: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export type RegisterState = { error?: string } | undefined;
+export type RegisterState = { error?: string; redirectTo?: string } | undefined;
 
 export async function registerPostAction(
   _prev: RegisterState,
@@ -250,5 +250,6 @@ export async function updatePostAction(
   });
   if (!r.ok) return { error: r.reason === "FORBIDDEN" ? "내 글만 수정할 수 있어요." : "수정 중 오류가 발생했어요." };
 
-  redirect(`/restaurants/${d.postId}`);
+  // 수정 페이지를 히스토리에서 치우려고 redirect 대신 클라이언트 replace 로 이동
+  return { redirectTo: `/restaurants/${d.postId}` };
 }
