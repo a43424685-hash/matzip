@@ -7,6 +7,7 @@ import { getBlockedIds } from "@/server/block/BlockService";
 import PaidMapToggle from "@/components/PaidMapToggle";
 import PurchaseMapButton from "@/components/PurchaseMapButton";
 import PaidMapViewer from "@/components/PaidMapViewer";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,8 @@ export default async function CollectionDetailPage({
   return (
     <main className="pb-10">
       {/* 헤더 */}
-      <header className="bg-forest px-5 pb-6 pt-5 text-white">
+      <header className="bg-forest px-5 pb-6 pt-3 text-white">
+        <BackButton fallback="/" className="-ml-2 mb-1 text-white" />
         <div className="flex items-center gap-2 text-[13px] text-white/70">
           {col.regionName && (
             <span className="flex items-center gap-0.5">

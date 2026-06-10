@@ -52,11 +52,11 @@ export default async function HomePage() {
       {/* 1. 헤더 (스크롤 시 사라짐 — sticky 아님) */}
       <header className="px-5 pt-4">
         <div className="flex items-center justify-between">
-          <span className="brand-logo text-[28px] leading-none">
+          <span className="brand-logo text-[30px] leading-none">
             <span>먹고</span>
             <span className="brand-logo-point">핀</span>
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3.5">
             {user ? (
               <Link href="/me" className="rounded-full bg-forest-soft px-2.5 py-1 text-[12px] font-bold text-forest">
                 Lv.{user.totalLevel}
@@ -67,8 +67,8 @@ export default async function HomePage() {
               </Link>
             )}
             {user && (
-              <Link href="/me/saved" className="text-stone-500" aria-label="찜한 맛집">
-                <Heart size={22} strokeWidth={1.9} />
+              <Link href="/me/saved" className="text-coral" aria-label="찜한 맛집">
+                <Heart size={22} strokeWidth={2} fill="currentColor" />
               </Link>
             )}
             {user ? (
@@ -87,6 +87,16 @@ export default async function HomePage() {
             )}
           </div>
         </div>
+
+        <p className="mt-2 text-[15px] font-extrabold leading-snug text-ink">
+          {user ? (
+            <>
+              <span className="text-forest">{user.nickname}</span>님, 오늘은 어디서 먹고 핀 꽂을까요?
+            </>
+          ) : (
+            <>먹고 핀 꽂고, 나만의 맛집 지도를 키워요 📍</>
+          )}
+        </p>
       </header>
 
       <CategoryIconGrid categories={navCats} />
