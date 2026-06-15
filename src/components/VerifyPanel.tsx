@@ -172,10 +172,20 @@ export default function VerifyPanel({
     }
     setTracking(true);
     setMsg("내 위치를 찾는 중…");
-    watchIdRef.current = navigator.geolocation.watchPosition(onPosition, () => {
-      stopTracking();
-      setMsg("위치 권한이 필요해요. 위치 허용 후 다시 시도해주세요.");
-    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      onPosition,
+      (err) => {
+        // iOS 사파리는 첫 측위에서 타임아웃/일시 실패가 잦음 → 권한 거부일 때만 중단,
+        // 나머지(타임아웃·일시 unavailable)는 계속 추적하며 안내만.
+        if (err.code === err.PERMISSION_DENIED) {
+          stopTracking();
+          setMsg("위치 권한이 거부됐어요. 설정 > Safari > 위치에서 '허용'으로 바꾼 뒤 다시 시도해주세요.");
+        } else {
+          setMsg("위치 찾는 중… 야외에서 더 잘 잡혀요. (조금 걸릴 수 있어요)");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 30000 }
+    );
   }
 
   const PROOF_LABEL: Record<PhotoKind, string> = {

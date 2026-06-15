@@ -135,18 +135,20 @@ export async function getMySavedPreview(viewerId: string, limit: number): Promis
 
 export async function getHomeData(viewerId?: string | null) {
   const blockedIds = await getBlockedIds(viewerId ?? null);
-  const [weekly, recent, saved, topUsers, categories] = await Promise.all([
+  const [weekly, recent, saved, topUsers, categories, myPostCount] = await Promise.all([
     searchPosts({ sort: "weekly", limit: 8, excludeUserIds: blockedIds }),
     // 갓 올라온 맛집 — 미인증 포함, 최신순
     searchPosts({ sort: "latest", limit: 8, excludeUserIds: blockedIds, includeUnverified: true }),
     viewerId ? getMySavedPreview(viewerId, 10) : Promise.resolve([] as PostCard[]),
     getOverallUserRankingCached(5),
     getActiveCategories(),
+    viewerId ? prisma.restaurantPost.count({ where: { userId: viewerId } }) : Promise.resolve(0),
   ]);
   return {
     weekly: weekly as PostCard[],
     recent: recent as PostCard[],
     saved,
+    myPostCount,
     // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
     topUsers: blockedIds.length > 0 ? topUsers.filter((u) => !blockedIds.includes(u.userId)) : topUsers,
     categories,

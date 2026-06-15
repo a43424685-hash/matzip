@@ -21,6 +21,7 @@ import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
 import NearbyHomeSection from "@/components/NearbyHomeSection";
+import Coachmark from "@/components/Coachmark";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ function formatPostDate(value: Date | string) {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const { weekly, recent, saved, topUsers, categories } = await getHomeData(user?.id);
+  const { weekly, recent, saved, topUsers, categories, myPostCount } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
@@ -193,6 +194,15 @@ export default async function HomePage() {
       </div>
 
       <SiteFooter />
+
+      {/* 첫 사용자 코치마크 — + 버튼 안내 */}
+      <Coachmark
+        storageKey="mukgopin:coach-home-fab"
+        enabled={!!user && myPostCount === 0}
+        text="여기 ➕ 를 눌러 첫 맛집을 등록해보세요!"
+        position="fixed bottom-[150px] right-4 max-w-[230px]"
+        arrow="down"
+      />
 
       {/* 맛집 등록 FAB (홈에서만) */}
       <Link

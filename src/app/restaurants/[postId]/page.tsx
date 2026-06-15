@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Camera, MapPin, Share2, Check, Pencil } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
+import Coachmark from "@/components/Coachmark";
 import { prisma } from "@/lib/db";
 import KakaoMap from "@/components/KakaoMap";
 import ShareButton from "@/components/ShareButton";
@@ -290,13 +291,30 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* 방문 인증하기 — 본인 기록만, 기본 접기 */}
+        {/* 방문 인증하기 — 본인 기록만. 미인증이면 펼쳐서 강조 + 코치마크 */}
         {user?.id === post.userId && (
-          <details className="card overflow-hidden">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
-              방문 인증하기
-              <span className="text-xs font-semibold text-forest">열기</span>
-            </summary>
+          <div className="relative">
+            <Coachmark
+              storageKey="mukgopin:coach-verify"
+              enabled={!post.locationVerified}
+              text="여기서 위치 인증하면 경험치가 들어와요! (가게 50m 이내에서)"
+              position="absolute bottom-full right-0 mb-2 max-w-[260px]"
+              arrow="down"
+            />
+            <details className="card overflow-hidden" open={!post.locationVerified}>
+              <summary
+                className={`flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold ${
+                  post.locationVerified ? "text-ink" : "bg-forest text-white"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  {!post.locationVerified && <MapPin size={16} />}
+                  방문 인증하기{!post.locationVerified && " · 아직 미인증"}
+                </span>
+                <span className={`text-xs font-semibold ${post.locationVerified ? "text-forest" : "text-white/85"}`}>
+                  {post.locationVerified ? "열기" : "지금 인증"}
+                </span>
+              </summary>
             <div className="border-t border-stone-100">
               <VerifyPanel
                 postId={post.id}
@@ -313,7 +331,8 @@ export default async function PostDetailPage({
                 }}
               />
             </div>
-          </details>
+            </details>
+          </div>
         )}
 
         {/* 리스트 담기 + 공유 */}

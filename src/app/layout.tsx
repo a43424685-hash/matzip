@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AppSplash from "@/components/AppSplash";
+import ScrollReset from "@/components/ScrollReset";
 
 export const metadata: Metadata = {
   title: "먹고핀",
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // 속성으로 인한 hydration 경고 무시 (앱 코드와 무관)
     <html lang="ko" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <ScrollReset />
         <div className="app-shell">{children}</div>
         <BottomNav />
         <AppSplash />
