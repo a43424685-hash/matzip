@@ -16,6 +16,7 @@ import BlockButton from "@/components/BlockButton";
 import DeletePostButton from "@/components/DeletePostButton";
 import DetailBackButton from "@/components/DetailBackButton";
 import DetailMediaCarousel from "@/components/DetailMediaCarousel";
+import StickyDetailHeader from "@/components/StickyDetailHeader";
 import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
@@ -137,6 +138,7 @@ export default async function PostDetailPage({
 
   return (
     <main className="pb-6">
+      <StickyDetailHeader name={post.restaurant.name} />
       {/* 미디어 — 뒤로가기 + 장수 표시 + 점 인디케이터 */}
       {post.media.length === 0 ? (
         <div className="mx-5 mt-4">
@@ -277,7 +279,12 @@ export default async function PostDetailPage({
               <MapPin size={15} /> 지도
             </a>
             {post.locationVerified ? (
-              <ShareSheet postId={post.id} restaurantName={post.restaurant.name} imageUrl={firstImage} />
+              <ShareSheet
+                postId={post.id}
+                restaurantName={post.restaurant.name}
+                description={post.shortReview || `${post.restaurant.primaryRegion.name} 맛집`}
+                imageUrl={firstImage}
+              />
             ) : (
               <button type="button" disabled className="btn-outline h-10 !text-sm opacity-50">
                 <Share2 size={15} /> 공유

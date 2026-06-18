@@ -12,7 +12,9 @@ body {
 
 /* 모바일 우선: 본문은 가운데 정렬된 폰 너비 컬럼 */
 .app-shell {
-  @apply mx-auto min-h-screen w-full max-w-md bg-white pb-24;
+  @apply mx-auto min-h-screen w-full max-w-md bg-white;
+  /* 하단 고정탭(약 3.5rem) + 여유 + 아이폰 홈바 안전영역 */
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 
 @layer components {
@@ -41,7 +43,7 @@ body {
     @apply chip border-forest bg-forest-soft text-forest;
   }
   .card {
-    @apply rounded-2xl border border-stone-200/80 bg-white;
+    @apply rounded-2xl border border-stone-200/60 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-8px_rgba(15,23,42,0.10)];
   }
   .input {
     @apply w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest;
@@ -83,6 +85,36 @@ body {
   }
   .badge-lv {
     @apply inline-flex items-center rounded-md bg-forest px-1.5 py-0.5 text-[11px] font-bold text-white;
+  }
+}
+
+/* 바텀시트/오버레이 — 부드러운 등장 (과하지 않게) */
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-sheet-up {
+  animation: sheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-fade-in {
+  animation: fadeIn 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up,
+  .animate-fade-in {
+    animation: none;
   }
 }
 

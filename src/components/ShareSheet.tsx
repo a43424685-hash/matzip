@@ -21,7 +21,7 @@ function loadKakaoSdk(): Promise<any> {
     if (w.Kakao) return init();
     if (!KAKAO_KEY || KAKAO_KEY.startsWith("여기에")) return reject(new Error("NO_KEY"));
     const s = document.createElement("script");
-    s.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js";
+    s.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.8.1/kakao.min.js";
     s.crossOrigin = "anonymous";
     s.onload = init;
     s.onerror = () => reject(new Error("SDK_FAIL"));
@@ -32,16 +32,19 @@ function loadKakaoSdk(): Promise<any> {
 export default function ShareSheet({
   postId,
   restaurantName,
+  description,
   imageUrl,
 }: {
   postId: string;
   restaurantName: string;
+  description: string;
   imageUrl: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState("");
 
-  const shareUrl = () => `${window.location.origin}/share/${postId}`;
+  // 공유 링크 = 맛집 상세 URL (받는 사람이 바로 그 가게를 봄)
+  const shareUrl = () => `${window.location.origin}/restaurants/${postId}`;
   const record = () => {
     fetch(`/api/posts/${postId}/share`, { method: "POST" }).catch(() => {});
   };
@@ -66,40 +69,23 @@ export default function ShareSheet({
       Kakao.Share.sendDefault({
         objectType: "feed",
         content: {
-          title: `${restaurantName} · 먹고핀`,
-          description: "먹고핀에서 발견한 맛집",
+          title: restaurantName,
+          description: description || "먹고핀에서 발견한 맛집",
           imageUrl: imageUrl || `${window.location.origin}/icon.svg`,
           link: { mobileWebUrl: shareUrl(), webUrl: shareUrl() },
         },
         buttons: [{ title: "맛집 보기", link: { mobileWebUrl: shareUrl(), webUrl: shareUrl() } }],
       });
       setOpen(false);
-    } catch {
+    } catch (e) {
+      console.error("[share] 카카오 공유 실패:", e);
       copyLink("카카오 공유가 안 돼 링크를 복사했어요");
     }
   }
 
-  async function onInsta() {
-    record();
-    const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
-    if (nav.share) {
-      try {
-        await nav.share({ title: restaurantName, url: shareUrl() });
-        setOpen(false);
-        return;
-      } catch {
-        /* 사용자가 취소했거나 미지원 */
-      }
-    }
-    copyLink("링크 복사됨 — 인스타 스토리에 붙여넣어 공유하세요");
-  }
-
-  async function onSaveImage() {
-    record();
-    if (!imageUrl) {
-      window.open(shareUrl(), "_blank");
-      return;
-    }
+  // 대표 이미지를 파일로 내려받기 (이미지저장 + 인스타 폴백 공용)
+  async function downloadImage(): Promise<boolean> {
+    if (!imageUrl) return false;
     try {
       const r = await fetch(imageUrl);
       const b = await r.blob();
@@ -111,10 +97,50 @@ export default function ShareSheet({
       a.click();
       a.remove();
       URL.revokeObjectURL(u);
-      flash("이미지를 저장했어요");
-    } catch {
-      window.open(imageUrl, "_blank");
+      return true;
+    } catch (e) {
+      console.error("[share] 이미지 저장 실패:", e);
+      return false;
     }
+  }
+
+  async function onInsta() {
+    record();
+    const nav = navigator as Navigator & {
+      share?: (d: ShareData) => Promise<void>;
+      canShare?: (d: ShareData) => boolean;
+    };
+    // 웹에선 스토리 직접 업로드 불가 → 이미지 '파일'을 OS 공유시트로 넘겨 인스타를 띄움
+    if (imageUrl && nav.share) {
+      try {
+        const r = await fetch(imageUrl);
+        const b = await r.blob();
+        const file = new File([b], `${restaurantName}.jpg`, { type: b.type || "image/jpeg" });
+        if (!nav.canShare || nav.canShare({ files: [file] })) {
+          await nav.share({ files: [file], title: restaurantName, text: `${restaurantName} · 먹고핀` });
+          setOpen(false);
+          return;
+        }
+      } catch (e) {
+        console.error("[share] 인스타 이미지 공유 실패:", e);
+      }
+    }
+    // 폴백: 이미지 저장 안내
+    if (await downloadImage()) {
+      flash("인스타가 안 보이면 이미지를 저장해 스토리에 올려주세요");
+      return;
+    }
+    copyLink("링크 복사됨 — 인스타 스토리에 붙여넣어 공유하세요");
+  }
+
+  async function onSaveImage() {
+    record();
+    if (!imageUrl) {
+      window.open(shareUrl(), "_blank");
+      return;
+    }
+    if (await downloadImage()) flash("이미지를 저장했어요");
+    else window.open(imageUrl, "_blank");
   }
 
   return (
@@ -124,9 +150,9 @@ export default function ShareSheet({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40" onClick={() => setOpen(false)}>
+        <div className="animate-fade-in fixed inset-0 z-[70] flex items-end justify-center bg-black/40" onClick={() => setOpen(false)}>
           <div
-            className="w-full max-w-md rounded-t-3xl bg-white p-5 pb-8"
+            className="animate-sheet-up w-full max-w-md rounded-t-3xl bg-white p-5 pb-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-stone-200" />

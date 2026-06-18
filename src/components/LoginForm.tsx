@@ -42,11 +42,16 @@ export default function LoginForm({ error }: { error?: string }) {
   }
 
   return (
-    <main className="px-5 py-10">
-      <h1 className="text-2xl font-extrabold">로그인</h1>
-      <p className="mt-1 text-sm text-neutral-500">먹고핀에 다시 오신 걸 환영해요.</p>
+    <main className="flex min-h-[88vh] flex-col justify-center px-6 py-10">
+      <div className="mb-9 text-center">
+        <p className="text-[34px] leading-none">
+          <span className="brand-logo">먹고</span>
+          <span className="brand-logo-point">핀</span>
+        </p>
+        <p className="mt-3 text-sm text-ink-muted">맛집 발견하고 핀 꽂고, 레벨을 올려요 📍</p>
+      </div>
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="label">이메일</label>
           <input

@@ -1,5 +1,6 @@
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, SearchX } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import EmptyState from "@/components/EmptyState";
 import { getActiveRegions, getActiveCategories, groupCategoriesByType } from "@/server/catalog";
 import {
   searchPosts,
@@ -165,7 +166,11 @@ export default async function SearchPage({
       <div className="mt-6">
         <p className="mb-3 text-sm text-ink-muted">{posts.length}개 결과</p>
         {posts.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-muted">조건에 맞는 맛집이 없어요.</p>
+          <EmptyState
+            icon={SearchX}
+            title="조건에 맞는 맛집이 없어요"
+            description="검색어나 필터를 바꿔서 다시 찾아보세요."
+          />
         ) : (
           <div className="space-y-4">
             {posts.map((p) => (

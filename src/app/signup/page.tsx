@@ -11,11 +11,16 @@ export default function SignupPage() {
   );
 
   return (
-    <main className="px-5 py-10">
-      <h1 className="text-2xl font-extrabold">회원가입</h1>
-      <p className="mt-1 text-sm text-neutral-500">내 맛집 지도를 키워볼까요?</p>
+    <main className="px-6 py-10">
+      <div className="mb-8 text-center">
+        <p className="text-[32px] leading-none">
+          <span className="brand-logo">먹고</span>
+          <span className="brand-logo-point">핀</span>
+        </p>
+        <p className="mt-2.5 text-sm text-ink-muted">내 맛집 지도를 키워볼까요?</p>
+      </div>
 
-      <form action={action} className="mt-8 space-y-4">
+      <form action={action} className="space-y-4">
         <div>
           <label className="label">이메일</label>
           <input

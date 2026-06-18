@@ -93,8 +93,8 @@ export default function CollectionPicker({
 
       {open && (
         <div className="fixed inset-0 z-40 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="relative mx-auto w-full max-w-md rounded-t-3xl bg-white p-5 pb-8">
+          <div className="animate-fade-in absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <div className="animate-sheet-up relative mx-auto w-full max-w-md rounded-t-3xl bg-white p-5 pb-8">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-base font-extrabold text-ink">리스트에 담기</h3>
               <button onClick={() => setOpen(false)} className="text-stone-400">
