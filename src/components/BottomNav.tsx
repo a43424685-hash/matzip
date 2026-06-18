@@ -17,7 +17,10 @@ export default function BottomNav() {
   // 관리자 콘솔에선 하단 탭 숨김 (운영자 전용 별도 화면)
   if (pathname.startsWith("/admin")) return null;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t border-stone-200 bg-white/95 backdrop-blur"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <ul className="grid grid-cols-5">
         {TABS.map(({ href, label, Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);

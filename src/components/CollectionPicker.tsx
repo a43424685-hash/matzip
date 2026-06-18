@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ListPlus, Check, Plus, X, Lock } from "lucide-react";
 
 interface Col {
@@ -22,6 +22,7 @@ export default function CollectionPicker({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [cols, setCols] = useState<Col[] | null>(null);
   const [newTitle, setNewTitle] = useState("");
@@ -30,7 +31,7 @@ export default function CollectionPicker({
   async function load() {
     const res = await fetch(`/api/collections?restaurantId=${restaurantId}`);
     if (res.status === 401) {
-      router.push("/login");
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
       return;
     }
     const d = await res.json();
@@ -39,7 +40,7 @@ export default function CollectionPicker({
 
   function onOpen() {
     if (!isLoggedIn) {
-      router.push("/login");
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
       return;
     }
     setOpen(true);

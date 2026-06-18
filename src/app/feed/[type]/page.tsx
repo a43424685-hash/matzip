@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, MapPin } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveRegions } from "@/server/catalog";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { searchPosts, type SortKey } from "@/server/restaurant/RestaurantService";
 import FeedControls from "@/components/FeedControls";
 import FeedListItem from "@/components/FeedListItem";
+import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +57,11 @@ export default async function FeedPage({
         <FeedControls regions={regions} sort={sortUi} regionId={regionId} />
 
         {posts.length === 0 ? (
-          <p className="mt-6 rounded-2xl bg-stone-50 py-12 text-center text-sm text-stone-400">
-            {regionId ? "이 지역엔 아직 맛집이 없어요." : "아직 등록된 맛집이 없어요."}
-          </p>
+          <EmptyState
+            icon={MapPin}
+            title={regionId ? "이 지역엔 아직 맛집이 없어요" : "아직 등록된 맛집이 없어요"}
+            description="다른 지역을 골라보거나, 직접 첫 맛집을 등록해보세요."
+          />
         ) : (
           <div className="space-y-2.5">
             {posts.map((p) => (

@@ -9,7 +9,7 @@ export default function ReviewCampaignsPage() {
   return (
     <main className="px-5 pb-24 pt-5">
       <MeSubPageHeader title="정직 리뷰 캠페인" />
-      <section className="mt-10 rounded-3xl border border-stone-200 bg-stone-50 px-6 py-14 text-center">
+      <section className="mt-10 rounded-2xl border border-stone-200 bg-stone-50 px-6 py-14 text-center">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-forest-soft text-forest">
           <Sparkles size={26} />
         </span>

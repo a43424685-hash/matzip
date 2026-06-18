@@ -4,6 +4,7 @@ import { Plus, Lock, ChevronRight, Bookmark } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyCollectionsWithPreview } from "@/server/collection/CollectionService";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
+import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +26,11 @@ export default async function MyCollectionsPage() {
       </Link>
 
       {collections.length === 0 ? (
-        <p className="mt-6 rounded-2xl bg-stone-50 py-12 text-center text-sm text-stone-400">
-          아직 만든 리스트가 없어요. “내 성수 맛집 10곳”처럼 묶어서 공유해보세요.
-        </p>
+        <EmptyState
+          icon={Bookmark}
+          title="아직 만든 리스트가 없어요"
+          description="“내 성수 맛집 10곳”처럼 묶어서 모으고 공유해보세요."
+        />
       ) : (
         <div className="space-y-2">
           {collections.map((c) => (

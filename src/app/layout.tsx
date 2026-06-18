@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AppSplash from "@/components/AppSplash";
@@ -20,6 +21,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: "#1f4d3f",
+  // 아이폰 홈바 안전영역(env(safe-area-inset-*))이 0이 아닌 실제 값이 되려면 cover 필요
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -34,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: "try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e){}",
           }}
         />
-        <ScrollReset />
+        <Suspense fallback={null}>
+          <ScrollReset />
+        </Suspense>
         <div className="app-shell">{children}</div>
         <BottomNav />
         <AppSplash />

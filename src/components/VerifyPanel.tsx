@@ -138,6 +138,10 @@ export default function VerifyPanel({
     } else if (d.reason === "NO_COORDS") {
       setMsg("이 가게는 위치 좌표가 없어 위치 인증이 아직 불가해요. (장소 검색 연동 후 가능)");
       stopTracking();
+    } else if (d.message) {
+      // 어뷰징 차단(RATE_LIMITED/DUP_TODAY/TOO_FAST) — 안내 후 추적 중지
+      setMsg(d.message);
+      stopTracking();
     }
     // TOO_FAR / LOW_ACCURACY 는 추적을 유지하며 실시간 안내(아래 onPosition)로 처리
   }

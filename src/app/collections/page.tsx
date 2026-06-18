@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBlockedIds } from "@/server/block/BlockService";
 import CardImage from "@/components/CardImage";
 import BackHomeHeader from "@/components/BackHomeHeader";
+import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,11 @@ export default async function PublicCollectionsPage() {
     <main className="px-5 pb-24 pt-5">
       <BackHomeHeader title="추천 맛집 리스트" />
       {collections.length === 0 ? (
-        <p className="mt-10 rounded-2xl bg-stone-50 py-12 text-center text-sm text-stone-400">
-          아직 공개된 리스트가 없어요.
-        </p>
+        <EmptyState
+          icon={ListChecks}
+          title="아직 공개된 리스트가 없어요"
+          description="곧 로컬들이 만든 추천 맛집 리스트가 올라와요."
+        />
       ) : (
         <div className="space-y-2">
           {collections.map((c) => (

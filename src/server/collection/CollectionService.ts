@@ -316,10 +316,13 @@ export const SELL_MIN_VERIFIED = 30;
 /** 유료 지도 판매 자격 (Lv.20 + 위치 인증 30곳) */
 export async function canSellPaidMaps(userId: string): Promise<boolean> {
   const [user, verifiedCount] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true, isAdmin: true } }),
     prisma.restaurantPost.count({ where: { userId, locationVerified: true } }),
   ]);
-  return !!user && user.totalLevel >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED;
+  if (!user) return false;
+  // 운영자는 조건 없이 항상 판매 자격 (유료 지도 오픈/운영용)
+  if (user.isAdmin) return true;
+  return user.totalLevel >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED;
 }
 
 /** 컬렉션을 유료 지도로 전환/해제 (소유자 + 자격 + 가격 990~9900). 유료면 공개로 강제. */

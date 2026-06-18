@@ -347,6 +347,13 @@ async function main() {
     "증거 첨부 시 인증 뱃지 ON (영수증·메뉴판)"
   );
 
+  // (테스트 픽스처) 위치인증 '불가능한 이동'(5분/50km) 가드가 합성 테스트를 막지 않도록,
+  // 직전 서울 인증 시각을 과거로 — 실제로는 서울→부산 인증이 분/시간 단위로 벌어짐.
+  await prisma.restaurantPost.updateMany({
+    where: { userId: a.id, locationVerified: true },
+    data: { visitedAt: new Date(Date.now() - 60 * 60 * 1000) },
+  });
+
   // 좌표 없는 부산 가게 → NO_COORDS
   const noCoords = await verifyLocation(a.id, busanPost.id, { lat: 35.158, lng: 129.16, accuracy: 10 });
   assert(!noCoords.verified && noCoords.reason === "NO_COORDS", "좌표 없는 가게는 위치 인증 불가(NO_COORDS)");

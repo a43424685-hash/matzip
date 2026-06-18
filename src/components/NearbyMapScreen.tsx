@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
@@ -246,9 +246,6 @@ export default function NearbyMapScreen() {
           </Link>
         </div>
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">
-          <button className="flex h-10 shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-3 text-sm font-bold text-ink">
-            <SlidersHorizontal size={17} /> 유형
-          </button>
           {CATEGORY_LABELS.map((label) => (
             <button
               key={label}

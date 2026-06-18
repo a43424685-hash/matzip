@@ -26,6 +26,8 @@ export default function FeedControls({
     if (val) p.set(key, val);
     else p.delete(key);
     router.push(`${pathname}?${p.toString()}`);
+    // 쿼리만 바뀌면 ScrollReset(pathname 의존)이 안 타므로 직접 맨 위로
+    window.scrollTo(0, 0);
   }
 
   return (

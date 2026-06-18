@@ -44,7 +44,8 @@ export default async function SearchPage({
   const sp = await searchParams;
   const regionId = (sp.regionId as string) || "";
   const priceRange = (sp.priceRange as string) || "";
-  const sort = ((sp.sort as string) || "latest") as SortKey;
+  // 기본 정렬 = 인기순(저장 많은순). 사용자가 필터에서 바꾸면 그 값 사용.
+  const sort = ((sp.sort as string) || "saves") as SortKey;
   const categoryIds = asArray(sp.categoryIds);
   const q = (sp.q as string) || "";
 
@@ -108,7 +109,7 @@ export default async function SearchPage({
         {/* 필터 — 지역·가격·정렬·전체 카테고리 (기본 접힘) */}
         <details
           className="rounded-2xl border border-stone-200"
-          open={!!regionId || !!priceRange || sort !== "latest" || categoryIds.some((id) => !recommendedIds.has(id))}
+          open={!!regionId || !!priceRange || sort !== "saves" || categoryIds.some((id) => !recommendedIds.has(id))}
         >
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-sm font-semibold text-ink">
             <SlidersHorizontal size={16} className="text-forest" /> 필터

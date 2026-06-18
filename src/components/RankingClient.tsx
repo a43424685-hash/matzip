@@ -136,7 +136,7 @@ function Podium({ rows }: { rows: UserRankRow[] }) {
 function PodiumCard({ row, height, primary }: { row?: UserRankRow; height: string; primary?: boolean }) {
   if (!row) return <div />;
   return (
-    <div className={`rounded-3xl border ${primary ? "border-coral bg-coral/10" : "border-stone-200 bg-white"} px-2.5 pb-3 text-center ${height}`}>
+    <div className={`rounded-2xl border ${primary ? "border-coral bg-coral/10" : "border-stone-200 bg-white"} px-2.5 pb-3 text-center ${height}`}>
       <div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full ${primary ? "bg-coral text-white" : "bg-forest-soft text-forest"}`}>
         {primary ? <Crown size={18} /> : <Medal size={17} />}
       </div>

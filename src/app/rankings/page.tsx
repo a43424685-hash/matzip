@@ -53,7 +53,7 @@ export default async function RankingsPage({
 
       {user && <MyRankCard user={user} rank={myRank} eligibility={eligibility} />}
 
-      <section className="mt-5 rounded-3xl bg-ink px-5 py-5 text-white">
+      <section className="mt-5 rounded-2xl bg-ink px-5 py-5 text-white">
         <div className="flex items-center gap-2 text-sm font-extrabold">
           <BadgePercent size={18} className="text-coral" />
           랭킹 혜택
@@ -147,7 +147,7 @@ function MyRankCard({
   const verifiedLeft = Math.max(0, 30 - (eligibility?.verifiedCount ?? 0));
 
   return (
-    <section className="rounded-3xl bg-forest px-5 py-5 text-white">
+    <section className="rounded-2xl bg-forest px-5 py-5 text-white">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[12px] font-bold text-white/70">내 현재 랭킹</p>
@@ -198,7 +198,7 @@ function CreatorMapCard({ eligibility }: { eligibility: CreatorEligibility | nul
   ];
 
   return (
-    <section className="mt-4 rounded-3xl border border-stone-200 bg-white p-4">
+    <section className="mt-4 rounded-2xl border border-stone-200 bg-white p-4">
       <div className="flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest-soft text-forest">
           {eligibility?.eligible ? <ShieldCheck size={22} /> : <Lock size={22} />}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Heart, Bookmark } from "lucide-react";
 
 export default function LikeSaveButtons({
@@ -22,6 +22,7 @@ export default function LikeSaveButtons({
   isLoggedIn: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [liked, setLiked] = useState(initialLiked);
   const [saved, setSaved] = useState(initialSaved);
   const [likeCount, setLikeCount] = useState(initialLikeCount);
@@ -30,7 +31,7 @@ export default function LikeSaveButtons({
 
   function requireLogin(): boolean {
     if (!isLoggedIn) {
-      router.push("/login");
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
       return false;
     }
     return true;
@@ -70,7 +71,7 @@ export default function LikeSaveButtons({
         onClick={() => start(onLike)}
         disabled={pending}
         aria-pressed={liked}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold tabular-nums transition ${
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2.5 text-[13px] font-semibold tabular-nums transition ${
           liked
             ? "border-coral/30 bg-coral-soft text-coral-dark"
             : "border-stone-200 bg-white text-ink-muted hover:border-stone-300"
@@ -83,7 +84,7 @@ export default function LikeSaveButtons({
         onClick={() => start(onSave)}
         disabled={pending}
         aria-pressed={saved}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold tabular-nums transition ${
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2.5 text-[13px] font-semibold tabular-nums transition ${
           saved
             ? "border-forest/30 bg-forest-soft text-forest"
             : "border-stone-200 bg-white text-ink-muted hover:border-stone-300"

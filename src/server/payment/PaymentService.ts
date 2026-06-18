@@ -34,6 +34,10 @@ export async function preparePurchase(userId: string, collectionId: string): Pro
   if (existing?.status === "paid") return { ok: false, reason: "ALREADY" }; // 환불(refunded)이면 재구매 허용
 
   const paymentId = `mz_${randomUUID()}`;
+  // 주문 정보를 서버에 저장 — confirm/webhook은 이 값을 신뢰(클라 customData 위변조 방지)
+  await prisma.paymentIntent.create({
+    data: { paymentId, buyerId: userId, collectionId, amountWon: col.priceWon, status: "ready" },
+  });
   return {
     ok: true,
     paymentId,
@@ -57,20 +61,14 @@ export async function confirmPurchase(
   paymentId: string,
   expectBuyerId?: string
 ): Promise<ConfirmResult> {
-  const payment = await getPortOnePayment(paymentId);
-
-  // customData 에서 구매자·컬렉션 식별
-  let meta: { collectionId?: string; buyerId?: string } = {};
-  try {
-    meta = payment.customData ? JSON.parse(payment.customData) : {};
-  } catch {
-    return { ok: false, reason: "BAD_CUSTOMDATA" };
-  }
-  const collectionId = meta.collectionId;
-  const buyerId = meta.buyerId;
-  if (!collectionId || !buyerId) return { ok: false, reason: "BAD_CUSTOMDATA" };
+  // 구매자·컬렉션·금액은 prepare 때 서버가 저장한 주문(PaymentIntent)을 신뢰한다.
+  const intent = await prisma.paymentIntent.findUnique({ where: { paymentId } });
+  if (!intent) return { ok: false, reason: "NO_INTENT" };
+  const collectionId = intent.collectionId;
+  const buyerId = intent.buyerId;
   if (expectBuyerId && expectBuyerId !== buyerId) return { ok: false, reason: "BUYER_MISMATCH" };
 
+  const payment = await getPortOnePayment(paymentId);
   if (payment.status !== "PAID") return { ok: false, reason: "NOT_PAID" };
 
   const col = await prisma.collection.findUnique({
@@ -80,9 +78,11 @@ export async function confirmPurchase(
   if (!col || !col.isPaid || !col.priceWon) return { ok: false, reason: "NOT_FOR_SALE" };
   if (col.userId === buyerId) return { ok: false, reason: "OWNER" };
 
-  // 금액·통화 검증 (위변조 방지)
+  // 금액·통화 검증 (위변조 방지) — PG 실결제액 = 주문 저장액 = 현재 가격 모두 일치해야 함
   const paidTotal = payment.amount?.total;
-  if (paidTotal !== col.priceWon) return { ok: false, reason: "AMOUNT_MISMATCH" };
+  if (paidTotal !== intent.amountWon || paidTotal !== col.priceWon) {
+    return { ok: false, reason: "AMOUNT_MISMATCH" };
+  }
   if (payment.currency && payment.currency !== "KRW") return { ok: false, reason: "CURRENCY" };
 
   const amountWon = col.priceWon;
@@ -115,6 +115,10 @@ export async function confirmPurchase(
       paidAt: new Date(),
     },
   });
+
+  await prisma.paymentIntent
+    .update({ where: { paymentId }, data: { status: "paid", paidAt: new Date() } })
+    .catch(() => {});
 
   return { ok: true, collectionId };
 }

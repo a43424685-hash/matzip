@@ -4,6 +4,7 @@ import { Coins, MapPin, ChevronRight } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyPurchases } from "@/server/payment/PaymentService";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
+import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,16 @@ export default async function MyPurchasesPage() {
       <MeSubPageHeader title={`구매한 지도 (${purchases.length})`} />
 
       {purchases.length === 0 ? (
-        <p className="mt-10 rounded-2xl bg-stone-50 py-12 text-center text-sm text-stone-400">
-          아직 구매한 맛집 지도가 없어요.
-          <Link href="/store" className="mt-3 block font-semibold text-forest">
-            맛집 지도 둘러보기 →
-          </Link>
-        </p>
+        <EmptyState
+          icon={Coins}
+          title="아직 구매한 맛집 지도가 없어요"
+          description="검증된 로컬들이 만든 유료 맛집 지도를 둘러보세요."
+          action={
+            <Link href="/store" className="btn-primary h-11 px-5 !text-sm">
+              맛집 지도 둘러보기
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-2.5">
           {purchases.map((p) => (

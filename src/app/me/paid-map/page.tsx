@@ -48,23 +48,31 @@ export default async function PaidMapPage() {
   ]);
   const levelPct = Math.min(100, Math.round((user.totalLevel / LEVEL_GOAL) * 100));
   const verifyPct = Math.min(100, Math.round((verifiedCount / VERIFY_GOAL) * 100));
-  const unlocked = user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL;
+  // 운영자는 조건 없이 항상 열림 (유료 지도 오픈/운영용)
+  const unlocked = user.isAdmin || (user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL);
   const paidMaps = myCollections.filter((c) => c.isPaid);
 
   return (
     <main className="px-5 pb-24 pt-5">
       <MeSubPageHeader title="유료 맛집지도 관리" />
 
-      <section className="rounded-2xl border border-forest/20 bg-forest-soft/30 p-5">
-        <div className="flex items-center gap-1.5">
-          <Map size={17} className="text-forest" />
-          <h2 className="text-[15px] font-extrabold text-ink">오픈 조건</h2>
-        </div>
-        <div className="mt-4 space-y-3.5">
-          <Progress label="레벨" now={`Lv.${user.totalLevel}`} goal={`Lv.${LEVEL_GOAL}`} pct={levelPct} />
-          <Progress label="위치 인증 맛집" now={`${verifiedCount}`} goal={`${VERIFY_GOAL}곳`} pct={verifyPct} />
-        </div>
-      </section>
+      {user.isAdmin ? (
+        <section className="flex items-center gap-2 rounded-2xl border border-forest/20 bg-forest-soft/30 p-5">
+          <Map size={18} className="shrink-0 text-forest" />
+          <p className="text-sm font-bold text-forest">운영자 계정은 조건 없이 유료 지도가 열려 있어요.</p>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-forest/20 bg-forest-soft/30 p-5">
+          <div className="flex items-center gap-1.5">
+            <Map size={17} className="text-forest" />
+            <h2 className="text-[15px] font-extrabold text-ink">오픈 조건</h2>
+          </div>
+          <div className="mt-4 space-y-3.5">
+            <Progress label="레벨" now={`Lv.${user.totalLevel}`} goal={`Lv.${LEVEL_GOAL}`} pct={levelPct} />
+            <Progress label="위치 인증 맛집" now={`${verifiedCount}`} goal={`${VERIFY_GOAL}곳`} pct={verifyPct} />
+          </div>
+        </section>
+      )}
 
       {unlocked ? (
         <>

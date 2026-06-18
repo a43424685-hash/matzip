@@ -11,7 +11,15 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
 const COOKIE_NAME = "matzip_session";
-const SECRET = process.env.AUTH_SECRET ?? "dev-only-secret";
+// 운영에서 AUTH_SECRET 미설정이면 세션 위조가 가능하므로 즉시 막는다(개발용 fallback 금지).
+const SECRET = (() => {
+  const s = process.env.AUTH_SECRET;
+  if (s) return s;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET 환경변수가 설정되지 않았습니다. 운영 배포 전 반드시 설정하세요.");
+  }
+  return "dev-only-secret";
+})();
 const MAX_AGE = 60 * 60 * 24 * 30; // 30일
 
 export async function hashPassword(plain: string): Promise<string> {

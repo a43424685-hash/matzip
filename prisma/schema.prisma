@@ -606,6 +606,25 @@ model MapPurchase {
 }
 
 // ─────────────────────────────────────────────────────────────
+// 결제 의도(주문) — prepare 시 서버가 발급/저장. confirm·webhook은 클라 customData가
+// 아니라 이 레코드의 buyerId·collectionId·amountWon 을 기준으로 구매를 확정한다.
+// ─────────────────────────────────────────────────────────────
+model PaymentIntent {
+  id           String    @id @default(cuid())
+  paymentId    String    @unique // PG 결제 식별자 (mz_...)
+  buyerId      String
+  collectionId String
+  amountWon    Int
+  // status: ready(발급) | paid(확정) | failed
+  status       String    @default("ready")
+  createdAt    DateTime  @default(now())
+  paidAt       DateTime?
+
+  @@index([buyerId])
+  @@map("payment_intents")
+}
+
+// ─────────────────────────────────────────────────────────────
 // 판매 수익 출금(정산 지급) — 판매자가 신청, 운영자가 입금 후 '지급완료' 처리
 // ─────────────────────────────────────────────────────────────
 model Withdrawal {

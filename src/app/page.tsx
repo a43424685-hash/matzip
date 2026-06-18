@@ -86,7 +86,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <p className="mt-2 text-[15px] font-extrabold leading-snug text-ink">
+        <p className="mt-4 text-[15px] font-extrabold leading-snug text-ink">
           {user ? (
             <>
               <span className="text-forest">{user.nickname}</span>님, 오늘은 어디서 먹고 핀 꽂을까요?

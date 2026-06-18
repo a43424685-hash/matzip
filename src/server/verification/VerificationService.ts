@@ -71,6 +71,11 @@ export async function markProofAttempt(id: string, ok: boolean): Promise<void> {
 export const LOCATION_THRESHOLD_METERS = 50; // 가게 50m 이내
 export const LOCATION_ACCURACY_LIMIT_METERS = 50; // GPS 정확도 50m 이내 (초과 시 재시도)
 
+// 어뷰징 완화 (폰 좌표는 위조 가능 → 패턴으로 차단)
+export const LOCATION_VERIFY_PER_DAY = 15; // 하루 위치 인증 성공 상한
+export const LOCATION_IMPOSSIBLE_KM = 50; // 직전 인증과 짧은 시간 내 이 거리 초과 = 불가능한 이동
+export const LOCATION_IMPOSSIBLE_WINDOW_MS = 5 * 60 * 1000; // 5분
+
 /** 두 좌표 간 거리(m) — Haversine */
 export function distanceMeters(
   lat1: number,
@@ -111,7 +116,10 @@ export type LocationVerifyReason =
   | "OK"
   | "NO_COORDS" // 가게 좌표가 없어 위치 인증 불가
   | "LOW_ACCURACY" // GPS 정확도가 기준 초과 → 재시도
-  | "TOO_FAR"; // 가게에서 너무 멀리 떨어짐
+  | "TOO_FAR" // 가게에서 너무 멀리 떨어짐
+  | "RATE_LIMITED" // 하루 인증 한도 초과
+  | "DUP_TODAY" // 오늘 같은 가게 이미 인증
+  | "TOO_FAST"; // 직전 인증과 짧은 시간 내 먼 거리 (불가능한 이동)
 
 export interface LocationVerifyResult {
   verified: boolean;
@@ -121,6 +129,66 @@ export interface LocationVerifyResult {
   thresholdMeters: number; // 허용 거리(미니맵 원 표시용)
   accuracyLimitMeters: number;
   awardedXp?: number; // 위치 인증으로 해제된 총 XP (성공 시)
+  message?: string; // 차단 사유 안내 문구 (RATE_LIMITED/DUP_TODAY/TOO_FAST)
+}
+
+/** 위치 인증 로그 (ProofAttempt 재사용, kind="location"). 카운트/감사용. */
+async function logLocationAttempt(userId: string, postId: string, ok: boolean): Promise<void> {
+  await prisma.proofAttempt.create({ data: { userId, postId, kind: "location", ok } }).catch(() => {});
+}
+
+/**
+ * 위치 인증 어뷰징 검사 — 통과면 null, 차단이면 {reason, message}.
+ *  1) 하루 인증 성공 횟수 상한
+ *  2) 같은 가게 하루 1회
+ *  3) 직전 인증과 5분 내 50km 초과(불가능한 이동)
+ */
+async function checkLocationAbuse(
+  userId: string,
+  restaurantId: string,
+  postId: string,
+  lat: number,
+  lng: number
+): Promise<{ reason: LocationVerifyReason; message: string } | null> {
+  // 1) 하루 인증 성공 횟수
+  const todayOk = await prisma.proofAttempt.count({
+    where: { userId, kind: "location", ok: true, createdAt: { gte: startOfToday() } },
+  });
+  if (todayOk >= LOCATION_VERIFY_PER_DAY) {
+    return { reason: "RATE_LIMITED", message: "오늘 위치 인증 한도를 초과했어요. 내일 다시 시도해주세요." };
+  }
+
+  // 2) 같은 가게 하루 1회 (이 글이 아닌 다른 글로 같은 가게를 오늘 이미 인증)
+  const dupToday = await prisma.restaurantPost.count({
+    where: {
+      userId,
+      restaurantId,
+      locationVerified: true,
+      id: { not: postId },
+      visitedAt: { gte: startOfToday() },
+    },
+  });
+  if (dupToday > 0) {
+    return { reason: "DUP_TODAY", message: "오늘 이미 이 가게를 인증했어요. 같은 가게는 하루 한 번만 인증돼요." };
+  }
+
+  // 3) 불가능한 이동 — 직전 인증과 5분 내 50km 초과
+  const last = await prisma.restaurantPost.findFirst({
+    where: { userId, locationVerified: true, verifiedLatitude: { not: null }, visitedAt: { not: null } },
+    orderBy: { visitedAt: "desc" },
+    select: { verifiedLatitude: true, verifiedLongitude: true, visitedAt: true },
+  });
+  if (last?.visitedAt && last.verifiedLatitude != null && last.verifiedLongitude != null) {
+    const ageMs = Date.now() - last.visitedAt.getTime();
+    if (ageMs >= 0 && ageMs < LOCATION_IMPOSSIBLE_WINDOW_MS) {
+      const km = distanceMeters(last.verifiedLatitude, last.verifiedLongitude, lat, lng) / 1000;
+      if (km > LOCATION_IMPOSSIBLE_KM) {
+        return { reason: "TOO_FAST", message: "방금 다른 지역에서 인증했어요. 잠시 후 다시 시도해주세요." };
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -141,11 +209,13 @@ export async function verifyLocation(
 
   // 1) 가게 좌표 없으면 위치 인증 불가 (부트스트랩 금지)
   if (post.restaurant.latitude == null || post.restaurant.longitude == null) {
+    await logLocationAttempt(userId, postId, false);
     return { verified: false, reason: "NO_COORDS", distanceMeters: null, ...base };
   }
 
   // 2) GPS 정확도가 기준(50m) 초과면 재시도 요구
   if (accuracy != null && accuracy > LOCATION_ACCURACY_LIMIT_METERS) {
+    await logLocationAttempt(userId, postId, false);
     return { verified: false, reason: "LOW_ACCURACY", distanceMeters: null, ...base };
   }
 
@@ -157,7 +227,17 @@ export async function verifyLocation(
     input.lng
   );
   if (dist > LOCATION_THRESHOLD_METERS) {
+    await logLocationAttempt(userId, postId, false);
     return { verified: false, reason: "TOO_FAR", distanceMeters: dist, ...base };
+  }
+
+  // 4) 어뷰징 검사 — 이미 인증된 글의 재호출(보상 멱등)은 건너뜀
+  if (!post.locationVerified) {
+    const abuse = await checkLocationAbuse(userId, post.restaurant.id, postId, input.lat, input.lng);
+    if (abuse) {
+      await logLocationAttempt(userId, postId, false);
+      return { verified: false, reason: abuse.reason, message: abuse.message, distanceMeters: dist, ...base };
+    }
   }
 
   // 위치 인증 성공 — 보류돼 있던 "기록/콘텐츠/등록 사진·영상" XP를 일괄 해제 (트랜잭션, 멱등)
@@ -231,6 +311,7 @@ export async function verifyLocation(
     return sum._sum.xpAmount ?? 0;
   });
 
+  await logLocationAttempt(userId, postId, true);
   return { verified: true, reason: "OK", distanceMeters: dist, awardedXp, ...base };
 }
 
