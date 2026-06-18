@@ -5,7 +5,7 @@ import OfficialBadge from "@/components/OfficialBadge";
 import Coachmark from "@/components/Coachmark";
 import { prisma } from "@/lib/db";
 import KakaoMap from "@/components/KakaoMap";
-import ShareButton from "@/components/ShareButton";
+import ShareSheet from "@/components/ShareSheet";
 import CopyAddressButton from "@/components/CopyAddressButton";
 import CollectionPicker from "@/components/CollectionPicker";
 import VerificationBadges from "@/components/VerificationBadges";
@@ -133,6 +133,7 @@ export default async function PostDetailPage({
   }
 
   const comments = await getComments(postId, user?.id ?? null);
+  const firstImage = post.media.find((m) => m.type === "image")?.url ?? null;
 
   return (
     <main className="pb-6">
@@ -157,69 +158,51 @@ export default async function PostDetailPage({
       )}
 
       <div className="space-y-5 px-5 pt-5">
+        {/* 가게 핵심 정보 */}
         <header>
-          <div className="flex items-center justify-between">
-            <h1 className="flex items-center gap-2 text-2xl font-extrabold">
-              {post.user.isAdmin && (
-                <span className="flex items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[12px] font-extrabold text-white">
-                  <Check size={12} strokeWidth={3.5} /> 운영자
-                </span>
-              )}
-              {post.locationVerified && (
-                <span className="flex items-center gap-0.5 rounded-md bg-forest px-1.5 py-0.5 text-[12px] font-extrabold text-white">
-                  <Check size={12} strokeWidth={3.5} /> 인증
-                </span>
-              )}
-              {post.restaurant.name}
-            </h1>
-            <span className="text-sm text-neutral-400">{post.restaurant.primaryRegion.name}</span>
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-extrabold leading-tight text-ink">{post.restaurant.name}</h1>
+            <span className="shrink-0 pt-1 text-sm text-neutral-400">{post.restaurant.primaryRegion.name}</span>
           </div>
-          <p className="mt-1 text-[13px] text-stone-400">{formatPostDate(post.createdAt)} 등록</p>
+          {/* 메타 — 운영자 · 인증 · 등록일 (작게) */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-stone-400">
+            {post.user.isAdmin && (
+              <>
+                <span className="flex items-center gap-0.5 font-bold text-[#1d9bf0]">
+                  <Check size={12} strokeWidth={3} /> 운영자
+                </span>
+                <span>·</span>
+              </>
+            )}
+            {post.locationVerified && (
+              <>
+                <span className="flex items-center gap-0.5 font-bold text-forest">
+                  <Check size={12} strokeWidth={3} /> 인증
+                </span>
+                <span>·</span>
+              </>
+            )}
+            <span>{formatPostDate(post.createdAt)} 등록</span>
+          </div>
+          {/* 한줄평 */}
+          {post.shortReview && (
+            <p className="mt-3 line-clamp-2 text-base font-semibold text-ink">“{post.shortReview}”</p>
+          )}
         </header>
 
-        {/* 지도 — 좌표가 있을 때만 */}
-        {post.restaurant.latitude != null && post.restaurant.longitude != null && (
-          <KakaoMap
-            center={{ lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
-            name={post.restaurant.name}
-            height={160}
-          />
-        )}
-
-        {/* 지도 밑 — 정확한 주소(역지오코딩) + 탭하면 복사 */}
-        {displayAddress && <CopyAddressButton address={displayAddress} />}
-
-        {/* 카테고리 — 최대 5개 + 나머지 +N */}
-        {post.categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {post.categories.slice(0, 5).map((c) => (
-              <span key={c.category.name} className="chip-off">
-                {c.category.name}
-              </span>
-            ))}
-            {post.categories.length > 5 && (
-              <span className="chip-off !text-stone-400">+{post.categories.length - 5}</span>
-            )}
-          </div>
-        )}
-
-        {/* 방문 인증 — 이 유저의 기록 기준 (음식점 자체가 아님) */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-stone-400">방문 인증</span>
-          <VerificationBadges
-            v={{
-              location: post.locationVerified,
-              receipt: post.receiptVerified,
-              menu: post.menuVerified,
-            }}
-            showUnverified
-          />
-        </div>
-
-        {/* 한줄평 (2줄까지) */}
-        {post.shortReview && (
-          <p className="line-clamp-2 text-base font-semibold text-ink">“{post.shortReview}”</p>
-        )}
+        {/* 한 줄 요약 — 가격 · 분위기/상황 1개 · 재방문 또는 웨이팅 1개 (최대 3) */}
+        {(() => {
+          const parts = [
+            post.priceMemo || priceLabel(post.priceRange),
+            labelMany(post.atmosphereTags, ATMOSPHERE_TAGS)[0] ||
+              post.categories[0]?.category.name ||
+              labelMany(post.tasteTags, TASTE_TAGS)[0],
+            revisitLabel(post.revisitIntent) || waitingLabel(post.waitingLevel),
+          ].filter(Boolean) as string[];
+          return parts.length > 0 ? (
+            <p className="text-[13px] font-semibold text-stone-600">{parts.slice(0, 3).join("  ·  ")}</p>
+          ) : null;
+        })()}
 
         {/* 리뷰 자세히 — 상세리뷰·맛/서비스/분위기·방문정보 (기본 접힘) */}
         {(post.content ||
@@ -253,40 +236,64 @@ export default async function PostDetailPage({
                 <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
                 <Meta label="재방문" value={revisitLabel(post.revisitIntent) || "-"} />
               </div>
+              {/* 전체 태그 */}
+              {post.categories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {post.categories.map((c) => (
+                    <span key={c.category.name} className="chip-off">{c.category.name}</span>
+                  ))}
+                </div>
+              )}
+              {/* 방문 인증 상세 (위치·영수증·메뉴) */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-stone-400">방문 인증</span>
+                <VerificationBadges
+                  v={{ location: post.locationVerified, receipt: post.receiptVerified, menu: post.menuVerified }}
+                  showUnverified
+                />
+              </div>
             </div>
           </details>
         )}
 
-        {/* 반응 */}
-        <div className="card flex items-center justify-between p-3.5">
-          <div className="text-xs tabular-nums text-ink-muted">
-            좋아요 {post.likeCount} · 저장 {post.restaurant.saveCount} · 공유 {post.shareCount} · 💬 {post.commentCount}
+        {/* 주요 액션 — 한 줄 액션바 (저장/좋아요 + 지도/공유/리스트) */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-2xl border border-stone-200 px-3 py-2.5">
+            <span className="text-[12px] tabular-nums text-stone-400">
+              좋아요 {post.likeCount} · 저장 {post.restaurant.saveCount} · 공유 {post.shareCount} · 💬 {post.commentCount}
+            </span>
+            <LikeSaveButtons
+              postId={post.id}
+              restaurantId={post.restaurant.id}
+              initialLiked={liked}
+              initialSaved={saved}
+              initialLikeCount={post.likeCount}
+              initialSaveCount={post.restaurant.saveCount}
+              isLoggedIn={!!user}
+            />
           </div>
-          <LikeSaveButtons
-            postId={post.id}
-            restaurantId={post.restaurant.id}
-            initialLiked={liked}
-            initialSaved={saved}
-            initialLikeCount={post.likeCount}
-            initialSaveCount={post.restaurant.saveCount}
-            isLoggedIn={!!user}
-          />
-        </div>
-
-        {/* 작성자 + 지도 */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1 text-ink-muted">
+          <div className="grid grid-cols-3 gap-2">
+            <a href={mapUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
+              <MapPin size={15} /> 지도
+            </a>
+            {post.locationVerified ? (
+              <ShareSheet postId={post.id} restaurantName={post.restaurant.name} imageUrl={firstImage} />
+            ) : (
+              <button type="button" disabled className="btn-outline h-10 !text-sm opacity-50">
+                <Share2 size={15} /> 공유
+              </button>
+            )}
+            <CollectionPicker restaurantId={post.restaurant.id} isLoggedIn={!!user} compact />
+          </div>
+          {!post.locationVerified && (
+            <p className="flex items-center justify-center gap-1 text-center text-[11px] text-stone-400">
+              <MapPin size={12} /> 위치 인증을 해야 공유할 수 있어요
+            </p>
+          )}
+          <p className="text-[12px] text-stone-400">
             등록 by <b className="text-ink">{post.user.nickname}</b>
-            {post.user.isAdmin && <OfficialBadge size={15} />} · Lv.{post.user.totalLevel}
-          </span>
-          <a
-            href={mapUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 font-semibold text-forest"
-          >
-            <MapPin size={15} /> 지도 열기
-          </a>
+            {post.user.isAdmin && <OfficialBadge size={13} className="ml-0.5 inline-flex align-middle" />} · Lv.{post.user.totalLevel}
+          </p>
         </div>
 
         {/* 작성자 관리 (본인만) — 방문 인증 / 수정 / 삭제 한 곳에 */}
@@ -351,23 +358,21 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* 리스트 담기 + 공유 */}
-        <CollectionPicker restaurantId={post.restaurant.id} isLoggedIn={!!user} />
-        {post.locationVerified ? (
-          <ShareButton postId={post.id} />
-        ) : (
-          <div>
-            <button
-              type="button"
-              disabled
-              className="btn-outline h-12 w-full !text-base opacity-50"
-            >
-              <Share2 size={18} /> 이 맛집 공유하기
-            </button>
-            <p className="mt-1.5 flex items-center justify-center gap-1 text-center text-[12px] text-stone-400">
-              <MapPin size={13} /> 위치 인증을 해야 공유할 수 있어요
-            </p>
-          </div>
+        {/* 위치 — 지도 + 주소 (액션·관리 아래로) */}
+        {post.restaurant.latitude != null && post.restaurant.longitude != null && (
+          <section>
+            <p className="mb-1.5 text-[13px] font-bold text-stone-500">위치</p>
+            <KakaoMap
+              center={{ lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
+              name={post.restaurant.name}
+              height={160}
+            />
+            {displayAddress && (
+              <div className="mt-2">
+                <CopyAddressButton address={displayAddress} />
+              </div>
+            )}
+          </section>
         )}
 
         {/* 사장님 홍보 영역 — 사용자 리뷰와 명확히 분리, 랭킹/XP 와 무관 */}

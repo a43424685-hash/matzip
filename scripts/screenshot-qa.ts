@@ -42,8 +42,14 @@ async function main() {
   const failures: string[] = [];
   try {
     const context = await browser.newContext();
+    // 스플래시는 캡처 방해 → 모든 페이지에서 건너뛰기 (실유저는 1회 정상 노출)
+    await context.addInitScript(() => {
+      try {
+        sessionStorage.setItem("mukgopin-splash-seen", "1");
+      } catch {}
+    });
 
-    // (선택) 로그인 — 계정 정보 있으면
+    // (선택) 로그인 — 계정 정보 있으면. 성공/실패를 명확히 보고.
     if (EMAIL && PASSWORD) {
       try {
         const p = await context.newPage();
@@ -52,11 +58,18 @@ async function main() {
         await p.fill('input[name="password"]', PASSWORD);
         await p.click('button[type="submit"]');
         await p.waitForTimeout(2500);
+        if (p.url().includes("/login")) {
+          const err = await p.textContent(".text-red-500").catch(() => null);
+          console.log(`⚠️ 로그인 실패: ${err?.trim() || "이메일/비밀번호 확인 필요"} — 비로그인으로 진행`);
+        } else {
+          console.log("✓ 로그인 성공");
+        }
         await p.close();
-        console.log("로그인 시도 완료");
       } catch (e) {
-        console.log("로그인 실패 — 비로그인으로 진행:", e instanceof Error ? e.message : e);
+        console.log("⚠️ 로그인 시도 오류 — 비로그인으로 진행:", e instanceof Error ? e.message : e);
       }
+    } else {
+      console.log("ℹ️ SCREENSHOT_EMAIL/PASSWORD 없음 — 비로그인 캡처 (/me, /register는 로그인 화면)");
     }
 
     // 홈에서 맛집 상세 샘플 1개 찾기
@@ -76,9 +89,26 @@ async function main() {
         try {
           await page.goto(`${BASE}${t.path}`, { waitUntil: "networkidle", timeout: 30000 });
           await page.waitForTimeout(900);
-          const file = join(outDir, `${t.name}-${w}.png`);
-          await page.screenshot({ path: file, fullPage: true });
-          console.log(`✓ ${t.name}-${w}`);
+
+          if (t.name === "detail") {
+            // 상세는 스크롤 위치별 3장 (top / mid / bottom) — viewport 기준
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await page.waitForTimeout(300);
+            await page.screenshot({ path: join(outDir, `detail-top-${w}.png`) });
+            await page.evaluate(() => window.scrollTo(0, 700));
+            await page.waitForTimeout(300);
+            await page.screenshot({ path: join(outDir, `detail-mid-${w}.png`) });
+            await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+            await page.waitForTimeout(300);
+            await page.screenshot({ path: join(outDir, `detail-bottom-${w}.png`) });
+            console.log(`✓ detail-(top/mid/bottom)-${w}`);
+          } else {
+            // 나머지는 viewport(보이는 영역) + full(전체) 둘 다
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await page.screenshot({ path: join(outDir, `${t.name}-${w}-view.png`) });
+            await page.screenshot({ path: join(outDir, `${t.name}-${w}-full.png`), fullPage: true });
+            console.log(`✓ ${t.name}-${w} (view+full)`);
+          }
         } catch (e) {
           failures.push(`${t.name}-${w}: ${e instanceof Error ? e.message : e}`);
           console.log(`✗ ${t.name}-${w} 실패`);

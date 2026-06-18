@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveRegions, getActiveCategories, groupCategoriesByType } from "@/server/catalog";
 import {
@@ -62,7 +62,7 @@ export default async function SearchPage({
       const ib = CAT_PRIORITY.indexOf(b.name);
       return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
     })
-    .slice(0, 10);
+    .slice(0, 8);
   const recommendedIds = new Set(recommended.map((c) => c.id));
 
   const posts = await searchPosts({
@@ -104,40 +104,41 @@ export default async function SearchPage({
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <select name="regionId" defaultValue={regionId} className="input h-11">
-            <option value="">지역 전체</option>
-            {regions.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-          <select name="sort" defaultValue={sort} className="input h-11">
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <select name="priceRange" defaultValue={priceRange} className="input h-11">
-          <option value="">가격대 전체</option>
-          {PRICE_RANGES.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-
-        {/* 전체 카테고리 (추천 외) */}
-        <details className="rounded-2xl border border-stone-200" open={categoryIds.length > 0}>
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-ink-muted">
-            전체 카테고리
-            {categoryIds.length > 0 ? ` (${categoryIds.length})` : ""}
+        {/* 필터 — 지역·가격·정렬·전체 카테고리 (기본 접힘) */}
+        <details
+          className="rounded-2xl border border-stone-200"
+          open={!!regionId || !!priceRange || sort !== "latest" || categoryIds.some((id) => !recommendedIds.has(id))}
+        >
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-sm font-semibold text-ink">
+            <SlidersHorizontal size={16} className="text-forest" /> 필터
+            <span className="text-xs font-normal text-stone-400">지역 · 가격 · 정렬 · 전체 카테고리</span>
           </summary>
-          <div className="space-y-4 px-4 pb-4">
+          <div className="space-y-3 border-t border-stone-100 px-4 py-4">
+            <div className="grid grid-cols-2 gap-2">
+              <select name="regionId" defaultValue={regionId} className="input h-11">
+                <option value="">지역 전체</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              <select name="sort" defaultValue={sort} className="input h-11">
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <select name="priceRange" defaultValue={priceRange} className="input h-11">
+              <option value="">가격대 전체</option>
+              {PRICE_RANGES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
             {groups.map((g) => {
               const items = g.items.filter((c) => !recommendedIds.has(c.id));
               if (items.length === 0) return null;

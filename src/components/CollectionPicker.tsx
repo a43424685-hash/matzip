@@ -15,9 +15,11 @@ interface Col {
 export default function CollectionPicker({
   restaurantId,
   isLoggedIn,
+  compact = false,
 }: {
   restaurantId: string;
   isLoggedIn: boolean;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -82,8 +84,11 @@ export default function CollectionPicker({
 
   return (
     <>
-      <button onClick={onOpen} className="btn-outline h-12 w-full !text-base">
-        <ListPlus size={18} /> 내 리스트에 담기
+      <button
+        onClick={onOpen}
+        className={compact ? "btn-outline h-10 w-full !text-sm" : "btn-outline h-12 w-full !text-base"}
+      >
+        <ListPlus size={compact ? 15 : 18} /> {compact ? "리스트" : "내 리스트에 담기"}
       </button>
 
       {open && (
