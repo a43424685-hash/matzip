@@ -165,6 +165,11 @@ export default async function PostDetailPage({
                   <Check size={12} strokeWidth={3.5} /> 운영자
                 </span>
               )}
+              {post.locationVerified && (
+                <span className="flex items-center gap-0.5 rounded-md bg-forest px-1.5 py-0.5 text-[12px] font-extrabold text-white">
+                  <Check size={12} strokeWidth={3.5} /> 인증
+                </span>
+              )}
               {post.restaurant.name}
             </h1>
             <span className="text-sm text-neutral-400">{post.restaurant.primaryRegion.name}</span>
@@ -177,21 +182,24 @@ export default async function PostDetailPage({
           <KakaoMap
             center={{ lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
             name={post.restaurant.name}
-            height={200}
+            height={160}
           />
         )}
 
         {/* 지도 밑 — 정확한 주소(역지오코딩) + 탭하면 복사 */}
         {displayAddress && <CopyAddressButton address={displayAddress} />}
 
-        {/* 카테고리 */}
+        {/* 카테고리 — 최대 5개 + 나머지 +N */}
         {post.categories.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {post.categories.map((c) => (
+            {post.categories.slice(0, 5).map((c) => (
               <span key={c.category.name} className="chip-off">
                 {c.category.name}
               </span>
             ))}
+            {post.categories.length > 5 && (
+              <span className="chip-off !text-stone-400">+{post.categories.length - 5}</span>
+            )}
           </div>
         )}
 
@@ -208,35 +216,46 @@ export default async function PostDetailPage({
           />
         </div>
 
-        {/* 한줄평/리뷰 */}
-        {post.shortReview && <p className="text-base font-semibold">“{post.shortReview}”</p>}
-        {post.content && <p className="whitespace-pre-line text-sm text-neutral-600">{post.content}</p>}
-
-        {(post.tasteRating || post.tasteTags.length > 0 || post.serviceRating || post.serviceTags.length > 0 || post.atmosphereTags.length > 0) && (
-          <section className="space-y-3 rounded-2xl bg-stone-50 p-4">
-            <ReviewTags
-              title="맛"
-              primary={tasteRatingLabel(post.tasteRating)}
-              tags={labelMany(post.tasteTags, TASTE_TAGS)}
-            />
-            <ReviewTags
-              title="서비스"
-              primary={serviceRatingLabel(post.serviceRating)}
-              tags={labelMany(post.serviceTags, SERVICE_TAGS)}
-            />
-            <ReviewTags
-              title="분위기"
-              tags={labelMany(post.atmosphereTags, ATMOSPHERE_TAGS)}
-            />
-          </section>
+        {/* 한줄평 (2줄까지) */}
+        {post.shortReview && (
+          <p className="line-clamp-2 text-base font-semibold text-ink">“{post.shortReview}”</p>
         )}
 
-        {/* 메타 */}
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
-          <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
-          <Meta label="재방문" value={revisitLabel(post.revisitIntent) || "-"} />
-        </div>
+        {/* 리뷰 자세히 — 상세리뷰·맛/서비스/분위기·방문정보 (기본 접힘) */}
+        {(post.content ||
+          post.tasteRating ||
+          post.tasteTags.length > 0 ||
+          post.serviceRating ||
+          post.serviceTags.length > 0 ||
+          post.atmosphereTags.length > 0 ||
+          post.priceRange ||
+          post.priceMemo ||
+          post.waitingLevel ||
+          post.revisitIntent) && (
+          <details className="card overflow-hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
+              리뷰 자세히 보기
+              <span className="text-xs font-semibold text-forest">열기</span>
+            </summary>
+            <div className="space-y-4 border-t border-stone-100 p-4">
+              {post.content && (
+                <p className="whitespace-pre-line text-sm text-neutral-600">{post.content}</p>
+              )}
+              {(post.tasteRating || post.tasteTags.length > 0 || post.serviceRating || post.serviceTags.length > 0 || post.atmosphereTags.length > 0) && (
+                <section className="space-y-3 rounded-2xl bg-stone-50 p-4">
+                  <ReviewTags title="맛" primary={tasteRatingLabel(post.tasteRating)} tags={labelMany(post.tasteTags, TASTE_TAGS)} />
+                  <ReviewTags title="서비스" primary={serviceRatingLabel(post.serviceRating)} tags={labelMany(post.serviceTags, SERVICE_TAGS)} />
+                  <ReviewTags title="분위기" tags={labelMany(post.atmosphereTags, ATMOSPHERE_TAGS)} />
+                </section>
+              )}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
+                <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
+                <Meta label="재방문" value={revisitLabel(post.revisitIntent) || "-"} />
+              </div>
+            </div>
+          </details>
+        )}
 
         {/* 반응 */}
         <div className="card flex items-center justify-between p-3.5">
@@ -270,68 +289,65 @@ export default async function PostDetailPage({
           </a>
         </div>
 
-        {/* 신고 / 삭제 (작성자 본인 또는 운영자) */}
-        {user && (
-          <div className="flex items-center justify-end gap-4 text-[13px]">
-            {user.id === post.userId && (
-              <Link href={`/restaurants/${post.id}/edit`} className="flex items-center gap-1 font-semibold text-forest">
-                <Pencil size={14} /> 수정
-              </Link>
-            )}
-            {user.id !== post.userId && (
-              <BlockButton userId={post.userId} nickname={post.user.nickname} />
-            )}
-            {user.id !== post.userId && <ReportButton targetType="post" targetId={post.id} />}
-            {(user.id === post.userId || user.isAdmin) && (
-              <DeletePostButton
-                postId={post.id}
-                adminLabel={user.id === post.userId ? undefined : "운영자 삭제"}
+        {/* 작성자 관리 (본인만) — 방문 인증 / 수정 / 삭제 한 곳에 */}
+        {user?.id === post.userId && (
+          <div className="space-y-2 rounded-2xl border border-stone-200 p-3">
+            <p className="text-[12px] font-bold text-stone-400">내가 등록한 맛집</p>
+            <div className="relative">
+              <Coachmark
+                storageKey="mukgopin:coach-verify"
+                enabled={!post.locationVerified}
+                text="여기서 위치 인증하면 경험치가 들어와요! (가게 50m 이내에서)"
+                position="absolute bottom-full right-0 mb-2 max-w-[260px]"
+                arrow="down"
               />
-            )}
+              <details className="overflow-hidden rounded-xl border border-stone-200" open={!post.locationVerified}>
+                <summary
+                  className={`flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold ${
+                    post.locationVerified ? "text-ink" : "bg-forest text-white"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {!post.locationVerified && <MapPin size={16} />}
+                    방문 인증하기{!post.locationVerified && " · 아직 미인증"}
+                  </span>
+                  <span className={`text-xs font-semibold ${post.locationVerified ? "text-forest" : "text-white/85"}`}>
+                    {post.locationVerified ? "열기" : "지금 인증"}
+                  </span>
+                </summary>
+                <div className="border-t border-stone-100">
+                  <VerifyPanel
+                    postId={post.id}
+                    embedded
+                    restaurant={{
+                      name: post.restaurant.name,
+                      lat: post.restaurant.latitude,
+                      lng: post.restaurant.longitude,
+                    }}
+                    initial={{
+                      locationVerified: post.locationVerified,
+                      receiptAttached: !!post.receiptPhotoUrl,
+                      menuAttached: !!post.menuPhotoUrl,
+                    }}
+                  />
+                </div>
+              </details>
+            </div>
+            <div className="flex gap-2">
+              <Link href={`/restaurants/${post.id}/edit`} className="btn-outline h-10 flex-1 !text-sm">
+                <Pencil size={15} /> 수정
+              </Link>
+              <DeletePostButton postId={post.id} />
+            </div>
           </div>
         )}
 
-        {/* 방문 인증하기 — 본인 기록만. 미인증이면 펼쳐서 강조 + 코치마크 */}
-        {user?.id === post.userId && (
-          <div className="relative">
-            <Coachmark
-              storageKey="mukgopin:coach-verify"
-              enabled={!post.locationVerified}
-              text="여기서 위치 인증하면 경험치가 들어와요! (가게 50m 이내에서)"
-              position="absolute bottom-full right-0 mb-2 max-w-[260px]"
-              arrow="down"
-            />
-            <details className="card overflow-hidden" open={!post.locationVerified}>
-              <summary
-                className={`flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold ${
-                  post.locationVerified ? "text-ink" : "bg-forest text-white"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  {!post.locationVerified && <MapPin size={16} />}
-                  방문 인증하기{!post.locationVerified && " · 아직 미인증"}
-                </span>
-                <span className={`text-xs font-semibold ${post.locationVerified ? "text-forest" : "text-white/85"}`}>
-                  {post.locationVerified ? "열기" : "지금 인증"}
-                </span>
-              </summary>
-            <div className="border-t border-stone-100">
-              <VerifyPanel
-                postId={post.id}
-                embedded
-                restaurant={{
-                  name: post.restaurant.name,
-                  lat: post.restaurant.latitude,
-                  lng: post.restaurant.longitude,
-                }}
-                initial={{
-                  locationVerified: post.locationVerified,
-                  receiptAttached: !!post.receiptPhotoUrl,
-                  menuAttached: !!post.menuPhotoUrl,
-                }}
-              />
-            </div>
-            </details>
+        {/* 비작성자 — 차단 / 신고 (+ 운영자 삭제) */}
+        {user && user.id !== post.userId && (
+          <div className="flex items-center justify-end gap-4 text-[13px]">
+            <BlockButton userId={post.userId} nickname={post.user.nickname} />
+            <ReportButton targetType="post" targetId={post.id} />
+            {user.isAdmin && <DeletePostButton postId={post.id} adminLabel="운영자 삭제" />}
           </div>
         )}
 
@@ -372,14 +388,22 @@ export default async function PostDetailPage({
           </section>
         )}
 
-        {/* 댓글 */}
-        <Comments
-          postId={post.id}
-          initial={comments}
-          initialCount={post.commentCount}
-          isLoggedIn={!!user}
-          isPostAuthor={user?.id === post.userId}
-        />
+        {/* 댓글 — 기본 접힘 (수 + 모두 보기) */}
+        <details className="card overflow-hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
+            댓글 {post.commentCount}개
+            <span className="text-xs font-semibold text-forest">{post.commentCount > 0 ? "모두 보기" : "쓰기"}</span>
+          </summary>
+          <div className="border-t border-stone-100 p-4">
+            <Comments
+              postId={post.id}
+              initial={comments}
+              initialCount={post.commentCount}
+              isLoggedIn={!!user}
+              isPostAuthor={user?.id === post.userId}
+            />
+          </div>
+        </details>
       </div>
     </main>
   );

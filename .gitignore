@@ -18,3 +18,6 @@ uploads/
 # Capacitor 네이티브 프로젝트 (맥/안드로이드에서 cap add 로 생성)
 /ios
 /android
+
+# 자동 스크린샷 QA 결과물
+/artifacts

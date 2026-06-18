@@ -105,15 +105,18 @@ export default function NearbyHomeSection() {
                       <Store size={20} />
                     </div>
                   )}
-                  {post.isOfficial ? (
-                    <span className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      <Check size={9} strokeWidth={3.5} /> 운영자
-                    </span>
-                  ) : (
-                    <span className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-forest/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      <ShieldCheck size={9} /> 인증
-                    </span>
-                  )}
+                  <div className="absolute left-1.5 top-1.5 flex gap-1">
+                    {post.isOfficial && (
+                      <span className="flex items-center gap-0.5 rounded-full bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <Check size={9} strokeWidth={3.5} /> 운영자
+                      </span>
+                    )}
+                    {post.verification?.location && (
+                      <span className="flex items-center gap-0.5 rounded-full bg-forest/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <ShieldCheck size={9} /> 인증
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-1.5 truncate text-sm font-bold text-ink">{post.restaurantName}</div>
                 <div className="flex items-center gap-0.5 text-[11px] text-stone-400">

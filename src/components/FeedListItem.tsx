@@ -30,15 +30,16 @@ export default function FeedListItem({ post }: { post: PostCard }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate text-sm font-bold text-ink">{post.restaurantName}</span>
-          {post.isOfficial ? (
+          {post.isOfficial && (
             <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
               <Check size={10} strokeWidth={3.5} /> 운영자
             </span>
-          ) : post.verification.location ? (
+          )}
+          {post.verification.location && (
             <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-forest px-1.5 py-0.5 text-[10px] font-extrabold text-white">
               <ShieldCheck size={10} /> 인증
             </span>
-          ) : null}
+          )}
         </div>
         <div className="mt-0.5 text-[12px] text-stone-400">{post.regionName}</div>
         <div className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-muted">

@@ -265,15 +265,18 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
             </span>
           </span>
         )}
-        {post.isOfficial ? (
-          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
-            <Check size={11} strokeWidth={3.2} /> 운영자
-          </span>
-        ) : showVerified || post.verification.location ? (
-          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
-            <ShieldCheck size={11} /> 인증
-          </span>
-        ) : null}
+        <div className="absolute left-2 top-2 flex gap-1">
+          {post.isOfficial && (
+            <span className="flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+              <Check size={11} strokeWidth={3.2} /> 운영자
+            </span>
+          )}
+          {(showVerified || post.verification.location) && (
+            <span className="flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
+              <ShieldCheck size={11} /> 인증
+            </span>
+          )}
+        </div>
       </div>
       <div className="mt-2 line-clamp-2 min-h-[40px] text-sm font-bold leading-tight text-ink">{post.restaurantName}</div>
       <div className="truncate text-[12px] text-stone-400">{post.regionName}</div>
@@ -299,15 +302,18 @@ function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: b
     >
       <div className="relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl bg-forest-soft p-3">
         <div className="absolute inset-0 opacity-60 thumb-empty" />
-        {post.isOfficial ? (
-          <span className="relative z-[1] inline-flex w-fit items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
-            <Check size={11} strokeWidth={3.2} /> 운영자
-          </span>
-        ) : showVerified || post.verification.location ? (
-          <span className="relative z-[1] inline-flex w-fit items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
-            <ShieldCheck size={11} /> 인증
-          </span>
-        ) : null}
+        <div className="relative z-[1] flex w-fit gap-1">
+          {post.isOfficial && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+              <Check size={11} strokeWidth={3.2} /> 운영자
+            </span>
+          )}
+          {(showVerified || post.verification.location) && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
+              <ShieldCheck size={11} /> 인증
+            </span>
+          )}
+        </div>
         <div className="relative z-[1] mt-auto">
           <div className="text-[11px] font-bold text-forest">사진 준비 전</div>
           {post.shortReview && (
