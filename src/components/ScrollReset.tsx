@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 /**
@@ -16,10 +16,19 @@ export default function ScrollReset() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
+
+    const getTop = () =>
+      Math.max(
+        window.scrollY || 0,
+        window.pageYOffset || 0,
+        document.scrollingElement?.scrollTop || 0,
+        document.documentElement.scrollTop || 0,
+        document.body.scrollTop || 0,
+      );
 
     const toTop = () => {
       window.scrollTo(0, 0);
@@ -33,15 +42,15 @@ export default function ScrollReset() {
     const markUser = () => {
       userInteracted = true;
     };
-    // 사용자가 스크롤을 시작하면 감시 중단 (사용자 의도 존중)
-    window.addEventListener("touchstart", markUser, { passive: true });
+    // 탭(touchstart)은 링크 이동 시작일 수 있으므로 사용자 스크롤로 보지 않는다.
+    // 실제 스크롤 의도인 touchmove/wheel/key만 감시 중단.
     window.addEventListener("touchmove", markUser, { passive: true });
     window.addEventListener("wheel", markUser, { passive: true });
     window.addEventListener("keydown", markUser);
 
     // 브라우저가 늦게 복원해 스크롤이 튀면 되돌림 (사용자가 안 만졌을 때만)
     const onScroll = () => {
-      if (!userInteracted && window.scrollY > 0) toTop();
+      if (!userInteracted && getTop() > 0) toTop();
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -54,20 +63,26 @@ export default function ScrollReset() {
       rafId = requestAnimationFrame(raf);
     };
     rafId = requestAnimationFrame(raf);
-    // rAF 강제는 0.4초까지만 (그 뒤는 onScroll 감시견이 복원만 잡음)
-    const stopRaf = window.setTimeout(() => cancelAnimationFrame(rafId), 400);
+    // iOS Chrome은 링크 탭 후 실제 레이아웃/복원이 늦게 들어오는 경우가 있어 넉넉히 잡는다.
+    const stopRaf = window.setTimeout(() => cancelAnimationFrame(rafId), 900);
 
-    // 감시견은 1.6초 후 해제 (그 사이 늦은 복원까지 커버, 사용자 조작은 위에서 이미 중단)
+    // scroll 이벤트 없이 값만 복원되는 iOS 케이스까지 잡기 위한 짧은 폴링.
+    const poll = window.setInterval(() => {
+      if (!userInteracted && getTop() > 0) toTop();
+    }, 50);
+
+    // 감시견은 2초 후 해제 (그 사이 늦은 복원까지 커버, 사용자 조작은 위에서 이미 중단)
     const stopWatch = window.setTimeout(() => {
       window.removeEventListener("scroll", onScroll);
-    }, 1600);
+      window.clearInterval(poll);
+    }, 2000);
 
     return () => {
       cancelAnimationFrame(rafId);
       window.clearTimeout(stopRaf);
       window.clearTimeout(stopWatch);
+      window.clearInterval(poll);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("touchstart", markUser);
       window.removeEventListener("touchmove", markUser);
       window.removeEventListener("wheel", markUser);
       window.removeEventListener("keydown", markUser);
@@ -75,10 +90,45 @@ export default function ScrollReset() {
   }, [pathname, search]);
 
   useEffect(() => {
+    const toTop = () => {
+      window.scrollTo(0, 0);
+      const se = document.scrollingElement;
+      if (se) se.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    const isInternalNavigation = (anchor: HTMLAnchorElement) => {
+      if (anchor.target || anchor.hasAttribute("download")) return false;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return false;
+      return url.pathname !== window.location.pathname || url.search !== window.location.search;
+    };
+
+    const onClickCapture = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const anchor = target?.closest("a[href]");
+      if (anchor instanceof HTMLAnchorElement && isInternalNavigation(anchor)) {
+        toTop();
+      }
+    };
+
+    // Next Link 기본 스크롤보다 먼저, 내부 링크 클릭 순간 이전 페이지 스크롤을 0으로 만든다.
+    document.addEventListener("click", onClickCapture, true);
+
     // 사파리 뒤로/앞으로(bfcache) 복원 때도 맨 위로
-    const onShow = () => window.scrollTo(0, 0);
+    const onShow = () => toTop();
     window.addEventListener("pageshow", onShow);
-    return () => window.removeEventListener("pageshow", onShow);
+    const onPopState = () => window.setTimeout(toTop, 0);
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      document.removeEventListener("click", onClickCapture, true);
+      window.removeEventListener("pageshow", onShow);
+      window.removeEventListener("popstate", onPopState);
+    };
   }, []);
 
   return null;
