@@ -28,6 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // 속성으로 인한 hydration 경고 무시 (앱 코드와 무관)
     <html lang="ko" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        {/* 하이드레이션 전에 브라우저 스크롤 자동복원을 즉시 끔 (사파리 대비) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e){}",
+          }}
+        />
         <ScrollReset />
         <div className="app-shell">{children}</div>
         <BottomNav />

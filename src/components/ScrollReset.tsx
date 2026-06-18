@@ -9,15 +9,32 @@ import { usePathname } from "next/navigation";
  */
 export default function ScrollReset() {
   const pathname = usePathname();
+
   useEffect(() => {
     // 브라우저 자동 스크롤 복원 끄기
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
-    // 즉시 + 다음 프레임(레이아웃/이미지 반영 후)에 한 번 더 맨 위로
-    window.scrollTo(0, 0);
-    const id = requestAnimationFrame(() => window.scrollTo(0, 0));
-    return () => cancelAnimationFrame(id);
+    const toTop = () => window.scrollTo(0, 0);
+    // 즉시 + 다음 두 프레임 + 약간 지연(사파리는 스크롤 복원이 늦게 일어남)
+    toTop();
+    const raf = requestAnimationFrame(() => {
+      toTop();
+      requestAnimationFrame(toTop);
+    });
+    const timer = window.setTimeout(toTop, 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
   }, [pathname]);
+
+  useEffect(() => {
+    // 사파리 뒤로/앞으로(bfcache) 복원 때도 맨 위로
+    const onShow = () => window.scrollTo(0, 0);
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   return null;
 }
