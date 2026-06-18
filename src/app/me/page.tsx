@@ -77,7 +77,7 @@ export default async function MePage() {
       </header>
 
       {/* 프로필 */}
-      <Link href="/me/profile" className="flex items-center gap-4">
+      <a href="/me/profile" className="flex items-center gap-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-forest-soft text-2xl font-extrabold text-forest">
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -115,7 +115,7 @@ export default async function MePage() {
           </div>
         </div>
         <ChevronRight size={20} className="shrink-0 text-stone-300" />
-      </Link>
+      </a>
 
       {/* 핵심 성장 카드 — 유료 맛집지도 오픈 조건 */}
       <section className="mt-6 rounded-2xl border border-forest/20 bg-forest-soft/30 p-5">
@@ -140,12 +140,12 @@ export default async function MePage() {
         </div>
 
         {mapUnlocked ? (
-          <Link
+          <a
             href="/me/paid-map"
             className="mt-4 flex h-11 items-center justify-center rounded-xl bg-forest text-sm font-bold text-white active:scale-[0.99]"
           >
             유료 맛집지도 만들기
-          </Link>
+          </a>
         ) : (
           <p className="mt-3 text-[12px] text-ink-muted">
             조건을 모두 달성하면 유료 맛집지도를 열 수 있어요.
@@ -238,7 +238,7 @@ function Quick({
   badge?: number;
 }) {
   return (
-    <Link href={href} className="flex flex-col items-center gap-1.5 rounded-2xl border border-stone-200 py-3 active:scale-95">
+    <a href={href} className="flex flex-col items-center gap-1.5 rounded-2xl border border-stone-200 py-3 active:scale-95">
       <span className="relative text-forest">
         {icon}
         {badge != null && badge > 0 && (
@@ -249,7 +249,7 @@ function Quick({
       </span>
       <span className="text-[12px] font-bold text-ink">{label}</span>
       {value != null && <span className="text-[11px] tabular-nums text-stone-400">{value}</span>}
-    </Link>
+    </a>
   );
 }
 
@@ -274,13 +274,13 @@ function Row({
   sub?: string;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
+    <a href={href} className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
       <span className="text-stone-400">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] text-ink">{label}</span>
         {sub && <span className="block text-[12px] text-stone-400">{sub}</span>}
       </span>
       <ChevronRight size={18} className="shrink-0 text-stone-300" />
-    </Link>
+    </a>
   );
 }
