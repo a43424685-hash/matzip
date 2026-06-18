@@ -112,11 +112,14 @@ export async function createRestaurantPost(
       select: { id: true },
     });
 
-    // 2) 게시글 생성
+    // 2) 게시글 생성 — 운영자(admin) 글은 위치 인증된 것으로 자동 처리
+    const isAdmin = (await tx.user.findUnique({ where: { id: userId }, select: { isAdmin: true } }))?.isAdmin ?? false;
     const post = await tx.restaurantPost.create({
       data: {
         restaurantId: restaurant.id,
         userId,
+        locationVerified: isAdmin,
+        visitedAt: isAdmin ? new Date() : null,
         shortReview: input.shortReview?.trim() || null,
         content: input.content?.trim() || null,
         tasteRating: input.tasteRating ?? null,
