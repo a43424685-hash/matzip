@@ -1,12 +1,14 @@
 /**
  * CommentService — 맛집 글 댓글 (경험치 없음).
- *  - 댓글/답글(1단계 대댓글), 댓글 좋아요, 글쓴이 상단 고정, 본인 댓글 삭제
+ *  - 댓글/답글(1단계 대댓글만 — 답글의 답글은 같은 부모로 평탄화), 댓글 좋아요, 글쓴이 상단 고정, 본인 댓글 삭제
  *  - 도배 방지: 하루 상한, 같은 글 직전과 동일 내용 연속 금지, 길이 제한
+ *  - 욕설/성적 표현 필터
  */
 import { prisma } from "@/lib/db";
 import { ABUSE_LIMITS } from "../xp/xpRules";
 import { getBlockedIds } from "../block/BlockService";
 import { createNotification } from "../notification/NotificationService";
+import { containsProfanity } from "@/lib/profanity";
 
 function startOfToday(): Date {
   const d = new Date();
@@ -43,6 +45,7 @@ export async function addComment(
   const content = contentRaw.trim();
   if (!content) throw new Error("EMPTY");
   if (content.length > ABUSE_LIMITS.maxCommentLength) throw new Error("TOO_LONG");
+  if (containsProfanity(content)) throw new Error("PROFANITY");
 
   const post = await prisma.restaurantPost.findUnique({
     where: { id: postId },
@@ -50,15 +53,17 @@ export async function addComment(
   });
   if (!post) throw new Error("POST_NOT_FOUND");
 
-  // 대댓글이면 부모가 같은 글의 댓글인지만 검증 (깊이 제한 없음 — 무한 대댓글)
+  // 답글은 1단계만 허용 — 답글의 답글이면 그 부모(최상위)에 매달아 평탄화한다.
   let parentAuthorId: string | null = null;
+  let effectiveParentId: string | null = parentId ?? null;
   if (parentId) {
     const parent = await prisma.comment.findUnique({
       where: { id: parentId },
-      select: { postId: true, userId: true },
+      select: { postId: true, userId: true, parentId: true },
     });
     if (!parent || parent.postId !== postId) throw new Error("BAD_PARENT");
     parentAuthorId = parent.userId;
+    effectiveParentId = parent.parentId ?? parentId; // 답글의 답글 → 최상위 부모로
   }
 
   // 도배 방지: 하루 상한
@@ -77,7 +82,7 @@ export async function addComment(
 
   return prisma.$transaction(async (tx) => {
     const c = await tx.comment.create({
-      data: { postId, userId, parentId: parentId ?? null, content },
+      data: { postId, userId, parentId: effectiveParentId, content },
       select: { id: true },
     });
     await tx.restaurantPost.update({

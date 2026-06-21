@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 const LEVEL_GOAL = 20;
 const VERIFY_GOAL = 30;
+const PROOF_GOAL = 5; // 위 30곳 중 영수증/메뉴 인증 포함
 
 function Progress({ label, now, goal, pct }: { label: string; now: string; goal: string; pct: number }) {
   return (
@@ -30,9 +31,12 @@ export default async function PaidMapPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [verifiedCount, myCollections] = await Promise.all([
+  const [verifiedCount, proofCount, myCollections] = await Promise.all([
     prisma.restaurantPost.count({
       where: { userId: user.id, locationVerified: true },
+    }),
+    prisma.restaurantPost.count({
+      where: { userId: user.id, locationVerified: true, OR: [{ receiptVerified: true }, { menuVerified: true }] },
     }),
     prisma.collection.findMany({
       where: { userId: user.id },
@@ -48,8 +52,11 @@ export default async function PaidMapPage() {
   ]);
   const levelPct = Math.min(100, Math.round((user.totalLevel / LEVEL_GOAL) * 100));
   const verifyPct = Math.min(100, Math.round((verifiedCount / VERIFY_GOAL) * 100));
+  const proofPct = Math.min(100, Math.round((proofCount / PROOF_GOAL) * 100));
   // 운영자는 조건 없이 항상 열림 (유료 지도 오픈/운영용)
-  const unlocked = user.isAdmin || (user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL);
+  const unlocked =
+    user.isAdmin ||
+    (user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL && proofCount >= PROOF_GOAL);
   const paidMaps = myCollections.filter((c) => c.isPaid);
 
   return (
@@ -70,7 +77,9 @@ export default async function PaidMapPage() {
           <div className="mt-4 space-y-3.5">
             <Progress label="레벨" now={`Lv.${user.totalLevel}`} goal={`Lv.${LEVEL_GOAL}`} pct={levelPct} />
             <Progress label="위치 인증 맛집" now={`${verifiedCount}`} goal={`${VERIFY_GOAL}곳`} pct={verifyPct} />
+            <Progress label="영수증·메뉴 인증" now={`${proofCount}`} goal={`${PROOF_GOAL}곳`} pct={proofPct} />
           </div>
+          <p className="mt-2 text-[11px] text-stone-400">※ 위치 인증 30곳 중 5곳 이상은 영수증 또는 메뉴 인증을 포함해야 해요.</p>
         </section>
       )}
 

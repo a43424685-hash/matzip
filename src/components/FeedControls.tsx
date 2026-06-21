@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { markScrollReset } from "@/lib/scrollReset";
 
 const SORTS = [
   { key: "popular", label: "인기순" },
@@ -25,9 +26,8 @@ export default function FeedControls({
     const p = new URLSearchParams(sp.toString());
     if (val) p.set(key, val);
     else p.delete(key);
+    markScrollReset();
     router.push(`${pathname}?${p.toString()}`);
-    // 쿼리만 바뀌면 ScrollReset(pathname 의존)이 안 타므로 직접 맨 위로
-    window.scrollTo(0, 0);
   }
 
   return (

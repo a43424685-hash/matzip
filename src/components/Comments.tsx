@@ -85,7 +85,7 @@ function CommentItem({ c, depth, ctx }: { c: CNode; depth: number; ctx: Ctx }) {
               <Heart size={13} fill={c.likedByMe ? "currentColor" : "none"} />
               {c.likeCount > 0 ? c.likeCount : ""}
             </button>
-            {ctx.isLoggedIn && (
+            {depth === 0 && ctx.isLoggedIn && (
               <button onClick={() => ctx.setReplyTo(ctx.replyTo === c.id ? null : c.id)}>답글</button>
             )}
             {depth === 0 && ctx.isPostAuthor && (

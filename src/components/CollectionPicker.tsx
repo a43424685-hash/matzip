@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ListPlus, Check, Plus, X, Lock } from "lucide-react";
+import { markScrollReset } from "@/lib/scrollReset";
 
 interface Col {
   id: string;
@@ -31,6 +32,7 @@ export default function CollectionPicker({
   async function load() {
     const res = await fetch(`/api/collections?restaurantId=${restaurantId}`);
     if (res.status === 401) {
+      markScrollReset();
       router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
       return;
     }
@@ -40,6 +42,7 @@ export default function CollectionPicker({
 
   function onOpen() {
     if (!isLoggedIn) {
+      markScrollReset();
       router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
       return;
     }

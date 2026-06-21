@@ -34,17 +34,26 @@ export async function GET(request: Request) {
   // 반경 제한(기본 3km) — 이 안의 맛집만 "주변"으로 인정
   const radius = Number(url.searchParams.get("radius")) || 3000;
 
+  // 스케일 대비: DB에서 bounding box(위경도 범위)로 먼저 좁힌 뒤, 아래에서 JS 원형 거리로 정밀 필터.
+  // (전역 스캔 대신 인덱스 가능한 범위 조건 — Restaurant @@index([latitude, longitude]))
+  const latDelta = radius / 111_320; // 위도 1도 ≈ 111.32km
+  const cos = Math.cos((lat * Math.PI) / 180);
+  const lngDelta = radius / (111_320 * (Math.abs(cos) < 1e-6 ? 1e-6 : cos));
+
   const user = await getCurrentUser();
   const blockedIds = await getBlockedIds(user?.id ?? null);
   const posts = await prisma.restaurantPost.findMany({
     where: {
-      restaurant: { latitude: { not: null }, longitude: { not: null } },
+      restaurant: {
+        latitude: { gte: lat - latDelta, lte: lat + latDelta },
+        longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
+      },
       OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
       user: { deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
-    take: 80,
+    take: 200,
     select: {
       ...postCardSelect,
       restaurant: {

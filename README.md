@@ -2,7 +2,7 @@
 
 > 내 맛집 지도를 키우고, 진짜 맛집을 잘 아는 사람으로 레벨업하는 소셜 맛집 앱.
 
-`FOOD_APP_SPEC.md` 기준으로 구현한 MVP입니다. **Phase 1~2**(사용자 → 맛집등록 → XP → 레벨 → 랭킹 루프 + 소셜/검색)를 실제 구현했고, 사장님 홍보·크리에이터 지도·유료 결제·릴스 피드는 **데이터 구조만 열어두고** 실제 기능은 뒤로 미뤘습니다.
+`FOOD_APP_SPEC.md` 기준으로 시작한 앱입니다. 사용자 → 맛집등록 → 위치/영수증/메뉴 인증 → XP → 레벨 → 랭킹 루프 + 소셜/검색을 구현했고, **카카오 로그인, 사진/영상 업로드(Supabase Storage), 유료 맛집지도 결제·정산(PortOne), PWA**까지 실제 동작합니다. Vercel + Supabase에 배포 운영 중입니다.
 
 ---
 
@@ -18,22 +18,24 @@
 
 | 구분 | 상태 |
 |---|---|
-| 회원가입/로그인 | ✅ 구현 (이메일+비번, 쿠키 세션) |
+| 회원가입/로그인 | ✅ 이메일+비번(쿠키 세션) + **카카오 OAuth** |
 | 맛집 등록 + XP 지급 | ✅ 구현 |
 | 전체/지역 XP·레벨 | ✅ 구현 |
 | 좋아요 / 저장 (+멱등/어뷰징 한도) | ✅ 구현 |
-| 랭킹 3종 (실시간 쿼리) | ✅ 구현 |
+| 랭킹 3종 | ✅ 캐시(RankingCache, cron 갱신) 우선 read |
 | 검색(지역+카테고리+가격+정렬) | ✅ 구현 |
 | 내 지도(프로필) | ✅ 구현 |
-| 사진/영상 | ⚠️ URL 입력 방식 (업로드 인프라는 향후), `media.type = image\|video` 지원 |
+| 사진/영상 | ✅ **Supabase Storage 업로드**, `media.type = image\|video` |
+| 방문 인증 | ✅ 위치(GPS 50m) + 영수증/메뉴(AI 검증), 인증 게이트로 XP 해제 |
+| 유료 맛집지도(크리에이터) | ✅ 판매자격·맛보기·구매·결제(**PortOne V2**)·정산·출금 |
 | 사장님 홍보(owner_promotions) | 🔒 데이터 구조 + 상세페이지 분리 노출만 |
-| 크리에이터 지도 / 유료 결제 / 릴스 피드 | 🔒 데이터 구조만 (미구현) |
-| 랭킹 캐시 테이블 | 🔒 `rankings_cache` + `refreshRankingCache()` 골격만 (read는 실시간) |
+| 랭킹 캐시 테이블 | ✅ `rankings_cache` + cron 갱신, read는 캐시 우선 |
 
 ## 3. 기술 스택 / 폴더 구조
 
-- **Next.js 15 (App Router) + TypeScript** / **TailwindCSS** / **Prisma 6 + SQLite**
-- SQLite는 제로설정 로컬 MVP용. `schema.prisma`의 `datasource` provider/url만 바꾸면 Postgres로 이전 가능.
+- **Next.js 15 (App Router) + TypeScript** / **TailwindCSS** / **Prisma 6 + Supabase Postgres**
+- 인프라: **Vercel**(호스팅) · **Supabase**(Postgres + Storage) · **카카오 OAuth**(로그인) · **PortOne V2**(결제) · **Resend**(메일, 선택) · **PWA**(설치형)
+- 스키마 변경은 `npm run db:push`로 Supabase에 반영(마이그레이션 폴더 없이 db push 방식).
 
 ```
 prisma/
@@ -80,7 +82,7 @@ src/
 
 ```bash
 npm install
-npm run db:push     # SQLite 스키마 생성
+npm run db:push     # Supabase Postgres 스키마 동기화 (.env DATABASE_URL 필요)
 npm run db:seed     # 17개 시도 + 카테고리 시드
 npm run smoke       # (선택) 핵심 루프 검증 + 데모 유저/맛집 데이터 생성
 npm run dev         # http://localhost:3000
@@ -132,6 +134,6 @@ npm run build       # 프로덕션 빌드 (next build만 실행)
 - **멱등성**: `XpEvent.dedupeKey` 유니크. 좋아요는 `like_received:{postId}:{likerId}` → 취소 후 재좋아요해도 재지급 없음.
 - **어뷰징 한도**(`xpRules.ABUSE_LIMITS`): 하루 등록 기본 XP 10건, 같은 사람→같은 사람 좋아요 XP 하루 3건, 동일 음식점 중복 등록 기본 XP 없음, 셀프 좋아요/저장 XP 없음.
 - **레벨 공식**: `requiredXpForNextLevel(level) = 300 + floor(level^2.15 * 90)`, 만렙 Lv.200 (`LevelService`).
-- **랭킹**은 실시간 쿼리. 데이터가 쌓이면 `refreshRankingCache()`로 `rankings_cache`에 적재해 read 경로를 캐시로 전환.
+- **랭킹** read는 `RankingCache`(cron 갱신) 우선 — 실시간 집계 쿼리와 분리해 읽기 부하를 캐시로 흡수.
 
 자세한 가정/판단은 [`ASSUMPTIONS.md`](./ASSUMPTIONS.md) 참고.

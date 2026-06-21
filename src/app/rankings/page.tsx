@@ -1,7 +1,6 @@
 import { BadgePercent, Lock, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getBlockedIds } from "@/server/block/BlockService";
-import { prisma } from "@/lib/db";
 import { getActiveRegions } from "@/server/catalog";
 import {
   getOverallUserRankingCached,
@@ -10,17 +9,9 @@ import {
 } from "@/server/ranking/RankingService";
 import BackHomeHeader from "@/components/BackHomeHeader";
 import RankingClient from "@/components/RankingClient";
+import { getSellerEligibility, type SellerEligibility } from "@/server/collection/CollectionService";
 
 export const dynamic = "force-dynamic";
-
-interface CreatorEligibility {
-  level: number;
-  verifiedCount: number;
-  publicCollections: number;
-  bestRegionVerified: number;
-  openReports: number;
-  eligible: boolean;
-}
 
 export default async function RankingsPage({
   searchParams,
@@ -34,7 +25,7 @@ export default async function RankingsPage({
   const safeTab = sp.tab === "region" ? "region" : "overall";
   const [myRank, eligibility, initialOverall, initialRegion] = await Promise.all([
     user ? getMyOverallRank(user.id) : Promise.resolve(0),
-    user ? getCreatorEligibility(user.id) : Promise.resolve(null),
+    user ? getSellerEligibility(user.id) : Promise.resolve(null),
     getOverallUserRankingCached(),
     regionId ? getRegionUserRankingCached(regionId) : Promise.resolve([]),
   ]);
@@ -79,60 +70,6 @@ export default async function RankingsPage({
   );
 }
 
-async function getCreatorEligibility(userId: string): Promise<CreatorEligibility> {
-  const [user, verifiedPosts, publicCollections, openReports] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true } }),
-    prisma.restaurantPost.findMany({
-      where: { userId, locationVerified: true },
-      select: { restaurant: { select: { primaryRegionId: true } } },
-    }),
-    prisma.collection.count({ where: { userId, isPublic: true } }),
-    countOpenReportsAgainstUser(userId),
-  ]);
-
-  const byRegion = new Map<string, number>();
-  for (const p of verifiedPosts) {
-    const rid = p.restaurant.primaryRegionId;
-    byRegion.set(rid, (byRegion.get(rid) ?? 0) + 1);
-  }
-  const bestRegionVerified = Math.max(0, ...Array.from(byRegion.values()));
-  const verifiedCount = verifiedPosts.length;
-  const eligible =
-    (user?.totalLevel ?? 1) >= 50 &&
-    verifiedCount >= 100 &&
-    publicCollections >= 3 &&
-    bestRegionVerified >= 30 &&
-    openReports === 0;
-
-  return {
-    level: user?.totalLevel ?? 1,
-    verifiedCount,
-    publicCollections,
-    bestRegionVerified,
-    openReports,
-    eligible,
-  };
-}
-
-async function countOpenReportsAgainstUser(userId: string): Promise<number> {
-  const [posts, comments] = await Promise.all([
-    prisma.restaurantPost.findMany({ where: { userId }, select: { id: true } }),
-    prisma.comment.findMany({ where: { userId }, select: { id: true } }),
-  ]);
-  const postIds = posts.map((p) => p.id);
-  const commentIds = comments.map((c) => c.id);
-  if (postIds.length === 0 && commentIds.length === 0) return 0;
-  return prisma.report.count({
-    where: {
-      status: "open",
-      OR: [
-        postIds.length ? { targetType: "post", targetId: { in: postIds } } : undefined,
-        commentIds.length ? { targetType: "comment", targetId: { in: commentIds } } : undefined,
-      ].filter((v): v is NonNullable<typeof v> => !!v),
-    },
-  });
-}
-
 function MyRankCard({
   user,
   rank,
@@ -140,7 +77,7 @@ function MyRankCard({
 }: {
   user: { totalLevel: number; totalXp: number; nickname: string };
   rank: number;
-  eligibility: CreatorEligibility | null;
+  eligibility: SellerEligibility | null;
 }) {
   const top50Left = rank > 50 ? `${rank - 50}명` : "달성";
   const levelLeft = Math.max(0, 20 - user.totalLevel);
@@ -188,13 +125,11 @@ function ProgressMini({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CreatorMapCard({ eligibility }: { eligibility: CreatorEligibility | null }) {
+function CreatorMapCard({ eligibility }: { eligibility: SellerEligibility | null }) {
   const checks = [
     { label: "Lv.20 이상", ok: (eligibility?.level ?? 1) >= 20, value: `Lv.${eligibility?.level ?? 1}/20` },
     { label: "위치 인증 맛집 30곳", ok: (eligibility?.verifiedCount ?? 0) >= 30, value: `${eligibility?.verifiedCount ?? 0}/30` },
-    { label: "공개 리스트 3개", ok: (eligibility?.publicCollections ?? 0) >= 3, value: `${eligibility?.publicCollections ?? 0}/3` },
-    { label: "한 지역 인증 30곳", ok: (eligibility?.bestRegionVerified ?? 0) >= 30, value: `${eligibility?.bestRegionVerified ?? 0}/30` },
-    { label: "미해결 신고 0건", ok: (eligibility?.openReports ?? 0) === 0, value: `${eligibility?.openReports ?? 0}건` },
+    { label: "그중 영수증·메뉴 인증 5곳", ok: (eligibility?.proofCount ?? 0) >= 5, value: `${eligibility?.proofCount ?? 0}/5` },
   ];
 
   return (
@@ -206,7 +141,7 @@ function CreatorMapCard({ eligibility }: { eligibility: CreatorEligibility | nul
         <div>
           <h2 className="text-sm font-extrabold text-ink">유료 맛집 지도 판매 자격</h2>
           <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">
-            20곳은 무료 맛보기로 직접 선택, 나머지는 결제 후 공개됩니다.
+            맛보기 5곳은 무료로 직접 선택, 나머지는 결제 후 공개됩니다.
           </p>
         </div>
       </div>

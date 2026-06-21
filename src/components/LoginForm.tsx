@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { markScrollReset } from "@/lib/scrollReset";
 
 export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?: string; returnTo?: string }) {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         setMessage(result.error ?? "로그인에 실패했어요.");
         return;
       }
+      markScrollReset();
       router.replace(returnTo);
       router.refresh();
     } catch {
@@ -101,7 +103,10 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         <span className="h-px flex-1 bg-stone-200" />
       </div>
 
-      <a href="/api/auth/kakao" className="flex h-12 w-full items-center justify-center rounded-xl bg-[#FEE500] text-sm font-extrabold text-[#191600]">
+      <a
+        href={returnTo && returnTo !== "/" ? `/api/auth/kakao?returnTo=${encodeURIComponent(returnTo)}` : "/api/auth/kakao"}
+        className="flex h-12 w-full items-center justify-center rounded-xl bg-[#FEE500] text-sm font-extrabold text-[#191600]"
+      >
         카카오로 시작하기
       </a>
 

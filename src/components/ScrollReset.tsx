@@ -1,177 +1,108 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { SCROLL_RESET_FLAG, markScrollReset } from "@/lib/scrollReset";
 
-const RESET_KEY = "muckpin-scroll-reset-until";
-const RESET_MS = 2500;
-
-function getScrollTop() {
-  return Math.max(
-    window.scrollY || 0,
-    window.pageYOffset || 0,
-    document.scrollingElement?.scrollTop || 0,
-    document.documentElement.scrollTop || 0,
-    document.body.scrollTop || 0,
-  );
-}
-
-function scrollEverywhereToTop() {
+// 새 화면 진입 시 모든 스크롤 레이어를 맨 위로
+function scrollAllToTop() {
   window.scrollTo(0, 0);
-  const scrollingElement = document.scrollingElement;
-  if (scrollingElement) scrollingElement.scrollTop = 0;
+  const se = document.scrollingElement;
+  if (se) se.scrollTop = 0;
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
-
   document
     .querySelectorAll<HTMLElement>("[data-scroll-root], .overflow-y-auto, .overflow-auto, .overflow-y-scroll")
     .forEach((el) => {
       el.scrollTop = 0;
-      el.scrollLeft = 0;
     });
 }
 
-function markNavigationScrollReset() {
-  const until = Date.now() + RESET_MS;
+// 새 탭/수정키/다운로드/외부/해시/같은 화면 클릭은 제외한 "내부 페이지 이동" 판별
+function isInternalNavClick(a: HTMLAnchorElement, e: MouseEvent): boolean {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
+  if (a.target && a.target !== "_self") return false;
+  if (a.hasAttribute("download")) return false;
+  const href = a.getAttribute("href");
+  if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
+  let url: URL;
   try {
-    sessionStorage.setItem(RESET_KEY, String(until));
-  } catch {
-    // sessionStorage can be unavailable in private/locked contexts.
-  }
-}
-
-function hasPendingNavigationReset() {
-  try {
-    const until = Number(sessionStorage.getItem(RESET_KEY) || 0);
-    return Number.isFinite(until) && until > Date.now();
+    url = new URL(a.href, window.location.href);
   } catch {
     return false;
   }
-}
-
-function clearNavigationScrollReset() {
-  try {
-    sessionStorage.removeItem(RESET_KEY);
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
-function isInternalNavigation(anchor: HTMLAnchorElement) {
-  if (anchor.target || anchor.hasAttribute("download")) return false;
-  const href = anchor.getAttribute("href");
-  if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
-
-  const url = new URL(anchor.href, window.location.href);
   if (url.origin !== window.location.origin) return false;
-  return url.pathname !== window.location.pathname || url.search !== window.location.search;
+  // 같은 경로+쿼리(해시만 이동 등)는 제외
+  if (url.pathname === window.location.pathname && url.search === window.location.search) return false;
+  return true;
+}
+
+function takeFlag(): boolean {
+  try {
+    if (sessionStorage.getItem(SCROLL_RESET_FLAG)) {
+      sessionStorage.removeItem(SCROLL_RESET_FLAG);
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
 }
 
 export default function ScrollReset() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
-  const didMount = useRef(false);
 
+  // 내부 이동 감지 → 플래그. (첫 로드/뒤로가기에는 세팅되지 않음)
   useEffect(() => {
-    if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
-    }
-
-    const onClickCapture = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
+    const onClickCapture = (e: MouseEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
       const anchor = target?.closest("a[href]");
-      if (anchor instanceof HTMLAnchorElement && isInternalNavigation(anchor)) {
-        markNavigationScrollReset();
-      }
+      if (anchor instanceof HTMLAnchorElement && isInternalNavClick(anchor, e)) markScrollReset();
     };
-
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
-
-    window.history.pushState = function pushState(...args) {
-      markNavigationScrollReset();
-      return originalPushState.apply(this, args);
-    };
-
-    window.history.replaceState = function replaceState(...args) {
-      markNavigationScrollReset();
-      return originalReplaceState.apply(this, args);
-    };
-
-    const onPageShow = () => {
-      if (hasPendingNavigationReset()) scrollEverywhereToTop();
-    };
-
-    const onPopState = () => {
-      markNavigationScrollReset();
-      window.setTimeout(scrollEverywhereToTop, 0);
-    };
-
+    // 내부 <a> 링크 클릭만 감지. programmatic 이동(router.push/replace)은 호출부에서
+    // markScrollReset()로 직접 플래그를 켠다. (pushState 전역 패치는 뒤로가기 내부 처리에도
+    // 걸려 브라우저 복원을 망가뜨리므로 쓰지 않는다.)
     document.addEventListener("click", onClickCapture, true);
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("popstate", onPopState);
-
     return () => {
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
       document.removeEventListener("click", onClickCapture, true);
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("popstate", onPopState);
     };
   }, []);
 
+  // route(경로/쿼리) 변경 후, "내부 이동 플래그"가 있을 때만 단계적으로 top.
   useLayoutEffect(() => {
-    if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
-    }
+    if (!takeFlag()) return; // 첫 로드·뒤로가기 등은 아무것도 하지 않음(복원 허용)
 
-    const shouldRunBurst = didMount.current || hasPendingNavigationReset();
-    didMount.current = true;
-
-    scrollEverywhereToTop();
-    if (!shouldRunBurst) return;
+    scrollAllToTop();
 
     let userScrolled = false;
-    const stopForUserScroll = () => {
+    const stop = () => {
       userScrolled = true;
-      clearNavigationScrollReset();
     };
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("touchmove", stop, { passive: true });
+    window.addEventListener("wheel", stop, { passive: true });
+    window.addEventListener("keydown", stop);
 
-    window.addEventListener("touchmove", stopForUserScroll, { passive: true });
-    window.addEventListener("wheel", stopForUserScroll, { passive: true });
-    window.addEventListener("keydown", stopForUserScroll);
-
-    const startedAt = Date.now();
-    let rafId = 0;
-    const intervalId = window.setInterval(() => {
-      if (!userScrolled && Date.now() - startedAt < RESET_MS && getScrollTop() > 0) {
-        scrollEverywhereToTop();
-      }
-    }, 50);
-
-    const frame = () => {
-      if (userScrolled || Date.now() - startedAt >= RESET_MS) return;
-      scrollEverywhereToTop();
-      rafId = requestAnimationFrame(frame);
+    const run = () => {
+      if (!userScrolled) scrollAllToTop();
     };
-    rafId = requestAnimationFrame(frame);
+    // iOS 늦은 복원 대응 — 즉시/rAF/단계적 (사용자가 스크롤 시작하면 중단)
+    const raf = requestAnimationFrame(run);
+    const timers = [50, 150, 350, 700, 1200].map((ms) => window.setTimeout(run, ms));
 
-    const done = window.setTimeout(() => {
-      clearNavigationScrollReset();
-      window.clearInterval(intervalId);
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("touchmove", stopForUserScroll);
-      window.removeEventListener("wheel", stopForUserScroll);
-      window.removeEventListener("keydown", stopForUserScroll);
-    }, RESET_MS);
-
+    const cleanup = () => {
+      cancelAnimationFrame(raf);
+      timers.forEach((t) => window.clearTimeout(t));
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("touchmove", stop);
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("keydown", stop);
+    };
+    const final = window.setTimeout(cleanup, 1300);
     return () => {
-      window.clearTimeout(done);
-      window.clearInterval(intervalId);
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("touchmove", stopForUserScroll);
-      window.removeEventListener("wheel", stopForUserScroll);
-      window.removeEventListener("keydown", stopForUserScroll);
+      window.clearTimeout(final);
+      cleanup();
     };
   }, [pathname, search]);
 

@@ -12,6 +12,7 @@ interface KakaoMeResponse {
   id: number;
   kakao_account?: {
     email?: string;
+    is_email_verified?: boolean;
     profile?: { nickname?: string };
   };
   properties?: { nickname?: string };
@@ -25,6 +26,10 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   if (!code) return NextResponse.redirect(new URL("/login?error=kakao_failed", req.url));
+
+  // 로그인 후 복귀할 내부 경로 (state). 외부 URL 차단 — 내부 절대경로만 허용.
+  const stateRaw = url.searchParams.get("state") || "";
+  const returnTo = stateRaw.startsWith("/") && !stateRaw.startsWith("//") ? stateRaw : "/";
 
   const clientId = process.env.KAKAO_CLIENT_ID || process.env.KAKAO_REST_API_KEY;
   if (!clientId) {
@@ -72,7 +77,11 @@ export async function GET(req: Request) {
   }
 
   const providerUserId = String(me.id);
-  const email = me.kakao_account?.email?.trim().toLowerCase() || `kakao-${providerUserId}@kakao.local`;
+  // 이메일 병합 안전장치: 카카오에서 '인증된' 이메일일 때만 기존 이메일 계정과 병합한다.
+  // (미인증 이메일로 타인 계정에 들러붙는 계정 탈취 방지) — 미인증/없음이면 충돌 없는 로컬 이메일 사용.
+  const rawEmail = me.kakao_account?.email?.trim().toLowerCase();
+  const emailVerified = me.kakao_account?.is_email_verified === true && !!rawEmail;
+  const email = emailVerified ? (rawEmail as string) : `kakao-${providerUserId}@kakao.local`;
   const nickname = `카카오${providerUserId}`;
 
   const user = await prisma.$transaction(async (tx) => {
@@ -126,5 +135,5 @@ export async function GET(req: Request) {
   if (!user.nicknameConfirmedAt) {
     return NextResponse.redirect(new URL("/onboarding/nickname", req.url));
   }
-  return NextResponse.redirect(new URL("/", req.url));
+  return NextResponse.redirect(new URL(returnTo, req.url));
 }

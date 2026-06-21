@@ -1,12 +1,27 @@
 import { NextResponse } from "next/server";
 import { confirmPurchase } from "@/server/payment/PaymentService";
+import { verifyPortOneWebhook } from "@/lib/portone";
 
 /**
  * 포트원 웹훅 — 사용자가 결제 직후 브라우저를 닫아 confirm 호출이 누락돼도
  * 결제 완료를 받아 구매를 확정(멱등). 결제 진위는 PaymentService 가 PortOne API 로 재확인.
+ * 먼저 서명을 검증(Standard Webhooks)하고, 통과한 요청만 처리한다.
  */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
+  // 서명 검증은 '원본 텍스트' 기준 — JSON 파싱 전에 raw body로 검증
+  const rawBody = await req.text();
+  const verified = verifyPortOneWebhook(rawBody, req.headers);
+  if (!verified.ok) {
+    console.error("[payments/webhook] 서명 검증 실패:", verified.reason);
+    return NextResponse.json({ ok: false, reason: verified.reason }, { status: 401 });
+  }
+
+  let body: { type?: string; data?: { paymentId?: string }; paymentId?: string } | null = null;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ ok: true });
+  }
   // V2 웹훅: { type, data: { paymentId, ... } }
   const paymentId: string | undefined = body?.data?.paymentId ?? body?.paymentId;
   const type: string | undefined = body?.type;

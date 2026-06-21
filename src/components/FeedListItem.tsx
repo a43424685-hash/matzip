@@ -40,6 +40,11 @@ export default function FeedListItem({ post }: { post: PostCard }) {
               <ShieldCheck size={10} /> 인증
             </span>
           )}
+          {!post.isOfficial && !post.verification.location && (
+            <span className="shrink-0 rounded-md bg-stone-200 px-1.5 py-0.5 text-[10px] font-extrabold text-stone-500">
+              미인증
+            </span>
+          )}
         </div>
         <div className="mt-0.5 text-[12px] text-stone-400">{post.regionName}</div>
         <div className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-muted">

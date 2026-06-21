@@ -154,6 +154,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
       items: {
         orderBy: { sortOrder: "asc" },
         select: {
+          isPreview: true,
           restaurant: {
             select: { id: true, name: true, latitude: true, longitude: true, primaryRegion: { select: { name: true } } },
           },
@@ -236,15 +237,15 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     ownerIsAdmin: col.user.isAdmin,
     regionName: col.region.name,
     itemCount: col._count.items,
-    // 잠금 상태면 항목 자체를 내려주지 않음 (이름·위치 유출 방지)
-    items: locked
-      ? []
-      : col.items.map((i) => ({
+    previewCount: col.items.filter((i) => i.isPreview).length,
+    // 잠금 상태면 '맛보기'로 지정된 가게만 노출(나머지는 숨김 — 이름·위치 유출 방지)
+    items: (locked ? col.items.filter((i) => i.isPreview) : col.items).map((i) => ({
       restaurantId: i.restaurant.id,
       restaurantName: i.restaurant.name,
       latitude: i.restaurant.latitude,
       longitude: i.restaurant.longitude,
       regionName: i.restaurant.primaryRegion.name,
+      isPreview: i.isPreview,
       postId: i.post?.id ?? null,
       shortReview: i.post?.shortReview ?? null,
       media: i.post?.media[0] ?? null,
@@ -312,17 +313,39 @@ export const PAID_MAP_MAX_WON = 9900;
 // 유료 지도 판매 자격 (출시 초반 허들 — 마켓이 살아나도록 낮게, 이후 상향 가능)
 export const SELL_MIN_LEVEL = 20;
 export const SELL_MIN_VERIFIED = 30;
+export const SELL_MIN_PROOF = 5; // 위 30곳 중 영수증/메뉴 인증 포함 최소 개수
+// 유료 지도 '맛보기' — 구매 전 무료로 보이는 가게 수 (판매자가 직접 선택)
+export const PAID_MAP_PREVIEW_COUNT = 5;
 
-/** 유료 지도 판매 자격 (Lv.20 + 위치 인증 30곳) */
-export async function canSellPaidMaps(userId: string): Promise<boolean> {
-  const [user, verifiedCount] = await Promise.all([
+export interface SellerEligibility {
+  level: number;
+  verifiedCount: number; // 위치 인증 맛집 수
+  proofCount: number; // 그중 영수증/메뉴 인증 포함 수
+  isAdmin: boolean;
+  eligible: boolean;
+}
+
+/** 유료 지도 판매 자격 상태 (Lv.20 + 위치 인증 30곳 + 그중 영수증/메뉴 5곳). 운영자는 항상 통과. */
+export async function getSellerEligibility(userId: string): Promise<SellerEligibility> {
+  const [user, verifiedCount, proofCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true, isAdmin: true } }),
     prisma.restaurantPost.count({ where: { userId, locationVerified: true } }),
+    prisma.restaurantPost.count({
+      where: { userId, locationVerified: true, OR: [{ receiptVerified: true }, { menuVerified: true }] },
+    }),
   ]);
-  if (!user) return false;
-  // 운영자는 조건 없이 항상 판매 자격 (유료 지도 오픈/운영용)
-  if (user.isAdmin) return true;
-  return user.totalLevel >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED;
+  const level = user?.totalLevel ?? 1;
+  const isAdmin = !!user?.isAdmin;
+  const eligible =
+    !!user &&
+    (isAdmin ||
+      (level >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED && proofCount >= SELL_MIN_PROOF));
+  return { level, verifiedCount, proofCount, isAdmin, eligible };
+}
+
+/** 유료 지도 판매 자격 (boolean) */
+export async function canSellPaidMaps(userId: string): Promise<boolean> {
+  return (await getSellerEligibility(userId)).eligible;
 }
 
 /** 컬렉션을 유료 지도로 전환/해제 (소유자 + 자격 + 가격 990~9900). 유료면 공개로 강제. */
@@ -349,6 +372,9 @@ export async function setPaidMap(
 
   if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   if (col._count.items < 1) return { ok: false, reason: "EMPTY" };
+  // 맛보기(무료 공개) 가게를 최소 개수만큼 지정해야 유료 오픈 가능
+  const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
+  if (previewCount < PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
   const price = Math.round(priceWon ?? 0);
   if (price < PAID_MAP_MIN_WON || price > PAID_MAP_MAX_WON) return { ok: false, reason: "BAD_PRICE" };
 
@@ -357,4 +383,27 @@ export async function setPaidMap(
     data: { isPaid: true, priceWon: price, isPublic: true },
   });
   return { ok: true };
+}
+
+/** 맛보기(무료 공개) 지정/해제 — 소유자만. 현재 맛보기 개수를 반환. */
+export async function setItemPreview(
+  userId: string,
+  collectionId: string,
+  restaurantId: string,
+  isPreview: boolean
+): Promise<{ ok: boolean; reason?: string; previewCount?: number }> {
+  const col = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    select: { userId: true },
+  });
+  if (!col) return { ok: false, reason: "NOT_FOUND" };
+  if (col.userId !== userId) return { ok: false, reason: "FORBIDDEN" };
+  await prisma.collectionItem
+    .update({
+      where: { collectionId_restaurantId: { collectionId, restaurantId } },
+      data: { isPreview },
+    })
+    .catch(() => {});
+  const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
+  return { ok: true, previewCount };
 }

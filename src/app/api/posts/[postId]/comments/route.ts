@@ -17,6 +17,7 @@ const MSG: Record<string, string> = {
   TOO_LONG: "댓글이 너무 길어요.",
   DAILY_CAP: "오늘 댓글 한도를 초과했어요.",
   DUPLICATE: "같은 내용을 연속으로 달 수 없어요.",
+  PROFANITY: "욕설·부적절한 표현은 사용할 수 없어요.",
   REPLY_DEPTH: "답글에는 답글을 달 수 없어요.",
   BAD_PARENT: "잘못된 답글 대상이에요.",
 };

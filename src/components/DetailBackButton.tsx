@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { markScrollReset } from "@/lib/scrollReset";
 
 export default function DetailBackButton({ floating = false }: { floating?: boolean }) {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function DetailBackButton({ floating = false }: { floating?: bool
     if (window.history.length > 1) {
       router.back();
     } else {
+      markScrollReset();
       router.push("/");
     }
   }

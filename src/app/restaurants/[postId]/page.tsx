@@ -206,6 +206,62 @@ export default async function PostDetailPage({
           ) : null;
         })()}
 
+        {/* 작성자 본인 — 방문 인증 CTA (미인증이면 크게, 인증 후엔 작게) */}
+        {user?.id === post.userId && (
+          <div className="relative">
+            <Coachmark
+              storageKey="mukgopin:coach-verify"
+              enabled={!post.locationVerified}
+              text="여기서 위치 인증하면 경험치가 들어와요! (가게 50m 이내에서)"
+              position="absolute bottom-full right-0 mb-2 max-w-[260px]"
+              arrow="down"
+            />
+            {post.locationVerified ? (
+              <details className="overflow-hidden rounded-xl border border-stone-200">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-[13px] font-bold text-forest">
+                  <span className="flex items-center gap-1">
+                    <Check size={14} strokeWidth={3} /> 방문 인증 완료
+                  </span>
+                  <span className="text-xs font-semibold text-stone-400">영수증·메뉴 추가</span>
+                </summary>
+                <div className="border-t border-stone-100">
+                  <VerifyPanel
+                    postId={post.id}
+                    embedded
+                    restaurant={{ name: post.restaurant.name, lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
+                    initial={{
+                      locationVerified: post.locationVerified,
+                      receiptAttached: !!post.receiptPhotoUrl,
+                      menuAttached: !!post.menuPhotoUrl,
+                    }}
+                  />
+                </div>
+              </details>
+            ) : (
+              <details className="overflow-hidden rounded-2xl border-2 border-forest" open>
+                <summary className="flex cursor-pointer list-none items-center justify-between bg-forest px-4 py-4 text-base font-extrabold text-white">
+                  <span className="flex items-center gap-2">
+                    <MapPin size={20} /> 방문 인증하고 XP 받기
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-white/85">지금 인증</span>
+                </summary>
+                <div className="border-t border-forest/20">
+                  <VerifyPanel
+                    postId={post.id}
+                    embedded
+                    restaurant={{ name: post.restaurant.name, lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
+                    initial={{
+                      locationVerified: post.locationVerified,
+                      receiptAttached: !!post.receiptPhotoUrl,
+                      menuAttached: !!post.menuPhotoUrl,
+                    }}
+                  />
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+
         {/* 리뷰 자세히 — 상세리뷰·맛/서비스/분위기·방문정보 (기본 접힘) */}
         {(post.content ||
           post.tasteRating ||
@@ -303,50 +359,10 @@ export default async function PostDetailPage({
           </p>
         </div>
 
-        {/* 작성자 관리 (본인만) — 방문 인증 / 수정 / 삭제 한 곳에 */}
+        {/* 작성자 관리 (본인만) — 수정 / 삭제 (방문 인증은 상단 CTA로 이동) */}
         {user?.id === post.userId && (
           <div className="space-y-2 rounded-2xl border border-stone-200 p-3">
             <p className="text-[12px] font-bold text-stone-400">내가 등록한 맛집</p>
-            <div className="relative">
-              <Coachmark
-                storageKey="mukgopin:coach-verify"
-                enabled={!post.locationVerified}
-                text="여기서 위치 인증하면 경험치가 들어와요! (가게 50m 이내에서)"
-                position="absolute bottom-full right-0 mb-2 max-w-[260px]"
-                arrow="down"
-              />
-              <details className="overflow-hidden rounded-xl border border-stone-200" open={!post.locationVerified}>
-                <summary
-                  className={`flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold ${
-                    post.locationVerified ? "text-ink" : "bg-forest text-white"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    {!post.locationVerified && <MapPin size={16} />}
-                    방문 인증하기{!post.locationVerified && " · 아직 미인증"}
-                  </span>
-                  <span className={`text-xs font-semibold ${post.locationVerified ? "text-forest" : "text-white/85"}`}>
-                    {post.locationVerified ? "열기" : "지금 인증"}
-                  </span>
-                </summary>
-                <div className="border-t border-stone-100">
-                  <VerifyPanel
-                    postId={post.id}
-                    embedded
-                    restaurant={{
-                      name: post.restaurant.name,
-                      lat: post.restaurant.latitude,
-                      lng: post.restaurant.longitude,
-                    }}
-                    initial={{
-                      locationVerified: post.locationVerified,
-                      receiptAttached: !!post.receiptPhotoUrl,
-                      menuAttached: !!post.menuPhotoUrl,
-                    }}
-                  />
-                </div>
-              </details>
-            </div>
             <div className="flex gap-2">
               <Link href={`/restaurants/${post.id}/edit`} className="btn-outline h-10 flex-1 !text-sm">
                 <Pencil size={15} /> 수정

@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "screenshots": "tsx scripts/screenshot-qa.ts",
+    "scroll-qa": "tsx scripts/scroll-qa.ts",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",

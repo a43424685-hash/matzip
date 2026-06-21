@@ -276,6 +276,9 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
               <ShieldCheck size={11} /> 인증
             </span>
           )}
+          {!post.isOfficial && !post.verification.location && !showVerified && (
+            <span className="rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+          )}
         </div>
       </div>
       <div className="mt-2 line-clamp-2 min-h-[40px] text-sm font-bold leading-tight text-ink">{post.restaurantName}</div>
@@ -312,6 +315,9 @@ function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: b
             <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
               <ShieldCheck size={11} /> 인증
             </span>
+          )}
+          {!post.isOfficial && !post.verification.location && !showVerified && (
+            <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
           )}
         </div>
         <div className="relative z-[1] mt-auto">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { markScrollReset } from "@/lib/scrollReset";
 
 export default function DeletePostButton({
   postId,
@@ -21,6 +22,7 @@ export default function DeletePostButton({
     setBusy(true);
     const r = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
     if (r.ok) {
+      markScrollReset();
       router.replace("/");
       router.refresh();
     } else {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
+import { markScrollReset } from "@/lib/scrollReset";
 
 /**
  * 공유 버튼 — 클릭 시 공유를 "기록"(인증글이면 작성자에게 공유 XP)하고
@@ -19,6 +20,7 @@ export default function ShareButton({ postId, compact = false }: { postId: strin
       // 공유 클릭 기록 (실패해도 공유 흐름은 계속)
       await fetch(`/api/posts/${postId}/share`, { method: "POST" }).catch(() => {});
     } finally {
+      markScrollReset();
       router.push(`/share/${postId}`);
     }
   }

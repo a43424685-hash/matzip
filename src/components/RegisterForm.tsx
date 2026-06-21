@@ -6,6 +6,7 @@ import { ChevronDown, Camera, Video, Sparkles, Search, MapPin, Check, ChevronLef
 import KakaoMap from "@/components/KakaoMap";
 import { uploadImage } from "@/lib/imageUpload";
 import { uploadVideo } from "@/lib/videoUpload";
+import { markScrollReset } from "@/lib/scrollReset";
 import { registerPostAction, updatePostAction, type RegisterState } from "@/app/actions/post";
 import {
   ATMOSPHERE_TAGS,
@@ -91,7 +92,10 @@ export default function RegisterForm({
   );
   // 수정 완료 시: 수정 페이지를 히스토리에서 치우고 상세로 (replace) → 뒤로가기하면 홈/이전으로
   useEffect(() => {
-    if (state && "redirectTo" in state && state.redirectTo) router.replace(state.redirectTo);
+    if (state && "redirectTo" in state && state.redirectTo) {
+      markScrollReset();
+      router.replace(state.redirectTo);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initial?.categoryIds ?? []));

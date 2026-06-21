@@ -158,7 +158,7 @@ export default async function MePage() {
         <Quick href="/me/posts" icon={<Utensils size={20} />} label="내 등록" value={registeredCount} />
         <Quick href="/me/saved" icon={<Bookmark size={20} />} label="저장" value={savedCount} />
         <Quick href="/me/collections" icon={<ListChecks size={20} />} label="리스트" value={collectionsCount} />
-        <Quick href="/me/notifications" icon={<Bell size={20} />} label="알림함" badge={unread} />
+        <Quick href="/notifications" icon={<Bell size={20} />} label="알림함" badge={unread} />
       </section>
 
       {/* 수익화 · 혜택 */}

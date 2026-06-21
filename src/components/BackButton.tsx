@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { markScrollReset } from "@/lib/scrollReset";
 
 /** 이전 화면으로 돌아가는 버튼. 히스토리가 없으면 fallback 경로로. */
 export default function BackButton({
@@ -20,7 +21,10 @@ export default function BackButton({
       aria-label={label}
       onClick={() => {
         if (window.history.length > 1) router.back();
-        else router.push(fallback);
+        else {
+          markScrollReset();
+          router.push(fallback);
+        }
       }}
       className={`flex h-9 w-9 items-center justify-center rounded-full active:scale-95 ${className}`}
     >

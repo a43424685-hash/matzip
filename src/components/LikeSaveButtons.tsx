@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Heart, Bookmark } from "lucide-react";
+import { markScrollReset } from "@/lib/scrollReset";
 
 export default function LikeSaveButtons({
   postId,
@@ -31,6 +32,7 @@ export default function LikeSaveButtons({
 
   function requireLogin(): boolean {
     if (!isLoggedIn) {
+      markScrollReset();
       router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
       return false;
     }

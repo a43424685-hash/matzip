@@ -195,6 +195,7 @@ model Restaurant {
   // (name+region 강제 유일은 제거 — 같은 동네 다른 지점이 잘못 합쳐지는 것 방지)
   @@index([name, primaryRegionId])
   @@index([primaryRegionId])
+  @@index([latitude, longitude]) // 주변(bounding box) 범위 조회용
   @@map("restaurants")
 }
 
@@ -454,7 +455,7 @@ model ProofAttempt {
   id        String   @id @default(cuid())
   userId    String
   postId    String
-  kind      String // photo | receipt | menu
+  kind      String // location | receipt | menu
   ok        Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -654,6 +655,7 @@ model CollectionItem {
   postId       String? // 대표 게시글(카드 썸네일/한줄평 표시용)
   note         String? // 큐레이터 메모
   sortOrder    Int      @default(0)
+  isPreview    Boolean  @default(false) // 유료 지도 '맛보기' — 구매 전에도 무료 공개되는 가게
   createdAt    DateTime @default(now())
 
   collection Collection      @relation(fields: [collectionId], references: [id], onDelete: Cascade)
