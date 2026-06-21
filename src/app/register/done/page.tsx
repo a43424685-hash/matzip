@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Check, MapPin, Lock, ChevronLeft } from "lucide-react";
+import ReplaceLink from "@/components/ReplaceLink";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,13 @@ export default async function RegisterDonePage({
 
   return (
     <main className="relative flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
-      <Link
+      <ReplaceLink
         href="/"
-        aria-label="홈으로"
+        ariaLabel="홈으로"
         className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-ink active:scale-95"
       >
         <ChevronLeft size={26} strokeWidth={2.4} />
-      </Link>
+      </ReplaceLink>
 
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-forest-soft text-forest">
         <Check size={40} strokeWidth={3} />
@@ -47,17 +47,17 @@ export default async function RegisterDonePage({
 
       <div className="mt-8 w-full space-y-2.5">
         {postId && (
-          <Link href={`/restaurants/${postId}`} className="btn-primary h-12 w-full !text-base">
+          <ReplaceLink href={`/restaurants/${postId}`} className="btn-primary h-12 w-full !text-base">
             <MapPin size={18} /> 지금 위치 인증하러 가기
-          </Link>
+          </ReplaceLink>
         )}
         <div className="flex gap-2.5">
-          <Link href="/me" className="btn-ghost h-11 flex-1">
+          <ReplaceLink href="/me" className="btn-ghost h-11 flex-1">
             내 지도
-          </Link>
-          <Link href="/register" className="btn-ghost h-11 flex-1">
+          </ReplaceLink>
+          <ReplaceLink href="/register" className="btn-ghost h-11 flex-1">
             더 등록하기
-          </Link>
+          </ReplaceLink>
         </div>
       </div>
     </main>

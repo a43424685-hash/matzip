@@ -8,7 +8,6 @@ import KakaoMap from "@/components/KakaoMap";
 import ShareSheet from "@/components/ShareSheet";
 import CopyAddressButton from "@/components/CopyAddressButton";
 import CollectionPicker from "@/components/CollectionPicker";
-import VerificationBadges from "@/components/VerificationBadges";
 import VerifyPanel from "@/components/VerifyPanel";
 import Comments from "@/components/Comments";
 import ReportButton from "@/components/ReportButton";
@@ -22,17 +21,7 @@ import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { getComments } from "@/server/comment/CommentService";
-import {
-  ATMOSPHERE_TAGS,
-  SERVICE_TAGS,
-  TASTE_TAGS,
-  labelMany,
-  priceLabel,
-  revisitLabel,
-  serviceRatingLabel,
-  tasteRatingLabel,
-  waitingLabel,
-} from "@/lib/labels";
+import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -184,6 +173,18 @@ export default async function PostDetailPage({
                 <span>·</span>
               </>
             )}
+            {post.receiptVerified && (
+              <>
+                <span className="font-semibold text-forest">영수증</span>
+                <span>·</span>
+              </>
+            )}
+            {post.menuVerified && (
+              <>
+                <span className="font-semibold text-forest">메뉴</span>
+                <span>·</span>
+              </>
+            )}
             <span>{formatPostDate(post.createdAt)} 등록</span>
           </div>
           {/* 한줄평 */}
@@ -192,18 +193,21 @@ export default async function PostDetailPage({
           )}
         </header>
 
-        {/* 한 줄 요약 — 가격 · 분위기/상황 1개 · 재방문 또는 웨이팅 1개 (최대 3) */}
-        {(() => {
-          const parts = [
-            post.priceMemo || priceLabel(post.priceRange),
-            labelMany(post.atmosphereTags, ATMOSPHERE_TAGS)[0] ||
-              post.categories[0]?.category.name ||
-              labelMany(post.tasteTags, TASTE_TAGS)[0],
-            revisitLabel(post.revisitIntent) || waitingLabel(post.waitingLevel),
-          ].filter(Boolean) as string[];
-          return parts.length > 0 ? (
-            <p className="text-[13px] font-semibold text-stone-600">{parts.slice(0, 3).join("  ·  ")}</p>
-          ) : null;
+        {/* 재방문 의사 — 평가 역할 (색강조). 한줄평 바로 밑. */}
+        {post.revisitIntent && (() => {
+          const positive = ["must", "nearby"].includes(post.revisitIntent);
+          const negative = ["not_revisit", "pass"].includes(post.revisitIntent);
+          const cls = positive
+            ? "bg-forest-soft text-forest"
+            : negative
+              ? "bg-coral/10 text-coral-dark"
+              : "bg-stone-100 text-stone-500";
+          return (
+            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-bold ${cls}`}>
+              {positive && "👍 "}
+              {revisitLabel(post.revisitIntent)}
+            </span>
+          );
         })()}
 
         {/* 작성자 본인 — 방문 인증 CTA (미인증이면 크게, 인증 후엔 작게) */}
@@ -262,39 +266,20 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* 리뷰 자세히 — 상세리뷰·맛/서비스/분위기·방문정보 (기본 접힘) */}
-        {(post.content ||
-          post.tasteRating ||
-          post.tasteTags.length > 0 ||
-          post.serviceRating ||
-          post.serviceTags.length > 0 ||
-          post.atmosphereTags.length > 0 ||
-          post.priceRange ||
-          post.priceMemo ||
-          post.waitingLevel ||
-          post.revisitIntent) && (
+        {/* 가게 정보 — 가격·웨이팅·분위기/상황 태그 (기본 접힘) */}
+        {(post.priceRange || post.priceMemo || post.waitingLevel || post.categories.length > 0) && (
           <details className="card overflow-hidden">
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
-              리뷰 자세히 보기
+              가게 정보
               <span className="text-xs font-semibold text-forest">열기</span>
             </summary>
-            <div className="space-y-4 border-t border-stone-100 p-4">
-              {post.content && (
-                <p className="whitespace-pre-line text-sm text-neutral-600">{post.content}</p>
+            <div className="space-y-3 border-t border-stone-100 p-4">
+              {(post.priceRange || post.priceMemo || post.waitingLevel) && (
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
+                  <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
+                </div>
               )}
-              {(post.tasteRating || post.tasteTags.length > 0 || post.serviceRating || post.serviceTags.length > 0 || post.atmosphereTags.length > 0) && (
-                <section className="space-y-3 rounded-2xl bg-stone-50 p-4">
-                  <ReviewTags title="맛" primary={tasteRatingLabel(post.tasteRating)} tags={labelMany(post.tasteTags, TASTE_TAGS)} />
-                  <ReviewTags title="서비스" primary={serviceRatingLabel(post.serviceRating)} tags={labelMany(post.serviceTags, SERVICE_TAGS)} />
-                  <ReviewTags title="분위기" tags={labelMany(post.atmosphereTags, ATMOSPHERE_TAGS)} />
-                </section>
-              )}
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
-                <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
-                <Meta label="재방문" value={revisitLabel(post.revisitIntent) || "-"} />
-              </div>
-              {/* 전체 태그 */}
               {post.categories.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {post.categories.map((c) => (
@@ -302,14 +287,6 @@ export default async function PostDetailPage({
                   ))}
                 </div>
               )}
-              {/* 방문 인증 상세 (위치·영수증·메뉴) */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-stone-400">방문 인증</span>
-                <VerificationBadges
-                  v={{ location: post.locationVerified, receipt: post.receiptVerified, menu: post.menuVerified }}
-                  showUnverified
-                />
-              </div>
             </div>
           </details>
         )}
@@ -446,19 +423,3 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ReviewTags({ title, primary, tags }: { title: string; primary?: string; tags?: string[] }) {
-  const all = [primary, ...(tags ?? [])].filter(Boolean) as string[];
-  if (all.length === 0) return null;
-  return (
-    <div>
-      <div className="mb-1.5 text-[12px] font-bold text-stone-500">{title}</div>
-      <div className="flex flex-wrap gap-1.5">
-        {all.map((label) => (
-          <span key={label} className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink">
-            {label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}

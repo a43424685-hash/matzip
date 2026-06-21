@@ -2,10 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Share2, MapPin, Lock, Coins, Eye } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getCollectionDetail, canSellPaidMaps, PAID_MAP_PREVIEW_COUNT } from "@/server/collection/CollectionService";
+import {
+  getCollectionDetail,
+  canSellPaidMaps,
+  getMyRestaurantsForPicker,
+  PAID_MAP_PREVIEW_COUNT,
+} from "@/server/collection/CollectionService";
 import { getBlockedIds } from "@/server/block/BlockService";
 import PaidMapToggle from "@/components/PaidMapToggle";
 import PreviewPicker from "@/components/PreviewPicker";
+import CollectionAddPicker from "@/components/CollectionAddPicker";
 import PurchaseMapButton from "@/components/PurchaseMapButton";
 import PaidMapViewer from "@/components/PaidMapViewer";
 import BackButton from "@/components/BackButton";
@@ -33,6 +39,7 @@ export default async function CollectionDetailPage({
   }
 
   const canSell = isOwner ? await canSellPaidMaps(col.ownerId) : false;
+  const addableRestaurants = isOwner ? await getMyRestaurantsForPicker(col.ownerId, col.id) : [];
 
   return (
     <main className="pb-10">
@@ -161,7 +168,8 @@ export default async function CollectionDetailPage({
             아직 담긴 맛집이 없어요.
             {isOwner && (
               <span className="mt-1 block text-[13px]">
-                맛집 상세 페이지에서 <b className="text-forest">내 리스트에 담기</b>로 추가하세요.
+                아래 <b className="text-forest">내 맛집에서 담기</b>로 등록·저장한 맛집을 골라 담거나,
+                맛집 상세의 <b className="text-forest">리스트</b> 버튼으로 추가하세요.
               </span>
             )}
           </div>
@@ -176,9 +184,10 @@ export default async function CollectionDetailPage({
           />
         )}
 
-        {/* 소유자: 맛보기 선택 + 유료 판매 설정 */}
+        {/* 소유자: 내 맛집 담기 + 맛보기 선택 + 유료 판매 설정 */}
         {isOwner && (
           <>
+            <CollectionAddPicker collectionId={col.id} restaurants={addableRestaurants} />
             {col.items.length > 0 && (
               <PreviewPicker
                 collectionId={col.id}

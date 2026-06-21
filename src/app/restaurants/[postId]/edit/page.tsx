@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { X } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveRegions, getActiveCategories, groupCategoriesByType } from "@/server/catalog";
 import RegisterForm, { type InitialPost } from "@/components/RegisterForm";
+import ReplaceLink from "@/components/ReplaceLink";
 
 export const dynamic = "force-dynamic";
 
@@ -79,13 +79,13 @@ export default async function EditPostPage({
     <main className="px-5 py-6">
       <div className="mb-2 flex items-center justify-between">
         <h1 className="text-xl font-extrabold text-ink">맛집 수정</h1>
-        <Link
-          href={`/restaurants/${postId}`}
-          aria-label="닫기"
+        <ReplaceLink
+          href="/"
+          ariaLabel="닫기"
           className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-ink active:scale-95"
         >
           <X size={20} strokeWidth={2.4} />
-        </Link>
+        </ReplaceLink>
       </div>
       <p className="mb-6 text-sm text-ink-muted">
         내용·사진·카테고리를 고칠 수 있어요. <b className="text-ink">사진은 ◀ ▶로 순서를 바꿀 수 있어요.</b>

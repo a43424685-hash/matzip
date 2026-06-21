@@ -250,6 +250,6 @@ export async function updatePostAction(
   });
   if (!r.ok) return { error: r.reason === "FORBIDDEN" ? "내 글만 수정할 수 있어요." : "수정 중 오류가 발생했어요." };
 
-  // 수정 페이지를 히스토리에서 치우려고 redirect 대신 클라이언트 replace 로 이동
-  return { redirectTo: `/restaurants/${d.postId}` };
+  // 수정은 '작업 끝낸 화면' — 저장 후 홈으로 replace (수정 페이지가 히스토리에 안 남게 → 뒤로가기 루프 방지)
+  return { redirectTo: "/" };
 }

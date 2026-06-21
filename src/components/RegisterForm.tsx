@@ -12,10 +12,6 @@ import {
   ATMOSPHERE_TAGS,
   PRICE_RANGES,
   REVISIT_INTENTS,
-  SERVICE_RATINGS,
-  SERVICE_TAGS,
-  TASTE_RATINGS,
-  TASTE_TAGS,
   WAITING_LEVELS,
 } from "@/lib/labels";
 import { XP_AMOUNT } from "@/server/xp/xpRules";
@@ -190,13 +186,8 @@ export default function RegisterForm({
     });
   }
   const [shortReview, setShortReview] = useState(initial?.shortReview ?? "");
-  const [content, setContent] = useState(initial?.content ?? "");
   const [priceRange, setPriceRange] = useState(initial?.priceRange ?? "");
   const [priceMemo, setPriceMemo] = useState(initial?.priceMemo ?? "");
-  const [tasteRating, setTasteRating] = useState(initial?.tasteRating ?? "");
-  const [tasteTags, setTasteTags] = useState<Set<string>>(new Set(initial?.tasteTags ?? []));
-  const [serviceRating, setServiceRating] = useState(initial?.serviceRating ?? "");
-  const [serviceTags, setServiceTags] = useState<Set<string>>(new Set(initial?.serviceTags ?? []));
   const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set(initial?.atmosphereTags ?? []));
   const [revisitIntent, setRevisitIntent] = useState(initial?.revisitIntent ?? "");
   const [waitingLevel, setWaitingLevel] = useState(initial?.waitingLevel ?? "");
@@ -280,13 +271,12 @@ export default function RegisterForm({
     if (images.length > 0) xp += XP_AMOUNT.photo_added;
     if (videoUrl) xp += XP_AMOUNT.video_added;
     if (shortReview.trim()) xp += XP_AMOUNT.short_review;
-    if (content.trim()) xp += XP_AMOUNT.detail_review;
     if (selected.size >= 3) xp += XP_AMOUNT.categories;
     if (priceRange) xp += XP_AMOUNT.price;
     if (waitingLevel) xp += XP_AMOUNT.waiting;
     if (revisitIntent) xp += XP_AMOUNT.revisit;
     return xp;
-  }, [shortReview, content, selected, priceRange, waitingLevel, revisitIntent, images.length, videoUrl]);
+  }, [shortReview, selected, priceRange, waitingLevel, revisitIntent, images.length, videoUrl]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -324,12 +314,6 @@ export default function RegisterForm({
       {isEdit && initial && <input type="hidden" name="postId" value={initial.postId} />}
       {[...selected].map((id) => (
         <input key={id} type="hidden" name="categoryIds" value={id} />
-      ))}
-      {[...tasteTags].map((id) => (
-        <input key={id} type="hidden" name="tasteTags" value={id} />
-      ))}
-      {[...serviceTags].map((id) => (
-        <input key={id} type="hidden" name="serviceTags" value={id} />
       ))}
       {[...atmosphereTags].map((id) => (
         <input key={id} type="hidden" name="atmosphereTags" value={id} />
@@ -709,12 +693,14 @@ export default function RegisterForm({
           <label className="label">
             한줄평 <span className="font-normal text-stone-400">+40 XP</span>
           </label>
-          <input
+          <textarea
             value={shortReview}
             onChange={(e) => setShortReview(e.target.value)}
             name="shortReview"
-            className="input h-12"
-            placeholder="여기 진짜 가성비 미쳤어요"
+            rows={2}
+            maxLength={60}
+            className="input resize-none"
+            placeholder="여기 진짜 가성비 미쳤어요 (두 줄까지)"
           />
         </div>
       </div>
@@ -729,56 +715,11 @@ export default function RegisterForm({
         </summary>
         <div className="space-y-4 px-4 pb-4">
           <div>
-            <label className="label">맛 평가</label>
-            <SingleChoice
-              name="tasteRating"
-              value={tasteRating}
-              onChange={setTasteRating}
-              options={TASTE_RATINGS}
-            />
-          </div>
-          <div>
-            <label className="label">맛 특징 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
-            <MultiChoice
-              selected={tasteTags}
-              onToggle={(v) => toggleValue(setTasteTags, v)}
-              options={TASTE_TAGS}
-            />
-          </div>
-          <div>
-            <label className="label">서비스</label>
-            <SingleChoice
-              name="serviceRating"
-              value={serviceRating}
-              onChange={setServiceRating}
-              options={SERVICE_RATINGS}
-            />
-          </div>
-          <div>
-            <label className="label">서비스 특징 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
-            <MultiChoice
-              selected={serviceTags}
-              onToggle={(v) => toggleValue(setServiceTags, v)}
-              options={SERVICE_TAGS}
-            />
-          </div>
-          <div>
             <label className="label">분위기 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
             <MultiChoice
               selected={atmosphereTags}
               onToggle={(v) => toggleValue(setAtmosphereTags, v)}
               options={ATMOSPHERE_TAGS}
-            />
-          </div>
-          <div>
-            <label className="label">상세 리뷰 <span className="font-normal text-stone-400">+70 XP</span></label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              name="content"
-              rows={3}
-              className="input"
-              placeholder="자세한 후기를 남겨주세요"
             />
           </div>
           <SelectField name="priceRange" label="가격대" hint="+10 XP" options={PRICE_RANGES} value={priceRange} onChange={setPriceRange} />
@@ -873,40 +814,6 @@ function SelectField({
   );
 }
 
-function SingleChoice({
-  name,
-  value,
-  onChange,
-  options,
-}: {
-  name: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div>
-      <input type="hidden" name={name} value={value} />
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => {
-          const on = value === o.value;
-          return (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => onChange(on ? "" : o.value)}
-              className={`rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${
-                on ? "bg-forest text-white" : "border border-stone-200 bg-white text-ink"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function MultiChoice({
   selected,

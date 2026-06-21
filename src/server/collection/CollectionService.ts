@@ -105,6 +105,34 @@ export async function listMyCollections(userId: string, restaurantId?: string) {
   }));
 }
 
+/** 리스트 편집용: 내가 등록/저장한 맛집 + 이 리스트 포함 여부 (리스트 안에서 골라 담기) */
+export async function getMyRestaurantsForPicker(userId: string, collectionId: string) {
+  const [posts, saves, items] = await Promise.all([
+    prisma.restaurantPost.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { restaurant: { select: { id: true, name: true, primaryRegion: { select: { name: true } } } } },
+    }),
+    prisma.save.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { restaurant: { select: { id: true, name: true, primaryRegion: { select: { name: true } } } } },
+    }),
+    prisma.collectionItem.findMany({ where: { collectionId }, select: { restaurantId: true } }),
+  ]);
+  const inSet = new Set(items.map((i) => i.restaurantId));
+  const seen = new Set<string>();
+  const out: { restaurantId: string; name: string; regionName: string; source: string; inCollection: boolean }[] = [];
+  const push = (r: { id: string; name: string; primaryRegion: { name: string } }, source: string) => {
+    if (seen.has(r.id)) return;
+    seen.add(r.id);
+    out.push({ restaurantId: r.id, name: r.name, regionName: r.primaryRegion.name, source, inCollection: inSet.has(r.id) });
+  };
+  for (const p of posts) push(p.restaurant, "등록");
+  for (const s of saves) push(s.restaurant, "저장");
+  return out;
+}
+
 /** 내 지도용: 컬렉션 + 미리보기(맛집 이름 3개, 커버 미디어) */
 export async function getMyCollectionsWithPreview(userId: string) {
   const cols = await prisma.collection.findMany({
