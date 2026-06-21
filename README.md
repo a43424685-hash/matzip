@@ -97,18 +97,17 @@ npm run build       # 프로덕션 빌드 (next build만 실행)
 
 > ⚠️ **프로덕션 빌드는 NTFS 드라이브에서 하세요.**
 > `next build`의 모듈 경로 해석은 `fs.readlink`(realpath)를 호출하는데, **exFAT/FAT 드라이브는 심볼릭링크/reparse-point를 지원하지 않아 `readlink EISDIR` 오류로 빌드가 실패**합니다.
-> 이 저장소가 있는 `F:`가 exFAT면, NTFS 경로(예: `C:\matzip`)로 복사해서 빌드하세요:
+> 저장소가 exFAT 드라이브에 있으면 NTFS 경로(예: `C:\matzip`)로 복사해서 빌드하세요:
 > ```bash
-> robocopy F:\뜸부기 C:\matzip /E /XD node_modules .next /XF dev.db
-> cd C:\matzip && npm install && npm run db:push && npm run db:seed && npm run build && npm start
+> robocopy <소스경로> C:\matzip /E /XD node_modules .next
+> cd C:\matzip && npm install && npm run build && npm start
 > ```
-> 비-ASCII 폴더명(`뜸부기`) 자체는 빌드에 문제가 없습니다. **dev 서버·smoke·tsc·lint 는 exFAT(F:)에서도 정상 동작**합니다 — 빌드만 NTFS가 필요합니다.
-> 검증 완료: `C:\matzip`(NTFS)에서 `next build` 성공(12개 라우트) + `npm start` 프로덕션 서버 정상(/, /rankings 200, /api/like 401).
+> 비-ASCII 폴더명 자체는 빌드에 문제가 없습니다. **dev 서버·smoke·tsc·lint 는 exFAT에서도 정상 동작**합니다 — 빌드만 NTFS가 필요합니다.
 
 ## 7. 수동 검증 가이드
 
 1. `/signup` 에서 가입 → 홈에서 내 레벨바(Lv.1) 확인.
-2. `/register` 에서 맛집 등록(사진 URL + 한줄평 + 카테고리 3개 + 가격/재방문) → **+430 XP** 보상 화면.
+2. `/register` 에서 맛집 등록(사진 업로드 + 한줄평 + 카테고리 3개 + 가격/재방문) → **미인증이라 XP 0(보류)**. 상세에서 **위치 인증** 시 보류 XP 일괄 해제(≈460 XP).
 3. `/me` 에서 전체 레벨 상승 + 해당 **지역 레벨**이 따로 생긴 것 확인.
 4. 다른 지역 맛집을 하나 더 등록 → 지역 레벨이 **독립적으로** 오르는지 확인.
 5. 두 번째 계정으로 로그인 → 첫 계정 글에 **좋아요/저장** → 첫 계정 XP가 +10/+25 되는지(`/me`).
@@ -133,7 +132,7 @@ npm run build       # 프로덕션 빌드 (next build만 실행)
 - **XP는 `XpService.awardXp()` 한 곳에서만** 지급. 호출 시 `XpEvent` 로그 + 전체XP + 지역XP + 레벨 재계산을 항상 함께 수행.
 - **멱등성**: `XpEvent.dedupeKey` 유니크. 좋아요는 `like_received:{postId}:{likerId}` → 취소 후 재좋아요해도 재지급 없음.
 - **어뷰징 한도**(`xpRules.ABUSE_LIMITS`): 하루 등록 기본 XP 10건, 같은 사람→같은 사람 좋아요 XP 하루 3건, 동일 음식점 중복 등록 기본 XP 없음, 셀프 좋아요/저장 XP 없음.
-- **레벨 공식**: `requiredXpForNextLevel(level) = 300 + floor(level^2.15 * 90)`, 만렙 Lv.200 (`LevelService`).
+- **레벨 공식**: `requiredXpForNextLevel(level) = 150 + floor(level^1.5 * 40)`, 만렙 Lv.200 (`LevelService`).
 - **랭킹** read는 `RankingCache`(cron 갱신) 우선 — 실시간 집계 쿼리와 분리해 읽기 부하를 캐시로 흡수.
 
 자세한 가정/판단은 [`ASSUMPTIONS.md`](./ASSUMPTIONS.md) 참고.

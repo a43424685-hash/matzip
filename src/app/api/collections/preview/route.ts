@@ -5,6 +5,7 @@ import { setItemPreview } from "@/server/collection/CollectionService";
 const MESSAGE: Record<string, string> = {
   NOT_FOUND: "리스트를 찾을 수 없어요.",
   FORBIDDEN: "내 리스트만 설정할 수 있어요.",
+  PREVIEW_FULL: "맛보기는 최대 5곳까지만 선택할 수 있어요.",
 };
 
 export async function POST(req: Request) {

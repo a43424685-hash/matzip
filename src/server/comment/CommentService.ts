@@ -225,15 +225,32 @@ export async function getComments(
     replies: [],
   });
 
-  // 무한 깊이 트리: 모든 댓글을 노드로 만들고, 부모의 replies 에 매단다.
+  // 1단계 평탄화: 모든 답글을 '최상위 부모(root)'의 replies 에 매단다.
+  // (정책은 1단계만 허용하지만, 정책 이전의 깊은 답글도 화면에선 1단계로 보이게 함)
   // rows 는 createdAt asc 라 답글은 자연히 시간순(오래된→최신)으로 쌓인다.
+  const parentOf = new Map<string, string | null>(rows.map((r) => [r.id, r.parentId]));
+  const rootOf = (id: string): string => {
+    let cur = id;
+    const seen = new Set<string>();
+    let p = parentOf.get(cur) ?? null;
+    while (p && !seen.has(p)) {
+      seen.add(p);
+      cur = p;
+      p = parentOf.get(cur) ?? null;
+    }
+    return cur;
+  };
   const nodeById = new Map<string, CommentNode>();
   for (const r of rows) nodeById.set(r.id, toNode(r));
   const roots: CommentNode[] = [];
   for (const r of rows) {
     const node = nodeById.get(r.id)!;
-    const parent = r.parentId ? nodeById.get(r.parentId) : null;
-    if (parent) parent.replies.push(node);
+    if (!r.parentId) {
+      roots.push(node);
+      continue;
+    }
+    const root = nodeById.get(rootOf(r.id));
+    if (root && root.id !== node.id) root.replies.push(node);
     else roots.push(node);
   }
   // 최상위만 고정 먼저, 그다음 최신순

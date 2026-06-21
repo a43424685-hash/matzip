@@ -24,6 +24,7 @@ import {
   getCollectionDetail,
   getMyCollectionsWithPreview,
   setPaidMap,
+  setItemPreview,
 } from "../src/server/collection/CollectionService";
 import {
   attachPhoto,
@@ -288,13 +289,19 @@ async function main() {
   const mine = await getMyCollectionsWithPreview(a.id);
   assert(mine.some((c) => c.id === col.id && c.itemCount === 2), "내 컬렉션 미리보기에 노출");
 
-  console.log("\n[8b] 유료 맛집 지도 — 자격/소유자 검증 + 잠금(블러) 미리보기");
+  console.log("\n[8b] 유료 맛집 지도 — 자격/맛보기/소유자 검증 + 잠금 미리보기");
   const paidByOther = await setPaidMap(b.id, col.id, true, 2900);
   assert(paidByOther.reason === "FORBIDDEN", "남의 리스트는 유료 전환 불가(FORBIDDEN)");
   const paidNotElig = await setPaidMap(a.id, col.id, true, 2900);
-  assert(paidNotElig.reason === "NOT_ELIGIBLE", "자격(Lv.50·인증100) 미달이면 유료 전환 불가");
+  assert(paidNotElig.reason === "NOT_ELIGIBLE", "자격(Lv.20·위치인증30·영수증/메뉴5) 미달이면 유료 전환 불가");
 
-  // 자격 검증을 우회해 잠금/미리보기 로직 자체를 점검
+  // 운영자 권한으로 자격만 우회 → 맛보기 미선택이면 NEED_PREVIEW (맛보기 게이트 점검)
+  await prisma.user.update({ where: { id: a.id }, data: { isAdmin: true } });
+  const needPreview = await setPaidMap(a.id, col.id, true, 2900);
+  assert(needPreview.reason === "NEED_PREVIEW", "맛보기 미선택이면 유료 오픈 불가(NEED_PREVIEW)");
+  await prisma.user.update({ where: { id: a.id }, data: { isAdmin: false } });
+
+  // 자격/맛보기 검증을 우회해 잠금/미리보기 로직 자체를 점검
   await prisma.collection.update({
     where: { id: col.id },
     data: { isPaid: true, priceWon: 2900, isPublic: true },
@@ -302,12 +309,20 @@ async function main() {
   const ownerView = await getCollectionDetail(col.id, a.id);
   assert(ownerView!.isOwner && !ownerView!.locked && ownerView!.items.length === 2, "소유자는 유료여도 전체가 보임");
   const lockedView = await getCollectionDetail(col.id, b.id);
-  assert(lockedView!.locked && lockedView!.items.length === 0, "비구매자는 잠김 — 항목 미노출");
+  assert(lockedView!.locked && lockedView!.items.length === 0, "비구매자는 잠김 — 맛보기 0개라 항목 미노출");
   assert(
     lockedView!.regionCounts.length === 2 &&
       lockedView!.regionCounts.reduce((s, r) => s + r.count, 0) === 2,
     "잠금 상태에서도 지역별 개수 teaser 노출 (서울1·부산1)"
   );
+  // 맛보기 1곳 지정 → 잠금 상태에서도 그 1곳만 실제 노출
+  await setItemPreview(a.id, col.id, ownerView!.items[0].restaurantId, true);
+  const lockedPv = await getCollectionDetail(col.id, b.id);
+  assert(
+    lockedPv!.locked && lockedPv!.items.length === 1 && lockedPv!.items[0].isPreview === true,
+    "맛보기 지정 가게는 잠금 상태에서도 노출(1곳)"
+  );
+  await setItemPreview(a.id, col.id, ownerView!.items[0].restaurantId, false);
   await prisma.mapPurchase.create({
     data: { buyerId: b.id, collectionId: col.id, amountWon: 2900, feeWon: 870, sellerNetWon: 2030 },
   });
@@ -454,8 +469,8 @@ async function main() {
   assert(dupErr, "같은 내용 연속 금지(DUPLICATE)");
   const rep = await addComment(a.id, seoulPost.id, "감사합니다!", c1.id); // 답글
   assert((await cnt()) === 2, "답글 → commentCount 2");
-  const rep2 = await addComment(b.id, seoulPost.id, "저도요!", rep.id); // 답글의 답글 (무한 중첩)
-  assert((await cnt()) === 3, "답글에 답글도 가능 (무한 대댓글) → commentCount 3");
+  const rep2 = await addComment(b.id, seoulPost.id, "저도요!", rep.id); // 답글의 답글 → 1단계로 평탄화(c1에 매달림)
+  assert((await cnt()) === 3, "답글의 답글도 작성되지만 1단계로 평탄화 → commentCount 3");
   const lk = await toggleCommentLike(a.id, c1.id);
   assert(lk.liked && lk.likeCount === 1, "댓글 좋아요 +1");
   const unlk = await toggleCommentLike(a.id, c1.id);
@@ -468,11 +483,16 @@ async function main() {
   const list = await getComments(seoulPost.id, a.id);
   const top = list[0];
   assert(list.length === 1 && top.id === c1.id && top.isPinned, "최상위: 고정된 c1");
-  assert(top.replies.length === 1 && top.replies[0].id === rep.id, "c1의 답글 = rep");
-  assert(top.replies[0].replies.length === 1 && top.replies[0].replies[0].id === rep2.id, "rep의 답글 = rep2 (무한 중첩 트리)");
+  // 1단계 평탄화: rep, rep2 모두 c1의 답글로 (rep2가 rep 밑에 중첩되지 않음)
+  const replyIds = top.replies.map((r) => r.id);
+  assert(
+    top.replies.length === 2 && replyIds.includes(rep.id) && replyIds.includes(rep2.id),
+    "c1의 답글 = rep + rep2 (둘 다 1단계로 평탄화)"
+  );
+  assert(top.replies.every((r) => r.replies.length === 0), "답글 밑에는 더 깊은 답글이 없음(1단계)");
   assert((await totalXp(a.id)) === aXp0 && (await totalXp(b.id)) === bXp0, "댓글은 경험치 없음");
   const del = await deleteComment(b.id, c1.id);
-  assert(del.deleted === 3, "본인 댓글 삭제 → 딸린 답글 전부 삭제(3, 무한 깊이 cascade)");
+  assert(del.deleted === 3, "본인 댓글 삭제 → 딸린 답글 전부 삭제(3, cascade)");
   assert((await cnt()) === 0, "삭제 후 commentCount 0");
 
   console.log("\n[9e] 운영 안전장치 — 신고 + 글/댓글 삭제 (작성자/운영자)");

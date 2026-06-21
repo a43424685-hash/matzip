@@ -372,9 +372,9 @@ export async function setPaidMap(
 
   if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   if (col._count.items < 1) return { ok: false, reason: "EMPTY" };
-  // 맛보기(무료 공개) 가게를 최소 개수만큼 지정해야 유료 오픈 가능
+  // 맛보기(무료 공개) 가게를 정확히 PAID_MAP_PREVIEW_COUNT(5)곳 지정해야 유료 오픈 가능 (최소=최대)
   const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
-  if (previewCount < PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
+  if (previewCount !== PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
   const price = Math.round(priceWon ?? 0);
   if (price < PAID_MAP_MIN_WON || price > PAID_MAP_MAX_WON) return { ok: false, reason: "BAD_PRICE" };
 
@@ -398,6 +398,17 @@ export async function setItemPreview(
   });
   if (!col) return { ok: false, reason: "NOT_FOUND" };
   if (col.userId !== userId) return { ok: false, reason: "FORBIDDEN" };
+  // 맛보기는 최대 PAID_MAP_PREVIEW_COUNT(5)곳까지만 — 이미 5곳이면 추가 거부
+  if (isPreview) {
+    const current = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
+    const already = await prisma.collectionItem.findUnique({
+      where: { collectionId_restaurantId: { collectionId, restaurantId } },
+      select: { isPreview: true },
+    });
+    if (!already?.isPreview && current >= PAID_MAP_PREVIEW_COUNT) {
+      return { ok: false, reason: "PREVIEW_FULL", previewCount: current };
+    }
+  }
   await prisma.collectionItem
     .update({
       where: { collectionId_restaurantId: { collectionId, restaurantId } },
