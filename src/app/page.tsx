@@ -21,6 +21,7 @@ import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
 import NearbyHomeSection from "@/components/NearbyHomeSection";
 import Coachmark from "@/components/Coachmark";
+import WelcomeOnboarding from "@/components/WelcomeOnboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function HomePage() {
 
   return (
     <main className="bg-white pb-8">
+      <WelcomeOnboarding loggedIn={!!user} />
       {/* 1. 헤더 (스크롤 시 사라짐 — sticky 아님) */}
       <header className="px-5 pt-4">
         <div className="flex items-center justify-between">

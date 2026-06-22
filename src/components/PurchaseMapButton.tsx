@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Loader2 } from "lucide-react";
 import * as PortOne from "@portone/browser-sdk/v2";
+import { track } from "@/lib/analytics";
 
 const STORE_ID = process.env.NEXT_PUBLIC_PORTONE_STORE_ID ?? "";
 const CHANNEL_KEY = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAO ?? "";
@@ -81,6 +82,7 @@ export default function PurchaseMapButton({
       }
 
       // 성공 — 잠금 해제된 화면으로 갱신
+      track("purchase", { collection_id: collectionId, value: priceWon ?? undefined });
       router.refresh();
     } catch (e) {
       console.error(e);

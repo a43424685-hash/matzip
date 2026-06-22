@@ -4,8 +4,14 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AppSplash from "@/components/AppSplash";
 import ScrollReset from "@/components/ScrollReset";
+import XpToastWatcher from "@/components/XpToastWatcher";
+import Analytics from "@/components/Analytics";
+
+// 카톡/SNS 공유 미리보기(og:image)가 절대 URL로 잡히도록 사이트 주소 지정
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://matzip-psi-nine.vercel.app";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "먹고핀",
   description: "먹고 핀 꽂고 — 내 맛집 지도를 키우고 레벨업하는 소셜 맛집 앱",
   manifest: "/manifest.webmanifest",
@@ -14,6 +20,13 @@ export const metadata: Metadata = {
     icon: "/icon.svg",
     apple: "/icon.svg",
   },
+  openGraph: {
+    type: "website",
+    siteName: "먹고핀",
+    title: "먹고핀",
+    description: "먹고 핀 꽂고 — 내 맛집 지도를 키우고 레벨업하는 소셜 맛집 앱",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {
@@ -34,6 +47,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <ScrollReset />
         </Suspense>
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
+        <XpToastWatcher />
         <div className="app-shell">{children}</div>
         <BottomNav />
         <AppSplash />

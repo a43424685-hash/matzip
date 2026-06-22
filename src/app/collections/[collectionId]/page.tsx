@@ -147,7 +147,13 @@ export default async function CollectionDetailPage({
                       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-stone-100">
                         {it.media?.url ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={it.media.url} alt="" className="h-14 w-14 object-cover" />
+                          <img
+                            src={it.media.thumbnailUrl ?? it.media.url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="h-14 w-14 object-cover"
+                          />
                         ) : null}
                       </div>
                       <div className="min-w-0 flex-1">

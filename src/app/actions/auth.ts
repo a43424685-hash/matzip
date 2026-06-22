@@ -70,9 +70,9 @@ export async function signupAction(
     throw e;
   }
 
-  // 가입 즉시 로그인
+  // 가입 즉시 로그인 (?signup=1 → 홈에서 가입 완료 이벤트 1회 기록 후 제거)
   await createSession(user.id);
-  redirect("/");
+  redirect("/?signup=1");
 }
 
 export async function loginAction(

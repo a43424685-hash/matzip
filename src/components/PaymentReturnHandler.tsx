@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { track } from "@/lib/analytics";
 
 /**
  * 포트원 결제 리다이렉트 복귀 처리 (모바일 전체화면 리다이렉트 흐름).
@@ -34,6 +35,7 @@ export default function PaymentReturnHandler({ collectionId }: { collectionId: s
         });
         const cd = await conf.json().catch(() => ({}));
         if (conf.ok && cd.ok) {
+          track("purchase", { collection_id: collectionId });
           router.replace(`/collections/${collectionId}`); // 쿼리 제거
           router.refresh();
         } else {

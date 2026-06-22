@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Camera, Receipt, BookOpen, Check, Navigation, type LucideIcon } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
+import { track } from "@/lib/analytics";
 
 // 서버(VerificationService)와 동일하게 유지 — 50m + 정확도 50m 하드 제한
 const LOCATION_THRESHOLD_METERS = 50; // 가게 50m 이내
@@ -134,6 +135,8 @@ export default function VerifyPanel({
       const xp = d.awardedXp ? ` +${d.awardedXp} XP` : "";
       setMsg(`위치 인증 완료!${xp} (가게에서 ${d.distanceMeters}m)`);
       stopTracking();
+      track("verify_location", { post_id: postId });
+      window.dispatchEvent(new Event("mgp:xp")); // 전역 XP 토스트 갱신
       router.refresh();
     } else if (d.reason === "NO_COORDS") {
       setMsg("이 가게는 위치 좌표가 없어 위치 인증이 아직 불가해요. (장소 검색 연동 후 가능)");
@@ -219,6 +222,8 @@ export default function VerifyPanel({
       if (res.ok && d.ok) {
         setAttached((a) => ({ ...a, [kind]: true }));
         setMsg(`${PROOF_LABEL[kind]} 인증 완료!${d.awardedXp ? ` 현재 +${d.awardedXp} XP` : ""}`);
+        track("verify_proof", { post_id: postId, kind });
+        window.dispatchEvent(new Event("mgp:xp")); // 전역 XP 토스트 갱신
         router.refresh();
       } else {
         // 검증 실패 — 미리보기 제거하고 사유 안내

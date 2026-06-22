@@ -5,6 +5,13 @@
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import { getBlockedIds } from "../block/BlockService";
+import { sendWebPush } from "../push/PushService";
+
+const PUSH_MSG: Record<NotificationType, string> = {
+  like: "회원님의 글을 좋아해요",
+  comment: "회원님의 글에 새 댓글이 달렸어요",
+  reply: "회원님의 댓글에 새 답글이 달렸어요",
+};
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -55,6 +62,13 @@ export async function createNotification(
       commentId: input.commentId ?? null,
     },
   });
+
+  // 웹 푸시도 함께(켜둔 사람만 발송됨, 비밀키 없으면 자동 패스)
+  void sendWebPush(input.userId, {
+    title: "먹고핀",
+    body: PUSH_MSG[input.type],
+    url: input.postId ? `/restaurants/${input.postId}` : "/notifications",
+  }).catch(() => {});
 }
 
 export async function unreadCount(userId: string): Promise<number> {
@@ -84,6 +98,8 @@ export interface NotificationRow {
   actorIsOfficial: boolean;
   postId: string | null;
   restaurantName: string | null;
+  collectionId: string | null;
+  collectionTitle: string | null;
 }
 
 export async function listNotifications(userId: string, limit = 50): Promise<NotificationRow[]> {
@@ -98,6 +114,7 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
       read: true,
       createdAt: true,
       postId: true,
+      collectionId: true,
       actorUserId: true,
       actor: { select: { nickname: true, isAdmin: true } },
     },
@@ -115,6 +132,13 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
       : [];
   const nameById = new Map(posts.map((p) => [p.id, p.restaurant.name]));
 
+  const colIds = rows.map((r) => r.collectionId).filter((id): id is string => !!id);
+  const cols =
+    colIds.length > 0
+      ? await prisma.collection.findMany({ where: { id: { in: colIds } }, select: { id: true, title: true } })
+      : [];
+  const titleById = new Map(cols.map((c) => [c.id, c.title]));
+
   return rows.map((r) => ({
     id: r.id,
     type: r.type,
@@ -124,5 +148,7 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
     actorIsOfficial: r.actor?.isAdmin ?? false,
     postId: r.postId,
     restaurantName: r.postId ? nameById.get(r.postId) ?? null : null,
+    collectionId: r.collectionId,
+    collectionTitle: r.collectionId ? titleById.get(r.collectionId) ?? null : null,
   }));
 }

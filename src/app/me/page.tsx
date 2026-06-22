@@ -80,7 +80,7 @@ export default async function MePage() {
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-forest-soft text-2xl font-extrabold text-forest">
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.avatarUrl} alt="" className="h-16 w-16 object-cover" />
+            <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-16 w-16 object-cover" />
           ) : (
             user.nickname.slice(0, 1)
           )}

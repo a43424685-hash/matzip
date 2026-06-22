@@ -254,7 +254,7 @@ export default function PaidMapViewer({
                 <span className="badge-rank bg-stone-100 text-stone-500">{i + 1}</span>
                 <Link href={it.postId ? `/restaurants/${it.postId}` : "#"} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
                   {it.media && it.media.type === "image" ? (
-                    <CardImage src={it.media.url} alt={it.restaurantName} className="h-14 w-14 object-cover" />
+                    <CardImage src={it.media.thumbnailUrl ?? it.media.url} alt={it.restaurantName} className="h-14 w-14 object-cover" />
                   ) : (
                     <div className="thumb-empty flex h-14 w-14 items-center justify-center text-forest/40">
                       <Store size={20} strokeWidth={1.7} />

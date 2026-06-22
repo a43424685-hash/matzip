@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { sendWebPush } from "@/server/push/PushService";
 
 const mediaPick = { select: { type: true, url: true, thumbnailUrl: true }, orderBy: { sortOrder: "asc" as const }, take: 1 };
 
@@ -53,7 +54,7 @@ export async function toggleItem(
 ): Promise<{ added: boolean }> {
   const col = await prisma.collection.findUnique({
     where: { id: collectionId },
-    select: { userId: true },
+    select: { userId: true, isPaid: true },
   });
   if (!col || col.userId !== userId) throw new Error("FORBIDDEN");
 
@@ -71,7 +72,36 @@ export async function toggleItem(
   await prisma.collectionItem.create({
     data: { collectionId, restaurantId, postId, sortOrder: count },
   });
+
+  // 유료 지도면 구매자에게 "지도 업데이트" 알림 (안 읽은 동일 알림 있으면 중복 생성 안 함 → 무더기 추가해도 1건)
+  if (col.isPaid) {
+    void notifyMapBuyersOfUpdate(collectionId).catch(() => {});
+  }
   return { added: true };
+}
+
+/** 유료 지도에 맛집이 추가됐을 때 구매자에게 알림(미열람 map_update 중복 방지) + 웹푸시 */
+async function notifyMapBuyersOfUpdate(collectionId: string): Promise<void> {
+  const [col, buyers] = await Promise.all([
+    prisma.collection.findUnique({ where: { id: collectionId }, select: { title: true } }),
+    prisma.mapPurchase.findMany({ where: { collectionId, status: "paid" }, select: { buyerId: true } }),
+  ]);
+  if (!col || buyers.length === 0) return;
+  for (const b of buyers) {
+    const dup = await prisma.notification.findFirst({
+      where: { userId: b.buyerId, type: "map_update", collectionId, read: false },
+      select: { id: true },
+    });
+    if (dup) continue;
+    await prisma.notification.create({
+      data: { userId: b.buyerId, type: "map_update", collectionId },
+    });
+    void sendWebPush(b.buyerId, {
+      title: "구매한 지도가 업데이트됐어요",
+      body: `《${col.title}》에 새 맛집이 추가됐어요`,
+      url: `/collections/${collectionId}`,
+    }).catch(() => {});
+  }
 }
 
 /** 내 컬렉션 목록 (+ 특정 음식점 포함 여부 — 담기 피커용) */
@@ -177,14 +207,18 @@ export async function getMyCollectionsWithPreview(userId: string) {
       },
     },
   });
-  return cols.map((c) => ({
-    id: c.id,
-    title: c.title,
-    isPublic: c.isPublic,
-    itemCount: c._count.items,
-    previewNames: c.items.map((i) => i.restaurant.name),
-    coverMedia: c.items.map((i) => i.post?.media[0]).find((m) => m && m.type === "image")?.url ?? null,
-  }));
+  return cols.map((c) => {
+    const cover = c.items.map((i) => i.post?.media[0]).find((m) => m && m.type === "image");
+    return {
+      id: c.id,
+      title: c.title,
+      isPublic: c.isPublic,
+      itemCount: c._count.items,
+      previewNames: c.items.map((i) => i.restaurant.name),
+      // 56px 썸네일 자리엔 작은 썸네일(400px) 우선 — 큰 원본(1600px) 안 받게
+      coverMedia: cover?.thumbnailUrl ?? cover?.url ?? null,
+    };
+  });
 }
 
 /** 컬렉션 상세 (공유/공개 페이지용). 유료 지도면 비구매자는 잠금(블러). */

@@ -38,7 +38,7 @@ export default async function MyCollectionsPage() {
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-forest-soft text-forest">
                 {c.coverMedia ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.coverMedia} alt="" className="h-14 w-14 object-cover" />
+                  <img src={c.coverMedia} alt="" loading="lazy" decoding="async" className="h-14 w-14 object-cover" />
                 ) : (
                   <Bookmark size={20} />
                 )}

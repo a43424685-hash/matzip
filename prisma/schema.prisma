@@ -54,6 +54,7 @@ model User {
   xpEvents    XpEvent[]        @relation("XpRecipient")
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -65,18 +66,34 @@ model Notification {
   id          String   @id @default(cuid())
   userId      String // 수신자
   actorUserId String? // 행동한 사람 (탈퇴 시 null)
-  // type: like | comment | reply
-  type        String
-  postId      String?
-  commentId   String?
-  read        Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  // type: like | comment | reply | map_update
+  type         String
+  postId       String?
+  commentId    String?
+  collectionId String? // map_update 알림이 가리키는 지도(컬렉션)
+  read         Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   user  User  @relation("NotifRecipient", fields: [userId], references: [id], onDelete: Cascade)
   actor User? @relation("NotifActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([userId, read, createdAt])
   @@map("notifications")
+}
+
+// 웹 푸시 구독 (브라우저 PushManager subscription) — 사용자당 여러 기기 가능
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 // ─────────────────────────────────────────────────────────────
