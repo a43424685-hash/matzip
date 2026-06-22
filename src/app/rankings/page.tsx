@@ -44,7 +44,20 @@ export default async function RankingsPage({
 
       {user && <MyRankCard user={user} rank={myRank} eligibility={eligibility} />}
 
-      <section className="mt-5 rounded-2xl bg-ink px-5 py-5 text-white">
+      {/* 순위가 이 페이지의 본론 — 위로 */}
+      <div className="mt-5">
+        <RankingClient
+          initialTab={safeTab}
+          userId={user?.id ?? null}
+          regions={regions}
+          initialRegionId={sp.regionId || regionId}
+          initialOverall={overall}
+          initialRegion={region}
+        />
+      </div>
+
+      {/* 혜택·판매 자격은 순위 아래로 */}
+      <section className="mt-8 rounded-2xl bg-ink px-5 py-5 text-white">
         <div className="flex items-center gap-2 text-sm font-extrabold">
           <BadgePercent size={18} className="text-coral" />
           랭킹 혜택
@@ -57,15 +70,6 @@ export default async function RankingsPage({
       </section>
 
       <CreatorMapCard eligibility={eligibility} />
-
-      <RankingClient
-        initialTab={safeTab}
-        userId={user?.id ?? null}
-        regions={regions}
-        initialRegionId={sp.regionId || regionId}
-        initialOverall={overall}
-        initialRegion={region}
-      />
     </main>
   );
 }

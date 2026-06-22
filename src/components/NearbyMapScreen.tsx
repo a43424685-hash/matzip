@@ -288,7 +288,7 @@ export default function NearbyMapScreen() {
           <div>
             <div className="text-base font-extrabold text-ink">{headerText}</div>
             <div className="mt-0.5 text-[12px] text-ink-muted">
-              {loading ? "불러오는 중" : "거리순으로 가까운 곳부터"}
+              {loading ? "불러오는 중" : "가까운 순"}
             </div>
           </div>
           <button

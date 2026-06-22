@@ -9,7 +9,6 @@ import {
   Play,
   Coins,
   Plus,
-  Lock,
   Check,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
@@ -145,31 +144,21 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* 섹션 4-2. 유료 맛집 지도 — 곧 오픈 (블러 티저) */}
+      {/* 섹션 4-2. 유료 맛집 지도 — 둘러보고 구매 (누구나 Lv.1부터 구매 가능) */}
       <div className="px-5 pt-9">
         <h2 className="section-title flex items-center gap-1.5">
           <Coins size={17} className="text-forest" /> 유료 맛집 지도
         </h2>
-        <p className="mt-1 text-[13px] text-ink-muted">검증된 미식가가 만든 진짜 맛집 지도를 사고팔아요</p>
-        <div className="relative mt-3 overflow-hidden rounded-2xl border border-stone-200">
-          <div className="no-scrollbar flex gap-3 p-3 blur-[5px]">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-[150px] w-[170px] shrink-0 rounded-2xl bg-stone-100">
-                <div className="h-[96px] rounded-t-2xl bg-stone-200" />
-                <div className="space-y-1.5 p-2.5">
-                  <div className="h-3 w-3/4 rounded bg-stone-200" />
-                  <div className="h-2.5 w-1/2 rounded bg-stone-100" />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/45">
-            <span className="flex items-center gap-1.5 rounded-full bg-ink/80 px-3.5 py-1.5 text-[13px] font-bold text-white">
-              <Lock size={14} /> 곧 오픈
-            </span>
-            <p className="text-[13px] font-semibold text-ink">Lv.20 달성 시 오픈돼요</p>
-          </div>
-        </div>
+        <p className="mt-1 text-[13px] text-ink-muted">검증된 로컬이 직접 만든 진짜 맛집 지도를 둘러보세요</p>
+        <Link
+          href="/store"
+          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold text-ink">
+            <Coins size={18} className="text-forest" /> 지도 둘러보고 구매하기
+          </span>
+          <ChevronRight size={18} className="text-stone-300" />
+        </Link>
       </div>
 
       {/* 섹션 5. 맛잘알 랭킹 */}

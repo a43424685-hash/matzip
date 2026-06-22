@@ -2,11 +2,8 @@
 
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { markScrollReset } from "@/lib/scrollReset";
 
 export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?: string; returnTo?: string }) {
-  const router = useRouter();
   // 오픈 리다이렉트 방지: 내부 절대경로(/foo)만 허용
   const returnTo = rawReturn.startsWith("/") && !rawReturn.startsWith("//") ? rawReturn : "/";
   const [message, setMessage] = useState<string | null>(null);
@@ -35,9 +32,9 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         setMessage(result.error ?? "로그인에 실패했어요.");
         return;
       }
-      markScrollReset();
-      router.replace(returnTo);
-      router.refresh();
+      // 하드 이동 — 항상 맨 위에서 시작 + 세션 즉시 반영
+      window.location.href = returnTo;
+      return;
     } catch {
       setMessage("잠시 후 다시 시도해주세요.");
     } finally {

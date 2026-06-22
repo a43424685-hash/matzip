@@ -105,9 +105,21 @@ export async function listMyCollections(userId: string, restaurantId?: string) {
   }));
 }
 
-/** 리스트 편집용: 내가 등록/저장한 맛집 + 이 리스트 포함 여부 (리스트 안에서 골라 담기) */
-export async function getMyRestaurantsForPicker(userId: string, collectionId: string) {
-  const [posts, saves, items] = await Promise.all([
+export interface PickerRestaurant {
+  restaurantId: string;
+  name: string;
+  regionName: string;
+  source: string; // 등록 | 저장
+  verified: boolean; // 내가 위치 인증한 맛집인지
+  inCollection: boolean;
+}
+
+/** 리스트 편집용: 내가 등록/저장한 맛집 + 인증여부 + 이 리스트 포함 여부 (리스트 안에서 골라 담기) */
+export async function getMyRestaurantsForPicker(
+  userId: string,
+  collectionId: string
+): Promise<PickerRestaurant[]> {
+  const [posts, saves, items, verifiedPosts] = await Promise.all([
     prisma.restaurantPost.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -119,14 +131,26 @@ export async function getMyRestaurantsForPicker(userId: string, collectionId: st
       select: { restaurant: { select: { id: true, name: true, primaryRegion: { select: { name: true } } } } },
     }),
     prisma.collectionItem.findMany({ where: { collectionId }, select: { restaurantId: true } }),
+    prisma.restaurantPost.findMany({
+      where: { userId, locationVerified: true },
+      select: { restaurantId: true },
+    }),
   ]);
   const inSet = new Set(items.map((i) => i.restaurantId));
+  const verifiedSet = new Set(verifiedPosts.map((p) => p.restaurantId));
   const seen = new Set<string>();
-  const out: { restaurantId: string; name: string; regionName: string; source: string; inCollection: boolean }[] = [];
+  const out: PickerRestaurant[] = [];
   const push = (r: { id: string; name: string; primaryRegion: { name: string } }, source: string) => {
     if (seen.has(r.id)) return;
     seen.add(r.id);
-    out.push({ restaurantId: r.id, name: r.name, regionName: r.primaryRegion.name, source, inCollection: inSet.has(r.id) });
+    out.push({
+      restaurantId: r.id,
+      name: r.name,
+      regionName: r.primaryRegion.name,
+      source,
+      verified: verifiedSet.has(r.id),
+      inCollection: inSet.has(r.id),
+    });
   };
   for (const p of posts) push(p.restaurant, "등록");
   for (const s of saves) push(s.restaurant, "저장");
@@ -400,6 +424,16 @@ export async function setPaidMap(
 
   if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   if (col._count.items < 1) return { ok: false, reason: "EMPTY" };
+  // 유료 지도는 '내가 인증한 맛집'만 담을 수 있다 — 미인증 항목이 하나라도 있으면 거부
+  const items = await prisma.collectionItem.findMany({ where: { collectionId }, select: { restaurantId: true } });
+  const restIds = items.map((i) => i.restaurantId);
+  const verified = await prisma.restaurantPost.findMany({
+    where: { userId, locationVerified: true, restaurantId: { in: restIds } },
+    select: { restaurantId: true },
+    distinct: ["restaurantId"],
+  });
+  const verifiedSet = new Set(verified.map((v) => v.restaurantId));
+  if (restIds.some((id) => !verifiedSet.has(id))) return { ok: false, reason: "NEED_VERIFIED" };
   // 맛보기(무료 공개) 가게를 정확히 PAID_MAP_PREVIEW_COUNT(5)곳 지정해야 유료 오픈 가능 (최소=최대)
   const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
   if (previewCount !== PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };

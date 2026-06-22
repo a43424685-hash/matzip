@@ -19,12 +19,11 @@ import {
   Settings,
   Headphones,
   Info,
-  LogOut,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { logoutAction } from "@/app/actions/auth";
 import OfficialBadge from "@/components/OfficialBadge";
+import LogoutButton from "@/components/LogoutButton";
 import { getMyOverallRank, getMyRegionRank } from "@/server/ranking/RankingService";
 import { unreadCount } from "@/server/notification/NotificationService";
 import { calculateLevel } from "@/server/xp/LevelService";
@@ -192,17 +191,7 @@ export default async function MePage() {
         <Row href="/me/support" icon={<Headphones size={18} />} label="고객센터" />
         <Row href="/me/settings" icon={<Settings size={18} />} label="설정" />
         <Row href="/terms" icon={<FileText size={18} />} label="약관 및 정책" sub="이용약관·개인정보·환불정책" />
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="flex w-full items-center gap-3 px-1 py-3.5 text-left text-[15px] text-ink-muted"
-          >
-            <span className="text-stone-400">
-              <LogOut size={18} />
-            </span>
-            로그아웃
-          </button>
-        </form>
+        <LogoutButton />
       </Section>
     </main>
   );

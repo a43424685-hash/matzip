@@ -295,10 +295,10 @@ async function main() {
   const paidNotElig = await setPaidMap(a.id, col.id, true, 2900);
   assert(paidNotElig.reason === "NOT_ELIGIBLE", "자격(Lv.20·위치인증30·영수증/메뉴5) 미달이면 유료 전환 불가");
 
-  // 운영자 권한으로 자격만 우회 → 맛보기 미선택이면 NEED_PREVIEW (맛보기 게이트 점검)
+  // 운영자 권한으로 자격만 우회 → 이 시점 col엔 미인증 부산이 담겨 있어 NEED_VERIFIED (유료=인증된 맛집만)
   await prisma.user.update({ where: { id: a.id }, data: { isAdmin: true } });
-  const needPreview = await setPaidMap(a.id, col.id, true, 2900);
-  assert(needPreview.reason === "NEED_PREVIEW", "맛보기 미선택이면 유료 오픈 불가(NEED_PREVIEW)");
+  const needVerified = await setPaidMap(a.id, col.id, true, 2900);
+  assert(needVerified.reason === "NEED_VERIFIED", "미인증 맛집이 담기면 유료 전환 불가(NEED_VERIFIED)");
   await prisma.user.update({ where: { id: a.id }, data: { isAdmin: false } });
 
   // 자격/맛보기 검증을 우회해 잠금/미리보기 로직 자체를 점검

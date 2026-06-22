@@ -9,6 +9,7 @@ import {
 } from "@/server/restaurant/RestaurantService";
 import { getBlockedIds } from "@/server/block/BlockService";
 import PostCard from "@/components/PostCard";
+import SearchChip from "@/components/SearchChip";
 import { PRICE_RANGES, SORT_OPTIONS } from "@/lib/labels";
 import BackHomeHeader from "@/components/BackHomeHeader";
 
@@ -22,18 +23,6 @@ const CAT_PRIORITY = [
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];
-}
-
-const CHIP =
-  "flex cursor-pointer items-center rounded-full border border-stone-200 bg-white px-3.5 py-2 text-sm font-medium text-ink transition active:scale-95 has-[:checked]:border-forest has-[:checked]:bg-forest has-[:checked]:text-white";
-
-function CatChip({ id, name, checked }: { id: string; name: string; checked: boolean }) {
-  return (
-    <label className={CHIP}>
-      <input type="checkbox" name="categoryIds" value={id} defaultChecked={checked} className="sr-only" />
-      {name}
-    </label>
-  );
 }
 
 export default async function SearchPage({
@@ -102,7 +91,7 @@ export default async function SearchPage({
         {/* 추천 태그 — 핵심 카테고리 우선 */}
         <div className="flex flex-wrap gap-2">
           {recommended.map((c) => (
-            <CatChip key={c.id} id={c.id} name={c.name} checked={categoryIds.includes(c.id)} />
+            <SearchChip key={c.id} id={c.id} name={c.name} checked={categoryIds.includes(c.id)} />
           ))}
         </div>
 
@@ -149,7 +138,7 @@ export default async function SearchPage({
                   <p className="mb-2 text-xs font-semibold text-stone-400">{g.label}</p>
                   <div className="flex flex-wrap gap-2">
                     {items.map((c) => (
-                      <CatChip key={c.id} id={c.id} name={c.name} checked={categoryIds.includes(c.id)} />
+                      <SearchChip key={c.id} id={c.id} name={c.name} checked={categoryIds.includes(c.id)} />
                     ))}
                   </div>
                 </div>

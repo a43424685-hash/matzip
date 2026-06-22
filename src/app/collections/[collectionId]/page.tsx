@@ -187,7 +187,7 @@ export default async function CollectionDetailPage({
         {/* 소유자: 내 맛집 담기 + 맛보기 선택 + 유료 판매 설정 */}
         {isOwner && (
           <>
-            <CollectionAddPicker collectionId={col.id} restaurants={addableRestaurants} />
+            <CollectionAddPicker collectionId={col.id} restaurants={addableRestaurants} paidMap={col.isPaid} />
             {col.items.length > 0 && (
               <PreviewPicker
                 collectionId={col.id}
