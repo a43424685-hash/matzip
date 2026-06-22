@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
+import { useLayoutEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { SCROLL_RESET_FLAG, markScrollReset } from "@/lib/scrollReset";
 
-// 새 화면 진입 시 모든 스크롤 레이어를 맨 위로
+// 모든 스크롤 레이어를 맨 위로 (iOS는 window.scrollTo가 안 먹을 때가 있어 직접도 0)
 function scrollAllToTop() {
   window.scrollTo(0, 0);
   const se = document.scrollingElement;
@@ -18,61 +17,21 @@ function scrollAllToTop() {
     });
 }
 
-// 새 탭/수정키/다운로드/외부/해시/같은 화면 클릭은 제외한 "내부 페이지 이동" 판별
-function isInternalNavClick(a: HTMLAnchorElement, e: MouseEvent): boolean {
-  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
-  if (a.target && a.target !== "_self") return false;
-  if (a.hasAttribute("download")) return false;
-  const href = a.getAttribute("href");
-  if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
-  let url: URL;
-  try {
-    url = new URL(a.href, window.location.href);
-  } catch {
-    return false;
-  }
-  if (url.origin !== window.location.origin) return false;
-  // 같은 경로+쿼리(해시만 이동 등)는 제외
-  if (url.pathname === window.location.pathname && url.search === window.location.search) return false;
-  return true;
-}
-
-function takeFlag(): boolean {
-  try {
-    if (sessionStorage.getItem(SCROLL_RESET_FLAG)) {
-      sessionStorage.removeItem(SCROLL_RESET_FLAG);
-      return true;
-    }
-  } catch {
-    /* ignore */
-  }
-  return false;
-}
-
+/**
+ * 스크롤 최상단 — "무조건 맨 위" 정책.
+ *  경로/쿼리가 바뀌는 모든 이동(탭·링크·push·replace·서버 리다이렉트·뒤로/앞으로)에서 맨 위로.
+ *  iOS의 늦은 스크롤 복원까지 이기도록 진입 직후 몇 번 더 0으로 보내고,
+ *  사용자가 스크롤을 시작하면 즉시 중단(억지로 위로 안 끌어올림).
+ */
 export default function ScrollReset() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
 
-  // 내부 이동 감지 → 플래그. (첫 로드/뒤로가기에는 세팅되지 않음)
-  useEffect(() => {
-    const onClickCapture = (e: MouseEvent) => {
-      const target = e.target instanceof Element ? e.target : null;
-      const anchor = target?.closest("a[href]");
-      if (anchor instanceof HTMLAnchorElement && isInternalNavClick(anchor, e)) markScrollReset();
-    };
-    // 내부 <a> 링크 클릭만 감지. programmatic 이동(router.push/replace)은 호출부에서
-    // markScrollReset()로 직접 플래그를 켠다. (pushState 전역 패치는 뒤로가기 내부 처리에도
-    // 걸려 브라우저 복원을 망가뜨리므로 쓰지 않는다.)
-    document.addEventListener("click", onClickCapture, true);
-    return () => {
-      document.removeEventListener("click", onClickCapture, true);
-    };
-  }, []);
-
-  // route(경로/쿼리) 변경 후, "내부 이동 플래그"가 있을 때만 단계적으로 top.
   useLayoutEffect(() => {
-    if (!takeFlag()) return; // 첫 로드·뒤로가기 등은 아무것도 하지 않음(복원 허용)
-
+    if ("scrollRestoration" in window.history) {
+      // 브라우저 자동 복원 끄기 — 우리가 항상 맨 위로 제어
+      window.history.scrollRestoration = "manual";
+    }
     scrollAllToTop();
 
     let userScrolled = false;
@@ -87,7 +46,6 @@ export default function ScrollReset() {
     const run = () => {
       if (!userScrolled) scrollAllToTop();
     };
-    // iOS 늦은 복원 대응 — 즉시/rAF/단계적 (사용자가 스크롤 시작하면 중단)
     const raf = requestAnimationFrame(run);
     const timers = [50, 150, 350, 700, 1200].map((ms) => window.setTimeout(run, ms));
 

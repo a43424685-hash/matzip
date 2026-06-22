@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Share2, MapPin, Lock, Coins, Eye } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import PaymentReturnHandler from "@/components/PaymentReturnHandler";
 import {
   getCollectionDetail,
   canSellPaidMaps,
@@ -76,6 +78,10 @@ export default async function CollectionDetailPage({
           <span className="text-white/60">· 맛집 {col.itemCount}곳</span>
         </div>
       </header>
+
+      <Suspense fallback={null}>
+        <PaymentReturnHandler collectionId={col.id} />
+      </Suspense>
 
       <div className="px-5 pt-4">
         <Link href={`/collections/${col.id}/share`} className="btn-primary h-12 w-full !text-base">

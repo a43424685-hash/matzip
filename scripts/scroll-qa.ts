@@ -46,8 +46,8 @@ async function run() {
     await page.goBack();
     await page.waitForTimeout(1400);
     const back = await y();
-    // 핵심: 뒤로가기는 top으로 '강제'되면 안 됨(브라우저 복원 허용). 0 근처가 아니면 통과.
-    results.push({ name: "상세→뒤로(복원)", pass: back > TOP, detail: `복원 ${back} (top강제 아님=정상, 0이면 버그)` });
+    // 정책: 뒤로가기도 무조건 맨 위 (모든 이동 top)
+    results.push({ name: "상세→뒤로(맨 위)", pass: back <= TOP, detail: `뒤로 후 ${back} (0=정상)` });
   } catch (e) {
     results.push({ name: "홈→맛집/뒤로", pass: false, detail: String(e instanceof Error ? e.message : e) });
   }

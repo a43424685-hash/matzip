@@ -45,6 +45,8 @@ export default function PurchaseMapButton({
       }
 
       // 2) 포트원 결제창(카카오페이) 호출
+      //   redirectUrl 지정 → 모바일은 전체화면 리다이렉트(작은 QR 모달 오버플로우 방지).
+      //   리다이렉트로 돌아오면 PaymentReturnHandler가 confirm 처리. PC는 iframe→아래 promise로 confirm.
       const res = await PortOne.requestPayment({
         storeId: STORE_ID,
         channelKey: CHANNEL_KEY,
@@ -54,7 +56,9 @@ export default function PurchaseMapButton({
         currency: "CURRENCY_KRW",
         payMethod: "EASY_PAY",
         customData: { collectionId, buyerId },
+        redirectUrl: `${window.location.origin}/collections/${collectionId}`,
       });
+      // 모바일 리다이렉트 흐름이면 여기 도달 전에 페이지가 떠남 → 이후는 PC(iframe) 케이스
 
       if (!res || res.code != null) {
         // 사용자가 취소했거나 결제 실패
