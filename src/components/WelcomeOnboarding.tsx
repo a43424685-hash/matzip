@@ -1,22 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { MapPin, Trophy, Map as MapIcon } from "lucide-react";
 
 const KEY = "mgp:onboarded:v1";
 
 const STEPS = [
-  { Icon: MapPin, title: "가서 '위치 인증'", desc: "진짜 가본 맛집만 올라와요. 가게 50m 안에서 자동 인증." },
-  { Icon: Trophy, title: "인증할수록 XP·레벨업", desc: "기록하고 인증하면 경험치가 쌓이고 내 동네 랭킹이 올라가요." },
-  { Icon: MapIcon, title: "나만의 맛집 지도", desc: "모은 맛집을 지도로 공유하고, 유료 지도로 팔 수도 있어요." },
+  { Icon: MapPin, title: "맛집에 가서 '위치 인증'하세요", desc: "진짜 가본 맛집만 올라와요. 가게 50m 안에서 자동 인증돼요." },
+  { Icon: Trophy, title: "인증하면 XP가 쌓여요", desc: "기록하고 인증할수록 레벨이 오르고 내 동네 랭킹이 올라가요." },
+  { Icon: MapIcon, title: "나만의 맛집 지도를 만드세요", desc: "모은 맛집을 지도로 공유하고, 유료 지도로 팔 수도 있어요." },
 ];
 
 /**
- * 첫 방문 1회 환영 시트 — 앱을 한눈에 이해시키는 3단계.
+ * 첫 방문 1회 환영 시트 — 앱 사용법(해야 할 것) 3가지 안내. 확인으로만 닫힘.
  * localStorage로 한 번만 노출.
  */
-export default function WelcomeOnboarding({ loggedIn }: { loggedIn: boolean }) {
+export default function WelcomeOnboarding() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -50,7 +49,7 @@ export default function WelcomeOnboarding({ loggedIn }: { loggedIn: boolean }) {
           <span className="text-coral">핀</span>
         </div>
         <p className="mt-1 text-center text-sm font-semibold text-ink-muted">
-          진짜 가본 맛집만, 먹고핀
+          이렇게 하면 돼요
         </p>
 
         <div className="mt-6 space-y-4">
@@ -67,21 +66,10 @@ export default function WelcomeOnboarding({ loggedIn }: { loggedIn: boolean }) {
           ))}
         </div>
 
-        <div className="mt-7 space-y-2">
-          {loggedIn ? (
-            <button onClick={close} className="btn-primary h-12 w-full !text-base">
-              둘러보기 시작
-            </button>
-          ) : (
-            <>
-              <Link href="/signup" onClick={close} className="btn-primary h-12 w-full !text-base">
-                가입하고 시작하기
-              </Link>
-              <button onClick={close} className="h-11 w-full text-sm font-semibold text-ink-muted">
-                그냥 둘러볼게요
-              </button>
-            </>
-          )}
+        <div className="mt-7">
+          <button onClick={close} className="btn-primary h-12 w-full !text-base">
+            확인
+          </button>
         </div>
       </div>
     </div>

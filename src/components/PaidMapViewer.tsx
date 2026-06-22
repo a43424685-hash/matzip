@@ -73,7 +73,11 @@ export default function PaidMapViewer({
   }, [view]);
 
   useEffect(() => {
-    if (view === "map" && mapRef.current) plotMarkers();
+    if (view === "map" && mapRef.current) {
+      // 목록→지도로 돌아오면 컨테이너가 숨겨졌다 다시 보이므로 relayout 필요(안 하면 회색 빈 지도)
+      mapRef.current.relayout();
+      plotMarkers();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoItems, view, visited]);
 
@@ -225,22 +229,24 @@ export default function PaidMapViewer({
         </div>
       )}
 
-      {/* 지도 뷰 */}
-      {view === "map" && (
-        <div className="relative mb-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
-          <div ref={mapBoxRef} className="absolute inset-0" />
-          {mapError && (
-            <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-stone-500">
-              {mapError}
-            </div>
-          )}
-          {!mapError && geoItems.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-stone-500">
-              이 지역 맛집의 위치 정보가 아직 없어요.
-            </div>
-          )}
-        </div>
-      )}
+      {/* 지도 뷰 — 목록으로 갔다 와도 깨지지 않게 항상 마운트하고 보일 때만 표시 */}
+      <div
+        className={`relative mb-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 ${
+          view === "map" ? "" : "hidden"
+        }`}
+      >
+        <div ref={mapBoxRef} className="absolute inset-0" />
+        {mapError && (
+          <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-stone-500">
+            {mapError}
+          </div>
+        )}
+        {!mapError && geoItems.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-stone-500">
+            이 지역 맛집의 위치 정보가 아직 없어요.
+          </div>
+        )}
+      </div>
 
       {/* 목록 (지도 밑에 늘 함께 — 핀 번호와 매칭) */}
       <div className="space-y-3">

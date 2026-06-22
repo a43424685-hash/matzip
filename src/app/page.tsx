@@ -47,7 +47,7 @@ export default async function HomePage() {
 
   return (
     <main className="bg-white pb-8">
-      <WelcomeOnboarding loggedIn={!!user} />
+      <WelcomeOnboarding />
       {/* 1. 헤더 (스크롤 시 사라짐 — sticky 아님) */}
       <header className="px-5 pt-4">
         <div className="flex items-center justify-between">
