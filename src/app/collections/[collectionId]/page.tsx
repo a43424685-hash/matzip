@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Share2, MapPin, Lock, Coins, Eye } from "lucide-react";
+import { Share2, MapPin, Lock, Coins, Eye, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import PaymentReturnHandler from "@/components/PaymentReturnHandler";
+import UnlockCelebration from "@/components/UnlockCelebration";
 import {
   getCollectionDetail,
   canSellPaidMaps,
@@ -82,11 +83,31 @@ export default async function CollectionDetailPage({
       <Suspense fallback={null}>
         <PaymentReturnHandler collectionId={col.id} />
       </Suspense>
+      {col.purchased && <UnlockCelebration collectionId={col.id} title={col.title} count={col.itemCount} />}
 
       <div className="px-5 pt-4">
         <Link href={`/collections/${col.id}/share`} className="btn-primary h-12 w-full !text-base">
           <Share2 size={18} /> 이 리스트 공유하기
         </Link>
+
+        {/* 가치 배너 — 판매자 신뢰(데이터) + 인증 집계 (유료·열람 가능 시) */}
+        {col.isPaid && !col.locked && (
+          <div className="mt-4 rounded-2xl border border-forest/20 bg-forest-soft/25 p-4">
+            <p className="flex items-start gap-1.5 text-[13px] font-extrabold text-ink">
+              <ShieldCheck size={15} className="mt-0.5 shrink-0 text-forest" />
+              <span>
+                {col.ownerIsAdmin
+                  ? "운영자가 직접 인증한"
+                  : `Lv.${col.ownerLevel} · 인증 맛집 ${col.ownerVerifiedTotal}곳의 로컬 ${col.ownerNickname}님이 직접 인증한`}{" "}
+                {col.itemCount}곳
+              </span>
+            </p>
+            <p className="mt-1 pl-5 text-[12px] text-ink-muted">
+              위치 인증 {col.verifyStats.location}/{col.verifyStats.total}
+              {col.verifyStats.proof > 0 && ` · 영수증·메뉴 인증 ${col.verifyStats.proof}/${col.verifyStats.total}`}
+            </p>
+          </div>
+        )}
 
         {/* 유료 잠금: 맛보기(무료 공개)만 실제로 보여주고 나머지는 잠금 */}
         {col.locked ? (
@@ -187,6 +208,7 @@ export default async function CollectionDetailPage({
             initialVisited={col.visitedIds}
             initialSaved={col.savedIds}
             canTrack={!!user}
+            isOwner={isOwner}
           />
         )}
 

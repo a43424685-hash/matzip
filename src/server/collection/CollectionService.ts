@@ -207,6 +207,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
         orderBy: { sortOrder: "asc" },
         select: {
           isPreview: true,
+          note: true,
           restaurant: {
             select: { id: true, name: true, latitude: true, longitude: true, primaryRegion: { select: { name: true } } },
           },
@@ -270,6 +271,16 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 
+  // 판매자 신뢰 지표(일반인도 데이터로) + 이 지도의 인증 집계
+  const ownerVerifiedTotal = await prisma.restaurantPost.count({
+    where: { userId: col.userId, locationVerified: true },
+  });
+  const verifyStats = {
+    total: col._count.items,
+    location: col.items.filter((i) => i.post?.locationVerified).length,
+    proof: col.items.filter((i) => i.post?.receiptVerified || i.post?.menuVerified).length,
+  };
+
   return {
     id: col.id,
     title: col.title,
@@ -287,6 +298,8 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     ownerNickname: col.user.nickname,
     ownerLevel: col.user.totalLevel,
     ownerIsAdmin: col.user.isAdmin,
+    ownerVerifiedTotal,
+    verifyStats,
     regionName: col.region.name,
     itemCount: col._count.items,
     previewCount: col.items.filter((i) => i.isPreview).length,
@@ -298,6 +311,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
       longitude: i.restaurant.longitude,
       regionName: i.restaurant.primaryRegion.name,
       isPreview: i.isPreview,
+      note: i.note ?? null,
       postId: i.post?.id ?? null,
       shortReview: i.post?.shortReview ?? null,
       media: i.post?.media[0] ?? null,
@@ -479,4 +493,27 @@ export async function setItemPreview(
     .catch(() => {});
   const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
   return { ok: true, previewCount };
+}
+
+/** 맛집별 큐레이터 '추천 이유' 메모 저장 — 소유자만 (최대 60자) */
+export async function setItemNote(
+  userId: string,
+  collectionId: string,
+  restaurantId: string,
+  note: string
+): Promise<{ ok: boolean; reason?: string }> {
+  const col = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    select: { userId: true },
+  });
+  if (!col) return { ok: false, reason: "NOT_FOUND" };
+  if (col.userId !== userId) return { ok: false, reason: "FORBIDDEN" };
+  const trimmed = note.trim().slice(0, 60);
+  await prisma.collectionItem
+    .update({
+      where: { collectionId_restaurantId: { collectionId, restaurantId } },
+      data: { note: trimmed || null },
+    })
+    .catch(() => {});
+  return { ok: true };
 }

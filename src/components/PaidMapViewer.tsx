@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy, Quote, Pencil } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { CollectionDetail } from "@/server/collection/CollectionService";
 import CardImage from "@/components/CardImage";
@@ -17,6 +18,7 @@ export default function PaidMapViewer({
   initialVisited,
   initialSaved,
   canTrack,
+  isOwner = false,
 }: {
   collectionId: string;
   items: Item[];
@@ -24,8 +26,10 @@ export default function PaidMapViewer({
   initialVisited: string[];
   initialSaved: string[];
   canTrack: boolean;
+  isOwner?: boolean;
 }) {
-  const [view, setView] = useState<"list" | "map">("list");
+  // 지도 상품이므로 '지도'를 먼저, 목록은 둘째
+  const [view, setView] = useState<"map" | "list">("map");
   const [region, setRegion] = useState<string>("전체");
   const [visited, setVisited] = useState<Set<string>>(new Set(initialVisited));
   const [saved, setSaved] = useState<Set<string>>(new Set(initialSaved));
@@ -45,7 +49,6 @@ export default function PaidMapViewer({
     [filtered]
   );
 
-  // 지도 초기화 (지도 보기로 전환됐을 때 1회)
   useEffect(() => {
     if (view !== "map" || mapRef.current) return;
     let cancelled = false;
@@ -69,11 +72,10 @@ export default function PaidMapViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
-  // 필터 바뀌면 마커 다시 그림
   useEffect(() => {
     if (view === "map" && mapRef.current) plotMarkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geoItems, view]);
+  }, [geoItems, view, visited]);
 
   function plotMarkers() {
     const kakao = window.kakao;
@@ -88,17 +90,18 @@ export default function PaidMapViewer({
       const pos = new kakao.maps.LatLng(it.latitude, it.longitude);
       bounds.extend(pos);
       const done = visited.has(it.restaurantId);
+      // 라벨 겹침 방지 — 이름 없이 '번호 핀'만. (이름은 목록 탭에서)
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
-        yAnchor: 1.1,
+        yAnchor: 1,
         content: `
-          <a href="${it.postId ? `/restaurants/${it.postId}` : "#"}" style="
-            display:inline-flex;align-items:center;gap:4px;
-            padding:5px 10px;border-radius:999px;
+          <a href="${it.postId ? `/restaurants/${it.postId}` : "#"}" title="${escapeHtml(it.restaurantName)}" style="
+            display:flex;align-items:center;justify-content:center;
+            width:26px;height:26px;border-radius:999px;
             background:${done ? "#1f4d3f" : "#ffffff"};color:${done ? "#fff" : "#1f2b25"};
-            border:1px solid rgba(31,61,43,.2);font-size:12px;font-weight:800;
-            box-shadow:0 4px 12px rgba(0,0,0,.18);white-space:nowrap;text-decoration:none;">
-            ${idx + 1}. ${escapeHtml(it.restaurantName)}
+            border:2px solid #1f4d3f;font-size:12px;font-weight:900;
+            box-shadow:0 3px 8px rgba(0,0,0,.25);text-decoration:none;">
+            ${idx + 1}
           </a>`,
         map,
       });
@@ -123,7 +126,6 @@ export default function PaidMapViewer({
         body: JSON.stringify({ collectionId, restaurantId: it.restaurantId, visited: next }),
       });
     } catch {
-      // 실패 시 롤백
       setVisited((s) => {
         const n = new Set(s);
         if (next) n.delete(it.restaurantId);
@@ -160,40 +162,55 @@ export default function PaidMapViewer({
 
   const visitedCount = items.filter((i) => visited.has(i.restaurantId)).length;
   const pct = items.length > 0 ? Math.round((visitedCount / items.length) * 100) : 0;
+  const allDone = items.length > 0 && visitedCount === items.length;
 
   return (
     <div className="mt-5">
-      {/* 도장깨기 진행률 */}
+      {/* 도장깨기 진행률 (보상감) */}
       {canTrack && (
-        <div className="mb-3 rounded-2xl border border-forest/20 bg-forest-soft/25 p-4">
+        <div
+          className={`mb-3 rounded-2xl border p-4 ${
+            allDone ? "border-coral/40 bg-coral/10" : "border-forest/20 bg-forest-soft/25"
+          }`}
+        >
           <div className="flex items-center justify-between text-sm font-extrabold text-ink">
             <span className="flex items-center gap-1.5">
-              <Trophy size={16} className="text-forest" /> 맛집 정복
+              <Trophy size={16} className={allDone ? "text-coral-dark" : "text-forest"} /> 맛집 정복
             </span>
             <span className="tabular-nums text-forest">
               {items.length}곳 중 <b>{visitedCount}곳</b>
             </span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
-            <div className="h-full rounded-full bg-forest transition-all" style={{ width: `${pct}%` }} />
+            <div
+              className={`h-full rounded-full transition-all ${allDone ? "bg-coral" : "bg-forest"}`}
+              style={{ width: `${pct}%` }}
+            />
           </div>
+          <p className="mt-2 text-[12px] font-semibold text-ink-muted">
+            {allDone
+              ? "🏆 이 지도를 전부 정복했어요! 대단해요"
+              : visitedCount === 0
+                ? "가본 곳을 '방문'으로 체크해 첫 도장을 찍어보세요"
+                : `${items.length - visitedCount}곳 더 가면 정복 완료!`}
+          </p>
         </div>
       )}
 
-      {/* 목록/지도 토글 */}
+      {/* 지도/목록 토글 (지도 먼저) */}
       <div className="mb-3 flex items-center gap-2">
         <div className="flex rounded-full border border-stone-200 bg-white p-0.5">
-          <button
-            onClick={() => setView("list")}
-            className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] font-bold ${view === "list" ? "bg-forest text-white" : "text-ink-muted"}`}
-          >
-            <List size={15} /> 목록
-          </button>
           <button
             onClick={() => setView("map")}
             className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] font-bold ${view === "map" ? "bg-forest text-white" : "text-ink-muted"}`}
           >
             <MapIcon size={15} /> 지도
+          </button>
+          <button
+            onClick={() => setView("list")}
+            className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] font-bold ${view === "list" ? "bg-forest text-white" : "text-ink-muted"}`}
+          >
+            <List size={15} /> 목록
           </button>
         </div>
       </div>
@@ -210,7 +227,7 @@ export default function PaidMapViewer({
 
       {/* 지도 뷰 */}
       {view === "map" && (
-        <div className="relative mb-3 h-[320px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
+        <div className="relative mb-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
           <div ref={mapBoxRef} className="absolute inset-0" />
           {mapError && (
             <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-stone-500">
@@ -225,7 +242,7 @@ export default function PaidMapViewer({
         </div>
       )}
 
-      {/* 목록 */}
+      {/* 목록 (지도 밑에 늘 함께 — 핀 번호와 매칭) */}
       <div className="space-y-3">
         {filtered.map((it, i) => {
           const isVisited = visited.has(it.restaurantId);
@@ -250,12 +267,20 @@ export default function PaidMapViewer({
                     {it.regionName}
                     {it.categories.length > 0 && ` · ${it.categories.slice(0, 2).join(", ")}`}
                   </div>
-                  {it.shortReview && <p className="mt-0.5 line-clamp-1 text-[13px] text-ink-muted">{it.shortReview}</p>}
                   <div className="mt-1">
                     <VerificationBadges v={it.verification} compact />
                   </div>
                 </Link>
               </div>
+
+              {/* 큐레이터 추천 이유 (큐레이터 한 줄) */}
+              <CuratorNote
+                collectionId={collectionId}
+                restaurantId={it.restaurantId}
+                note={it.note}
+                fallback={it.shortReview}
+                editable={isOwner}
+              />
 
               {/* 액션 바: 길찾기 / 저장 / 방문 */}
               <div className="mt-3 flex items-center gap-2">
@@ -292,6 +317,82 @@ export default function PaidMapViewer({
       </div>
     </div>
   );
+}
+
+/** 큐레이터 추천 이유 — 표시 + (소유자) 인라인 편집 */
+function CuratorNote({
+  collectionId,
+  restaurantId,
+  note,
+  fallback,
+  editable,
+}: {
+  collectionId: string;
+  restaurantId: string;
+  note: string | null;
+  fallback: string | null;
+  editable: boolean;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note ?? "");
+  const [busy, setBusy] = useState(false);
+  const display = note || fallback;
+
+  async function save() {
+    setBusy(true);
+    await fetch("/api/collections/note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId, restaurantId, note: text }),
+    }).catch(() => {});
+    setBusy(false);
+    setEditing(false);
+    router.refresh();
+  }
+
+  if (editing) {
+    return (
+      <div className="mt-2 flex gap-1.5">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={60}
+          autoFocus
+          placeholder="이 집을 추천하는 한 줄 (예: 비 오는 날 국물이 진리)"
+          className="input h-9 flex-1 !text-[13px]"
+        />
+        <button onClick={save} disabled={busy} className="btn-primary h-9 px-3 !text-sm">
+          저장
+        </button>
+      </div>
+    );
+  }
+
+  if (display) {
+    return (
+      <button
+        onClick={() => editable && setEditing(true)}
+        className={`mt-2 flex w-full items-start gap-1.5 rounded-xl bg-forest-soft/30 px-3 py-2 text-left ${editable ? "active:scale-[0.99]" : "cursor-default"}`}
+      >
+        <Quote size={13} className="mt-0.5 shrink-0 text-forest" />
+        <span className="flex-1 text-[13px] font-medium leading-snug text-ink">{display}</span>
+        {editable && <Pencil size={13} className="mt-0.5 shrink-0 text-stone-400" />}
+      </button>
+    );
+  }
+
+  if (editable) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-forest"
+      >
+        <Pencil size={12} /> 추천 이유 한 줄 쓰기
+      </button>
+    );
+  }
+  return null;
 }
 
 function RegionChip({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
