@@ -28,8 +28,8 @@ export default function DetailMediaCarousel({
     setActive(Math.min(Math.max(next, 0), media.length - 1));
   }
 
+  // 위로 당겨 상태바 밑까지 사진을 꽉 채움(풀-블리드) — app-shell의 상단 안전영역 여백 상쇄
   return (
-    {/* 위로 당겨 상태바 밑까지 사진을 꽉 채움(풀-블리드) — app-shell의 상단 안전영역 여백 상쇄 */}
     <section className="relative bg-stone-900 mt-[calc(env(safe-area-inset-top)_*_-1)]">
       <DetailBackButton floating />
 
