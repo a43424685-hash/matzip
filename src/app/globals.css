@@ -13,6 +13,8 @@ body {
 /* 모바일 우선: 본문은 가운데 정렬된 폰 너비 컬럼 */
 .app-shell {
   @apply mx-auto min-h-screen w-full max-w-md bg-white;
+  /* 아이폰 상단 상태바/노치 안전영역 — 모든 페이지 내용이 시간·와이파이와 안 겹치게 */
+  padding-top: env(safe-area-inset-top);
   /* 하단 고정탭(약 3.5rem) + 여유 + 아이폰 홈바 안전영역 */
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }

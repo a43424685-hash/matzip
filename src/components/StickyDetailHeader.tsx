@@ -21,7 +21,7 @@ export default function StickyDetailHeader({ name }: { name: string }) {
 
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-30 mx-auto max-w-md border-b border-stone-200/70 bg-white/90 backdrop-blur transition-all duration-200 ${
+      className={`fixed inset-x-0 top-0 z-30 mx-auto max-w-md border-b border-stone-200/70 bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur transition-all duration-200 ${
         show ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-full opacity-0"
       }`}
     >

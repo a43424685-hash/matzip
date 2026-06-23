@@ -29,11 +29,12 @@ export default function DetailMediaCarousel({
   }
 
   return (
-    <section className="relative bg-stone-900">
+    {/* 위로 당겨 상태바 밑까지 사진을 꽉 채움(풀-블리드) — app-shell의 상단 안전영역 여백 상쇄 */}
+    <section className="relative bg-stone-900 mt-[calc(env(safe-area-inset-top)_*_-1)]">
       <DetailBackButton floating />
 
       {media.length > 1 && (
-        <div className="absolute right-3 top-3 z-10 rounded-full bg-black/50 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
+        <div className="absolute right-3 top-[calc(env(safe-area-inset-top)_+_0.75rem)] z-10 rounded-full bg-black/50 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
           {active + 1} / {media.length}
         </div>
       )}
