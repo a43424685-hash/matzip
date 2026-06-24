@@ -4,7 +4,7 @@ import { getActiveRegions } from "@/server/catalog";
 import {
   getOverallUserRankingCached,
   getRegionUserRankingCached,
-  getMyOverallRank,
+  getOverallRankNeighbors,
 } from "@/server/ranking/RankingService";
 import BackHomeHeader from "@/components/BackHomeHeader";
 import RankingClient, { type MeInfo } from "@/components/RankingClient";
@@ -21,8 +21,8 @@ export default async function RankingsPage({
   const regions = await getActiveRegions();
   const regionId = sp.regionId || regions[0]?.id || "";
   const safeTab = sp.tab === "region" ? "region" : "overall";
-  const [myRank, initialOverall, initialRegion] = await Promise.all([
-    user ? getMyOverallRank(user.id) : Promise.resolve(0),
+  const [neighbors, initialOverall, initialRegion] = await Promise.all([
+    user ? getOverallRankNeighbors(user.id) : Promise.resolve(null),
     getOverallUserRankingCached(),
     regionId ? getRegionUserRankingCached(regionId) : Promise.resolve([]),
   ]);
@@ -33,7 +33,14 @@ export default async function RankingsPage({
   const region = blocked.size > 0 ? initialRegion.filter((r) => !blocked.has(r.userId)) : initialRegion;
 
   const me: MeInfo | null = user
-    ? { userId: user.id, overallRank: myRank, level: user.totalLevel, xp: user.totalXp }
+    ? {
+        userId: user.id,
+        overallRank: neighbors?.myRank ?? 0,
+        level: user.totalLevel,
+        xp: user.totalXp,
+        above: neighbors?.above ?? null,
+        below: neighbors?.below ?? null,
+      }
     : null;
 
   return (

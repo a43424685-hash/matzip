@@ -129,6 +129,54 @@ export async function getMyOverallRank(userId: string): Promise<number> {
   return ahead + 1;
 }
 
+export interface RankNeighbor {
+  rank: number;
+  nickname: string;
+  level: number;
+}
+
+/** 내 전체 순위 + 바로 위/아래 이웃 (100위 밖일 때 내 위치 가늠용). */
+export async function getOverallRankNeighbors(
+  userId: string
+): Promise<{ myRank: number; above: RankNeighbor | null; below: RankNeighbor | null } | null> {
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { totalLevel: true, totalXp: true, isAdmin: true },
+  });
+  if (!me || me.isAdmin) return null;
+
+  const ahead = await prisma.user.count({
+    where: {
+      isAdmin: false,
+      deactivatedAt: null,
+      OR: [
+        { totalLevel: { gt: me.totalLevel } },
+        { totalLevel: me.totalLevel, totalXp: { gt: me.totalXp } },
+      ],
+    },
+  });
+  const myRank = ahead + 1;
+
+  const skip = Math.max(0, myRank - 2);
+  const window = await prisma.user.findMany({
+    where: { isAdmin: false, deactivatedAt: null },
+    orderBy: [{ totalLevel: "desc" }, { totalXp: "desc" }, { createdAt: "asc" }],
+    skip,
+    take: 3,
+    select: { id: true, nickname: true, totalLevel: true },
+  });
+
+  const meIdx = window.findIndex((u) => u.id === userId);
+  const aboveU = meIdx > 0 ? window[meIdx - 1] : null;
+  const belowU = meIdx >= 0 && meIdx < window.length - 1 ? window[meIdx + 1] : null;
+
+  return {
+    myRank,
+    above: aboveU ? { rank: myRank - 1, nickname: aboveU.nickname, level: aboveU.totalLevel } : null,
+    below: belowU ? { rank: myRank + 1, nickname: belowU.nickname, level: belowU.totalLevel } : null,
+  };
+}
+
 /** 내 특정 지역 순위 (없으면 0). */
 export async function getMyRegionRank(userId: string, regionId: string): Promise<number> {
   const me = await prisma.userRegionStat.findUnique({
