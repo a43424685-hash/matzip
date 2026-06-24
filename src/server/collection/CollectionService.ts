@@ -598,11 +598,14 @@ export async function searchCollections(input: {
   excludeUserIds?: string[];
 }): Promise<CollectionSearchResult[]> {
   const { regionId, categoryIds = [], q = "", excludeUserIds = [] } = input;
+  // 멀티 단어 검색: "강남 맛집" → [강남] (흔한 말 '맛집/지도' 제외) → 제목에 토큰 하나라도 포함되면 매칭
+  const STOP = new Set(["맛집", "맛집지도", "지도", "추천", "리스트", "맛집추천", "맛집리스트"]);
+  const tokens = q.trim().split(/\s+/).filter((t) => t.length > 0 && !STOP.has(t));
   const cols = await prisma.collection.findMany({
     where: {
       isPublic: true,
       ...(regionId ? { regionId } : {}),
-      ...(q.trim() ? { title: { contains: q.trim(), mode: "insensitive" as const } } : {}),
+      ...(tokens.length ? { OR: tokens.map((t) => ({ title: { contains: t, mode: "insensitive" as const } })) } : {}),
       ...(categoryIds.length
         ? { items: { some: { post: { categories: { some: { categoryId: { in: categoryIds } } } } } } }
         : {}),

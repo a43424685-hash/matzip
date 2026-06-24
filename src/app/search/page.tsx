@@ -201,29 +201,31 @@ export default async function SearchPage({
         </section>
       )}
 
-      {/* 개별 맛집 결과 */}
-      <div className="mt-6">
-        <p className="mb-3 text-sm text-ink-muted">맛집 {posts.length}곳</p>
-        {posts.length === 0 ? (
-          <EmptyState
-            icon={SearchX}
-            title="조건에 맞는 맛집이 없어요"
-            description="검색어나 필터를 바꿔서 다시 찾아보세요."
-          />
-        ) : (
-          <div className="space-y-4">
-            {posts.map((p) => (
-              <PostCard
-                key={p.id}
-                post={p}
-                liked={likedPosts.has(p.id)}
-                saved={savedRestaurants.has(p.restaurantId)}
-                isLoggedIn={!!user}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* 개별 맛집 결과 — 추천 지도가 있으면 빈 결과는 숨김 */}
+      {(posts.length > 0 || collections.length === 0) && (
+        <div className="mt-6">
+          <p className="mb-3 text-sm text-ink-muted">맛집 {posts.length}곳</p>
+          {posts.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="조건에 맞는 맛집이 없어요"
+              description="검색어나 필터를 바꿔서 다시 찾아보세요."
+            />
+          ) : (
+            <div className="space-y-4">
+              {posts.map((p) => (
+                <PostCard
+                  key={p.id}
+                  post={p}
+                  liked={likedPosts.has(p.id)}
+                  saved={savedRestaurants.has(p.restaurantId)}
+                  isLoggedIn={!!user}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }
