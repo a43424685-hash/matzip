@@ -315,6 +315,28 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     proof: col.items.filter((i) => i.post?.receiptVerified || i.post?.menuVerified).length,
   };
 
+  // 지도 티저용 핀 — 잠긴 가게는 좌표를 흐려(약 ±300m) 정확 위치를 숨긴다(결정적 오프셋).
+  const seedOf = (s: string) => [...s].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const jitter = (v: number, seed: number) => v + (((seed * 9301 + 49297) % 233280) / 233280 - 0.5) * 0.006;
+  const mapPins = col.items
+    .filter((i) => i.restaurant.latitude != null && i.restaurant.longitude != null)
+    .map((i) => {
+      const lockedItem = locked && !i.isPreview;
+      const seed = seedOf(i.restaurant.id);
+      return {
+        lat: lockedItem ? jitter(i.restaurant.latitude as number, seed) : (i.restaurant.latitude as number),
+        lng: lockedItem ? jitter(i.restaurant.longitude as number, seed + 31) : (i.restaurant.longitude as number),
+        locked: lockedItem,
+      };
+    });
+
+  // 잠긴 맛집 티저 — 사진·카테고리만(이름·위치·후기 비공개)
+  const lockedTeasers = locked
+    ? col.items
+        .filter((i) => !i.isPreview)
+        .map((i) => ({ media: i.post?.media[0] ?? null, categories: i.post?.categories.map((c) => c.category.name) ?? [] }))
+    : [];
+
   return {
     id: col.id,
     title: col.title,
@@ -337,6 +359,8 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     regionName: col.region.name,
     itemCount: col._count.items,
     previewCount: col.items.filter((i) => i.isPreview).length,
+    mapPins,
+    lockedTeasers,
     // 잠금 상태면 '맛보기'로 지정된 가게만 노출(나머지는 숨김 — 이름·위치 유출 방지)
     items: (locked ? col.items.filter((i) => i.isPreview) : col.items).map((i) => ({
       restaurantId: i.restaurant.id,

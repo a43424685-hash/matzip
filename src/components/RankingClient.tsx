@@ -52,7 +52,11 @@ export default function RankingClient({
       setMyRowVisible(false);
       return;
     }
-    const obs = new IntersectionObserver(([entry]) => setMyRowVisible(entry.isIntersecting), { threshold: 0.5 });
+    // 하단 바(약 160px)에 가려진 영역은 "안 보임"으로 쳐서, 내 줄이 바를 지나 실제로 드러날 때 흡수되게 함
+    const obs = new IntersectionObserver(([entry]) => setMyRowVisible(entry.isIntersecting), {
+      threshold: 0,
+      rootMargin: "0px 0px -160px 0px",
+    });
     obs.observe(el);
     observerRef.current = obs;
   }, []);
@@ -223,12 +227,15 @@ function MyRankBar({ rows, me, tab, myRowVisible }: { rows: UserRankRow[]; me: M
   const inList = idx >= 0;
   const bottom = "bottom-[calc(4rem_+_env(safe-area-inset-bottom))]";
 
-  // 100위 안 — 내 카드만, 내 줄 보이면 숨김
+  // 100위 안 — 내 카드만. 내 줄이 드러나면 부드럽게 아래로 흡수.
   if (inList) {
-    if (myRowVisible) return null;
     const r = rows[idx];
     return (
-      <div className={`sticky ${bottom} z-30 pt-2`}>
+      <div
+        className={`sticky ${bottom} z-30 pt-2 transition-all duration-200 ease-out ${
+          myRowVisible ? "pointer-events-none translate-y-[140%] opacity-0" : "translate-y-0 opacity-100"
+        }`}
+      >
         <div className="flex items-center gap-3 rounded-2xl bg-forest px-3.5 py-2.5 text-white shadow-[0_12px_30px_rgba(0,0,0,.3)]">
           <span className="w-6 shrink-0 text-center text-base font-black tabular-nums">{r.rank}</span>
           <Avatar url={r.avatarUrl} name={r.nickname} className="h-9 w-9" />
