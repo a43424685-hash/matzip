@@ -13,7 +13,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { REACTION_WEIGHT } from "../xp/xpRules";
 
-export const TOP_N = 50;
+export const TOP_N = 100;
 
 function daysAgo(n: number): Date {
   const d = new Date();
