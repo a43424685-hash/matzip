@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { UserRankRow } from "@/server/ranking/RankingService";
 
 type TabKey = "overall" | "region";
@@ -143,7 +144,7 @@ function PodiumCard({ row, place, me }: { row?: UserRankRow; place: 1 | 2 | 3; m
   if (!row) return <div />;
   const s = PODIUM[place];
   return (
-    <div className="flex flex-col items-center">
+    <Link href={`/u/${row.userId}`} className="flex flex-col items-center">
       {place === 1 && <div className="mb-1 text-2xl leading-none">👑</div>}
       <div className="relative">
         <Avatar url={row.avatarUrl} name={row.nickname} className={`${s.av} ring-[3px] ${s.ring} ${s.glow}`} />
@@ -158,25 +159,27 @@ function PodiumCard({ row, place, me }: { row?: UserRankRow; place: 1 | 2 | 3; m
       <div className={`mt-2 flex w-full items-start justify-center rounded-t-xl pt-1 text-lg font-black text-white/90 ${s.ped}`}>
         {place}
       </div>
-    </div>
+    </Link>
   );
 }
 
 function UserRow({ row, highlight }: { row: UserRankRow; highlight?: boolean }) {
   const isTop10 = row.rank <= 10;
   return (
-    <li
-      className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 ${
-        highlight
-          ? "bg-forest text-white"
-          : isTop10
-            ? "border border-amber-200 bg-amber-50/60"
-            : "bg-white"
-      }`}
-    >
-      <span className={`w-6 shrink-0 text-center text-base font-black tabular-nums ${highlight ? "text-white" : isTop10 ? "text-amber-500" : "text-stone-400"}`}>
-        {row.rank}
-      </span>
+    <li>
+      <Link
+        href={`/u/${row.userId}`}
+        className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 ${
+          highlight
+            ? "bg-forest text-white"
+            : isTop10
+              ? "border border-amber-200 bg-amber-50/60"
+              : "bg-white"
+        }`}
+      >
+        <span className={`w-6 shrink-0 text-center text-base font-black tabular-nums ${highlight ? "text-white" : isTop10 ? "text-amber-500" : "text-stone-400"}`}>
+          {row.rank}
+        </span>
       <Avatar url={row.avatarUrl} name={row.nickname} className="h-11 w-11" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -185,9 +188,10 @@ function UserRow({ row, highlight }: { row: UserRankRow; highlight?: boolean }) 
         </div>
         <div className={`text-[11px] tabular-nums ${highlight ? "text-white/70" : "text-stone-400"}`}>{row.xp.toLocaleString()} XP</div>
       </div>
-      <span className={`rounded-lg px-2.5 py-1 text-[15px] font-black ${highlight ? "bg-white/20 text-white" : "bg-forest-soft text-forest"}`}>
-        Lv.{row.level}
-      </span>
+        <span className={`rounded-lg px-2.5 py-1 text-[15px] font-black ${highlight ? "bg-white/20 text-white" : "bg-forest-soft text-forest"}`}>
+          Lv.{row.level}
+        </span>
+      </Link>
     </li>
   );
 }

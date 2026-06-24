@@ -1,0 +1,119 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { MapPin, Lock } from "lucide-react";
+import { prisma } from "@/lib/db";
+import { getMyOverallRank } from "@/server/ranking/RankingService";
+import DetailBackButton from "@/components/DetailBackButton";
+import OfficialBadge from "@/components/OfficialBadge";
+
+export const dynamic = "force-dynamic";
+
+export default async function UserProfilePage({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, nickname: true, avatarUrl: true, totalLevel: true, totalXp: true, isAdmin: true, deactivatedAt: true },
+  });
+  if (!user || user.deactivatedAt) notFound();
+
+  const [rank, posts, maps] = await Promise.all([
+    getMyOverallRank(userId),
+    prisma.restaurantPost.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: {
+        id: true,
+        shortReview: true,
+        restaurant: { select: { name: true } },
+        media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
+      },
+    }),
+    prisma.collection.findMany({
+      where: { userId, isPaid: true, isPublic: true },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, priceWon: true, _count: { select: { items: true } } },
+    }),
+  ]);
+
+  return (
+    <main className="px-5 pb-10 pt-5">
+      <header className="mb-5 flex items-center gap-3">
+        <DetailBackButton />
+        <h1 className="text-lg font-extrabold text-ink">프로필</h1>
+      </header>
+
+      {/* 프로필 헤더 */}
+      <section className="flex items-center gap-4">
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-forest-soft ring-2 ring-forest/15">
+          {user.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-2xl font-black text-forest">{user.nickname.slice(0, 1)}</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-xl font-extrabold text-ink">{user.nickname}</span>
+            {user.isAdmin && <OfficialBadge size={18} />}
+            <span className="badge-lv shrink-0">Lv.{user.totalLevel}</span>
+          </div>
+          <div className="mt-1 flex items-center gap-3 text-[13px] text-ink-muted">
+            <span>전체 <b className="text-ink">{rank > 0 ? `${rank}위` : "—"}</b></span>
+            <span className="tabular-nums">{user.totalXp.toLocaleString()} XP</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 유료 지도 */}
+      {maps.length > 0 && (
+        <section className="mt-7">
+          <h2 className="mb-3 text-[15px] font-extrabold text-ink">판매 중인 맛집 지도</h2>
+          <div className="space-y-2.5">
+            {maps.map((m) => (
+              <Link key={m.id} href={`/collections/${m.id}`} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest-soft text-forest">
+                  <MapPin size={20} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-ink">{m.title}</div>
+                  <div className="text-[12px] text-ink-muted">맛집 {m._count.items}곳</div>
+                </div>
+                <span className="shrink-0 text-sm font-black text-forest">{(m.priceWon ?? 0).toLocaleString()}원</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 등록한 맛집 */}
+      <section className="mt-7">
+        <h2 className="mb-3 text-[15px] font-extrabold text-ink">등록한 맛집 {posts.length > 0 && <span className="text-ink-muted">{posts.length}</span>}</h2>
+        {posts.length === 0 ? (
+          <p className="rounded-2xl bg-stone-50 py-8 text-center text-sm text-ink-muted">아직 등록한 맛집이 없어요.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {posts.map((p) => (
+              <Link key={p.id} href={`/restaurants/${p.id}`} className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white">
+                <div className="aspect-[4/3] w-full bg-stone-100">
+                  {p.media[0]?.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.media[0].url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-stone-300"><Lock size={20} /></span>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <div className="truncate text-[13px] font-bold text-ink">{p.restaurant.name}</div>
+                  {p.shortReview && <div className="mt-0.5 truncate text-[11px] text-ink-muted">{p.shortReview}</div>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
