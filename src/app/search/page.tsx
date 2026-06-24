@@ -1,5 +1,9 @@
-import { SlidersHorizontal, SearchX } from "lucide-react";
+import Link from "next/link";
+import { SlidersHorizontal, SearchX, Coins, Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { searchCollections } from "@/server/collection/CollectionService";
+import { getMyOverallRank } from "@/server/ranking/RankingService";
+import OfficialBadge from "@/components/OfficialBadge";
 import EmptyState from "@/components/EmptyState";
 import { getActiveRegions, getActiveCategories, groupCategoriesByType } from "@/server/catalog";
 import {
@@ -57,19 +61,27 @@ export default async function SearchPage({
     .slice(0, 8);
   const recommendedIds = new Set(recommended.map((c) => c.id));
 
+  const blocked = await getBlockedIds(user?.id ?? null);
   const posts = await searchPosts({
     regionId: regionId || null,
     priceRange: priceRange || null,
     categoryIds,
     sort,
     q,
-    excludeUserIds: await getBlockedIds(user?.id ?? null),
+    excludeUserIds: blocked,
   });
   const { likedPosts, savedRestaurants } = await getViewerReactions(
     user?.id ?? null,
     posts.map((p) => p.id),
     posts.map((p) => p.restaurantId)
   );
+
+  // 검색 의도(지역·상황·키워드)가 있을 때만 추천 큐레이션 지도 노출 — 신뢰순
+  const hasQuery = !!(regionId || q.trim() || categoryIds.length);
+  const collections = hasQuery
+    ? await searchCollections({ regionId: regionId || null, categoryIds, q, excludeUserIds: blocked })
+    : [];
+  const colRanks = await Promise.all(collections.map((c) => getMyOverallRank(c.ownerId)));
 
   return (
     <main className="px-5 py-6">
@@ -144,9 +156,54 @@ export default async function SearchPage({
         </button>
       </form>
 
-      {/* 결과 */}
+      {/* 추천 큐레이션 지도 — 신뢰순 (검증된 미식가의 정리된 리스트) */}
+      {collections.length > 0 && (
+        <section className="mt-6">
+          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-extrabold text-ink">
+            <Coins size={16} className="text-forest" /> 추천 맛집 지도
+            <span className="font-bold text-ink-muted">{collections.length}</span>
+          </h2>
+          <div className="space-y-2.5">
+            {collections.map((c, i) => (
+              <Link
+                key={c.id}
+                href={`/collections/${c.id}`}
+                className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3"
+              >
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                  {c.thumbnailUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.thumbnailUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-ink">{c.title}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ink-muted">
+                    <span className="rounded bg-coral px-1 py-0.5 text-[10px] font-extrabold text-white">Lv.{c.ownerLevel}</span>
+                    {colRanks[i] > 0 && (
+                      <span className="flex items-center gap-0.5 font-bold text-amber-600">
+                        <Trophy size={10} /> 전체 {colRanks[i]}위
+                      </span>
+                    )}
+                    <span className="font-semibold text-ink">{c.ownerNickname}</span>
+                    {c.ownerIsAdmin && <OfficialBadge size={13} />}
+                    <span>· {c.regionName} · {c.itemCount}곳</span>
+                  </div>
+                </div>
+                {c.isPaid ? (
+                  <span className="shrink-0 text-sm font-black text-forest">{(c.priceWon ?? 0).toLocaleString()}원</span>
+                ) : (
+                  <span className="shrink-0 rounded-md bg-forest-soft px-1.5 py-0.5 text-[11px] font-bold text-forest">무료</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 개별 맛집 결과 */}
       <div className="mt-6">
-        <p className="mb-3 text-sm text-ink-muted">{posts.length}개 결과</p>
+        <p className="mb-3 text-sm text-ink-muted">맛집 {posts.length}곳</p>
         {posts.length === 0 ? (
           <EmptyState
             icon={SearchX}

@@ -24,8 +24,8 @@ export default function MapTeaser({ pins }: { pins: Pin[] }) {
           center: new kakao.maps.LatLng(avgLat, avgLng),
           level: 6, // 동네 단위 — 골목까지 못 보게 고정
         });
-        map.setZoomable(false);
-        map.setDraggable(false);
+        map.setZoomable(false); // 확대 막아 정확 위치(골목) 숨김
+        // 이동(드래그)은 허용 — 분포를 둘러볼 수 있게
         for (const p of pins) {
           new kakao.maps.Marker({ position: new kakao.maps.LatLng(p.lat, p.lng), map });
         }

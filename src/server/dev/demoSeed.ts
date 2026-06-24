@@ -36,6 +36,12 @@ const SPOTS = [
   { name: "성북동 전통찻집", short: "조용히 차 한잔", tags: ["조용함", "카페"], price: "10k_20k" },
   { name: "강남 우동집", short: "사누키 우동 쫄깃", tags: ["혼밥"], price: "under_10k" },
   { name: "한남 와인바", short: "분위기 끝, 데이트용", tags: ["분위기", "바/와인"], price: "over_40k" },
+  { name: "삼각지 평양냉면", short: "슴슴한 육수의 정석", tags: ["노포"], price: "10k_20k" },
+  { name: "을지로 노가리골목", short: "퇴근 후 노가리에 맥주", tags: ["야장", "술집"], price: "under_10k" },
+  { name: "성수 베이커리카페", short: "크루아상 겉바속촉", tags: ["카페", "베이커리"], price: "10k_20k" },
+  { name: "방배 스시오마카세", short: "가성비 오마카세 갑", tags: ["데이트"], price: "over_40k" },
+  { name: "공덕 곱창골목", short: "직화 막창 미쳤다", tags: ["회식", "술집"], price: "20k_40k" },
+  { name: "북촌 칼국수", short: "손칼국수 + 보쌈 조합", tags: ["가족", "노포"], price: "under_10k" },
 ];
 
 const img = (seed: string) => `https://picsum.photos/seed/${seed}/600/450`;
@@ -83,26 +89,40 @@ export async function runDemoSeed() {
     })
   );
 
-  // 2) 상위 6명에게 맛집 3곳씩 (맛집+글+사진)
+  // 2) 맛집+글+사진 — 상위 3명(유료지도 보유)은 20곳, 4~6위는 3곳. 좌표는 서울 곳곳 분산.
+  const countFor = (u: number) => (u < 3 ? 20 : 3);
+  // 각 크리에이터 = 한 동네에 집중 → 지도 티저에 그 동네 핀이 쫙 깔림
+  const CENTERS = [
+    { lat: 37.498, lng: 127.027 }, // 강남
+    { lat: 37.544, lng: 127.056 }, // 성수
+    { lat: 37.556, lng: 126.923 }, // 홍대
+    { lat: 37.571, lng: 126.991 }, // 종로
+    { lat: 37.534, lng: 126.994 }, // 이태원
+    { lat: 37.521, lng: 126.924 }, // 여의도
+  ];
   for (let u = 0; u < 6; u++) {
     const userId = `demo-u${u + 1}`;
+    const n = countFor(u);
     await Promise.all(
-      [0, 1, 2].map(async (j) => {
-        const spot = SPOTS[(u * 3 + j) % SPOTS.length];
+      Array.from({ length: n }, (_, j) => j).map(async (j) => {
+        const spot = SPOTS[(u * 7 + j) % SPOTS.length];
         const rid = `demo-r-${u + 1}-${j + 1}`;
         const pid = `demo-p-${u + 1}-${j + 1}`;
+        const c = CENTERS[u];
+        const lat = c.lat + (((j * 37) % 16) - 8) / 1000; // 동네 중심 ±0.8km로 군집
+        const lng = c.lng + (((j * 53) % 16) - 8) / 1000;
         await prisma.restaurant.upsert({
           where: { id: rid },
-          update: { name: spot.name },
+          update: { name: spot.name, latitude: lat, longitude: lng },
           create: {
             id: rid,
             name: spot.name,
             primaryRegionId: regionId,
             createdByUserId: userId,
             address: "서울특별시",
-            latitude: 37.55 + (j + u) * 0.004,
-            longitude: 126.97 + (j + u) * 0.004,
-            saveCount: 20 + j * 13,
+            latitude: lat,
+            longitude: lng,
+            saveCount: 15 + ((j * 17) % 80),
           },
         });
         await prisma.restaurantPost.upsert({
@@ -115,8 +135,8 @@ export async function runDemoSeed() {
             shortReview: spot.short,
             atmosphereTags: spot.tags,
             priceRange: spot.price,
-            likeCount: 12 + j * 9,
-            saveCount: 20 + j * 11,
+            likeCount: 8 + ((j * 13) % 60),
+            saveCount: 12 + ((j * 19) % 80),
             locationVerified: true,
             visitedAt: now,
           },
@@ -145,7 +165,7 @@ export async function runDemoSeed() {
       create: { id: cid, userId, title: MAPS[u].title, description: "검증된 미식가의 인증 맛집 모음", regionId, isPaid: true, priceWon: MAPS[u].price, isPublic: true },
     });
     await Promise.all(
-      [0, 1, 2].map((j) =>
+      Array.from({ length: countFor(u) }, (_, j) => j).map((j) =>
         prisma.collectionItem.upsert({
           where: { id: `demo-ci-${u + 1}-${j + 1}` },
           update: {},

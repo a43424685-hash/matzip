@@ -575,3 +575,69 @@ export async function setItemNote(
     .catch(() => {});
   return { ok: true };
 }
+
+export interface CollectionSearchResult {
+  id: string;
+  title: string;
+  regionName: string;
+  isPaid: boolean;
+  priceWon: number | null;
+  itemCount: number;
+  ownerId: string;
+  ownerNickname: string;
+  ownerLevel: number;
+  ownerIsAdmin: boolean;
+  thumbnailUrl: string | null;
+}
+
+/** 검색(지역+상황+키워드)에 맞는 공개 큐레이션 지도 — 크리에이터 신뢰(레벨/경험치)순. */
+export async function searchCollections(input: {
+  regionId?: string | null;
+  categoryIds?: string[];
+  q?: string;
+  excludeUserIds?: string[];
+}): Promise<CollectionSearchResult[]> {
+  const { regionId, categoryIds = [], q = "", excludeUserIds = [] } = input;
+  const cols = await prisma.collection.findMany({
+    where: {
+      isPublic: true,
+      ...(regionId ? { regionId } : {}),
+      ...(q.trim() ? { title: { contains: q.trim(), mode: "insensitive" as const } } : {}),
+      ...(categoryIds.length
+        ? { items: { some: { post: { categories: { some: { categoryId: { in: categoryIds } } } } } } }
+        : {}),
+      ...(excludeUserIds.length ? { userId: { notIn: excludeUserIds } } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+      isPaid: true,
+      priceWon: true,
+      region: { select: { name: true } },
+      user: { select: { id: true, nickname: true, totalLevel: true, totalXp: true, isAdmin: true } },
+      _count: { select: { items: true } },
+      items: {
+        take: 1,
+        orderBy: { sortOrder: "asc" },
+        select: { post: { select: { media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true } } } } },
+      },
+    },
+    take: 40,
+  });
+
+  // 신뢰순 = 크리에이터 랭킹 순서(레벨→경험치). fallback: 고랭커 없어도 매칭된 지도 다 노출.
+  cols.sort((a, b) => b.user.totalLevel - a.user.totalLevel || b.user.totalXp - a.user.totalXp);
+  return cols.slice(0, 12).map((c) => ({
+    id: c.id,
+    title: c.title,
+    regionName: c.region.name,
+    isPaid: c.isPaid,
+    priceWon: c.priceWon,
+    itemCount: c._count.items,
+    ownerId: c.user.id,
+    ownerNickname: c.user.nickname,
+    ownerLevel: c.user.totalLevel,
+    ownerIsAdmin: c.user.isAdmin,
+    thumbnailUrl: c.items[0]?.post?.media[0]?.thumbnailUrl ?? c.items[0]?.post?.media[0]?.url ?? null,
+  }));
+}
