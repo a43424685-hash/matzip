@@ -10,16 +10,23 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "region", label: "지역" },
 ];
 
+export interface MeInfo {
+  userId: string;
+  overallRank: number;
+  level: number;
+  xp: number;
+}
+
 export default function RankingClient({
   initialTab,
-  userId,
+  me,
   regions,
   initialRegionId,
   initialOverall,
   initialRegion,
 }: {
   initialTab: TabKey;
-  userId: string | null;
+  me: MeInfo | null;
   regions: { id: string; name: string }[];
   initialRegionId: string;
   initialOverall: UserRankRow[];
@@ -52,10 +59,11 @@ export default function RankingClient({
   }
 
   const regionValue = useMemo(() => regionId || regions[0]?.id || "", [regionId, regions]);
+  const rows = tab === "overall" ? overallRows : regionRows;
 
   return (
-    <section className="mt-6">
-      <div className="mb-3 flex gap-1.5">
+    <section className="mt-2">
+      <div className="mb-4 flex gap-1.5">
         {TABS.map((item) => (
           <button key={item.key} type="button" onClick={() => fetchRows(item.key)} className={item.key === tab ? "chip-on" : "chip-off"}>
             {item.label}
@@ -74,8 +82,10 @@ export default function RankingClient({
       )}
 
       {loading && <p className="mb-3 text-center text-[12px] text-stone-400">불러오는 중...</p>}
-      {tab === "overall" && <RankList rows={overallRows} userId={userId} emptyText="아직 랭킹이 없어요. 첫 맛집을 등록해보세요." />}
-      {tab === "region" && <RankList rows={regionRows} userId={userId} emptyText="이 지역은 아직 랭킹이 없어요." />}
+
+      <RankList rows={rows} meId={me?.userId ?? null} emptyText={tab === "overall" ? "아직 랭킹이 없어요. 첫 맛집을 등록해보세요." : "이 지역은 아직 랭킹이 없어요."} />
+
+      {me && <MyRankBar rows={rows} me={me} tab={tab} />}
     </section>
   );
 }
@@ -94,17 +104,17 @@ function Avatar({ url, name, className, ring }: { url: string | null; name: stri
   );
 }
 
-function RankList({ rows, userId, emptyText }: { rows: UserRankRow[]; userId: string | null; emptyText: string }) {
-  if (rows.length === 0) return <p className="py-8 text-center text-sm text-ink-muted">{emptyText}</p>;
+function RankList({ rows, meId, emptyText }: { rows: UserRankRow[]; meId: string | null; emptyText: string }) {
+  if (rows.length === 0) return <p className="py-10 text-center text-sm text-ink-muted">{emptyText}</p>;
   const top = rows.slice(0, 3);
   const rest = rows.slice(3);
   return (
     <>
-      <Podium rows={top} userId={userId} />
+      <Podium rows={top} meId={meId} />
       {rest.length > 0 && (
-        <ol className="mt-4 divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200/80">
+        <ol className="mt-5 space-y-1.5 pb-2">
           {rest.map((row) => (
-            <UserRow key={row.userId} row={row} highlight={!!userId && row.userId === userId} />
+            <UserRow key={row.userId} row={row} highlight={!!meId && row.userId === meId} />
           ))}
         </ol>
       )}
@@ -113,18 +123,18 @@ function RankList({ rows, userId, emptyText }: { rows: UserRankRow[]; userId: st
 }
 
 const PODIUM = {
-  1: { medal: "🥇", ring: "ring-amber-400", ped: "h-24 bg-gradient-to-b from-amber-300 to-amber-400", av: "h-20 w-20", glow: "shadow-[0_10px_28px_rgba(251,191,36,.45)]" },
-  2: { medal: "🥈", ring: "ring-slate-300", ped: "h-16 bg-gradient-to-b from-slate-200 to-slate-300", av: "h-16 w-16", glow: "" },
-  3: { medal: "🥉", ring: "ring-orange-300", ped: "h-12 bg-gradient-to-b from-orange-200 to-orange-300", av: "h-16 w-16", glow: "" },
+  1: { medal: "🥇", ring: "ring-amber-400", ped: "h-20 bg-gradient-to-b from-amber-300 to-amber-400", av: "h-[4.5rem] w-[4.5rem]", glow: "shadow-[0_12px_30px_rgba(251,191,36,.5)]" },
+  2: { medal: "🥈", ring: "ring-slate-300", ped: "h-14 bg-gradient-to-b from-slate-200 to-slate-300", av: "h-16 w-16", glow: "" },
+  3: { medal: "🥉", ring: "ring-amber-600/60", ped: "h-10 bg-gradient-to-b from-amber-600/40 to-amber-700/40", av: "h-16 w-16", glow: "" },
 } as const;
 
-function Podium({ rows, userId }: { rows: UserRankRow[]; userId: string | null }) {
+function Podium({ rows, meId }: { rows: UserRankRow[]; meId: string | null }) {
   if (rows.length === 0) return null;
   return (
-    <section className="grid grid-cols-3 items-end gap-2 rounded-3xl bg-gradient-to-b from-forest/5 to-transparent px-2 pt-4">
-      <PodiumCard row={rows[1]} place={2} me={!!userId && rows[1]?.userId === userId} />
-      <PodiumCard row={rows[0]} place={1} me={!!userId && rows[0]?.userId === userId} />
-      <PodiumCard row={rows[2]} place={3} me={!!userId && rows[2]?.userId === userId} />
+    <section className="grid grid-cols-3 items-end gap-2">
+      <PodiumCard row={rows[1]} place={2} me={!!meId && rows[1]?.userId === meId} />
+      <PodiumCard row={rows[0]} place={1} me={!!meId && rows[0]?.userId === meId} />
+      <PodiumCard row={rows[2]} place={3} me={!!meId && rows[2]?.userId === meId} />
     </section>
   );
 }
@@ -134,18 +144,18 @@ function PodiumCard({ row, place, me }: { row?: UserRankRow; place: 1 | 2 | 3; m
   const s = PODIUM[place];
   return (
     <div className="flex flex-col items-center">
-      {place === 1 && <div className="mb-0.5 text-xl leading-none">👑</div>}
+      {place === 1 && <div className="mb-1 text-2xl leading-none">👑</div>}
       <div className="relative">
-        <Avatar url={row.avatarUrl} name={row.nickname} className={`${s.av} ring-4 ${s.ring} ${s.glow}`} />
-        <span className="absolute -bottom-1 -right-1 text-lg leading-none drop-shadow">{s.medal}</span>
+        <Avatar url={row.avatarUrl} name={row.nickname} className={`${s.av} ring-[3px] ${s.ring} ${s.glow}`} />
+        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-xl leading-none drop-shadow">{s.medal}</span>
       </div>
-      <div className="mt-2 flex max-w-full items-center gap-1">
+      <div className="mt-2.5 flex max-w-full items-center gap-1">
         <span className="truncate text-[13px] font-extrabold text-ink">{row.nickname}</span>
-        {me && <span className="rounded-full bg-forest px-1.5 py-0.5 text-[9px] font-bold text-white">나</span>}
+        {me && <span className="shrink-0 rounded-full bg-forest px-1.5 py-0.5 text-[9px] font-bold text-white">나</span>}
       </div>
-      <div className="text-[12px] font-black text-forest">Lv.{row.level}</div>
+      <div className="mt-0.5 text-[13px] font-black text-forest">Lv.{row.level}</div>
       <div className="text-[10px] tabular-nums text-stone-400">{row.xp.toLocaleString()} XP</div>
-      <div className={`mt-2 flex w-full items-start justify-center rounded-t-xl pt-1.5 text-base font-black text-white/90 ${s.ped}`}>
+      <div className={`mt-2 flex w-full items-start justify-center rounded-t-xl pt-1 text-lg font-black text-white/90 ${s.ped}`}>
         {place}
       </div>
     </div>
@@ -153,18 +163,68 @@ function PodiumCard({ row, place, me }: { row?: UserRankRow; place: 1 | 2 | 3; m
 }
 
 function UserRow({ row, highlight }: { row: UserRankRow; highlight?: boolean }) {
+  const isTop10 = row.rank <= 10;
   return (
-    <li className={`flex items-center gap-3 px-3.5 py-3 ${highlight ? "bg-forest-soft" : "bg-white"}`}>
-      <span className="w-7 shrink-0 text-center text-sm font-black tabular-nums text-stone-400">{row.rank}</span>
-      <Avatar url={row.avatarUrl} name={row.nickname} className="h-10 w-10" />
+    <li
+      className={`flex items-center gap-3 rounded-2xl px-3.5 py-2.5 ${
+        highlight
+          ? "bg-forest text-white"
+          : isTop10
+            ? "border border-amber-200 bg-amber-50/60"
+            : "bg-white"
+      }`}
+    >
+      <span className={`w-6 shrink-0 text-center text-base font-black tabular-nums ${highlight ? "text-white" : isTop10 ? "text-amber-500" : "text-stone-400"}`}>
+        {row.rank}
+      </span>
+      <Avatar url={row.avatarUrl} name={row.nickname} className="h-11 w-11" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-bold text-ink">{row.nickname}</span>
-          {highlight && <span className="rounded-full bg-forest px-1.5 py-0.5 text-[10px] font-bold text-white">나</span>}
+          <span className="truncate text-[15px] font-bold">{row.nickname}</span>
+          {highlight && <span className="shrink-0 rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold">나</span>}
         </div>
-        <div className="text-[11px] tabular-nums text-stone-400">{row.xp.toLocaleString()} XP</div>
+        <div className={`text-[11px] tabular-nums ${highlight ? "text-white/70" : "text-stone-400"}`}>{row.xp.toLocaleString()} XP</div>
       </div>
-      <span className="rounded-lg bg-forest-soft px-2.5 py-1 text-sm font-black text-forest">Lv.{row.level}</span>
+      <span className={`rounded-lg px-2.5 py-1 text-[15px] font-black ${highlight ? "bg-white/20 text-white" : "bg-forest-soft text-forest"}`}>
+        Lv.{row.level}
+      </span>
     </li>
+  );
+}
+
+/** 하단 고정 — 내 순위 + 바로 위/아래 이웃 (스크롤해도 항상 보임). */
+function MyRankBar({ rows, me, tab }: { rows: UserRankRow[]; me: MeInfo; tab: TabKey }) {
+  const idx = rows.findIndex((r) => r.userId === me.userId);
+  const inList = idx >= 0;
+  const above = inList && idx > 0 ? rows[idx - 1] : null;
+  const below = inList && idx < rows.length - 1 ? rows[idx + 1] : null;
+  const myRank = inList ? rows[idx].rank : tab === "overall" ? me.overallRank : 0;
+  const myLevel = inList ? rows[idx].level : me.level;
+
+  return (
+    <div className="sticky bottom-[5.5rem] z-30 mt-4">
+      <div className="rounded-2xl bg-ink/95 px-3 py-2.5 text-white shadow-[0_10px_30px_rgba(0,0,0,.28)] backdrop-blur">
+        <div className="mb-1 px-1 text-[10px] font-bold text-white/50">내 순위</div>
+        <div className="flex items-stretch gap-1.5">
+          <NeighborCell row={above} dim />
+          <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-forest px-2 py-1.5">
+            <span className="text-base font-black tabular-nums">{myRank > 0 ? `#${myRank}` : "순위권 밖"}</span>
+            <span className="text-[11px] font-bold text-white/70">Lv.{myLevel}</span>
+          </div>
+          <NeighborCell row={below} dim />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NeighborCell({ row, dim }: { row: UserRankRow | null; dim?: boolean }) {
+  if (!row) return <div className="flex-1" />;
+  return (
+    <div className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-2 py-1.5 ${dim ? "opacity-70" : ""}`}>
+      <span className="text-[11px] font-black tabular-nums text-white/80">#{row.rank}</span>
+      <span className="max-w-[3.5rem] truncate text-[11px] text-white/70">{row.nickname}</span>
+      <span className="text-[10px] font-bold text-white/50">Lv.{row.level}</span>
+    </div>
   );
 }

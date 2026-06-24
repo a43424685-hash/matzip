@@ -323,7 +323,7 @@ export async function refreshRankingCache(): Promise<void> {
 // 시간 기반으로 자동 재계산(revalidate), 배치(cron)에서 revalidateTag("rankings")로 즉시 갱신.
 // 함수 인자(regionId 등)는 캐시 키에 자동 포함된다.
 // ─────────────────────────────────────────────────────────────
-const RANKING_REVALIDATE = 600; // 10분
+const RANKING_REVALIDATE = 300; // 5분
 
 export const getOverallUserRankingCached = unstable_cache(
   (limit: number = TOP_N) => getOverallUserRanking(limit),
