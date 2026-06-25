@@ -42,6 +42,12 @@ export async function GET(request: Request) {
 
   const user = await getCurrentUser();
   const blockedIds = await getBlockedIds(user?.id ?? null);
+  // 유료/무료 분리: 유료 지도에 잠긴(맛보기 아님) 글은 주변(무료)에서 제외
+  const lockedItems = await prisma.collectionItem.findMany({
+    where: { isPreview: false, postId: { not: null }, collection: { isPaid: true } },
+    select: { postId: true },
+  });
+  const lockedIds = lockedItems.map((l) => l.postId).filter((x): x is string => !!x);
   const posts = await prisma.restaurantPost.findMany({
     where: {
       restaurant: {
@@ -51,6 +57,7 @@ export async function GET(request: Request) {
       OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
       user: { deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
+      ...(lockedIds.length > 0 ? { id: { notIn: lockedIds } } : {}),
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
     take: 200,

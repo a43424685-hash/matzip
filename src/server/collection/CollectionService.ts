@@ -592,24 +592,40 @@ export interface CollectionSearchResult {
 
 /** 검색(지역+상황+키워드)에 맞는 공개 큐레이션 지도 — 크리에이터 신뢰(레벨/경험치)순. */
 export async function searchCollections(input: {
+  coords?: { lat: number; lng: number } | null;
   regionId?: string | null;
   categoryIds?: string[];
-  q?: string;
   excludeUserIds?: string[];
+  radiusKm?: number;
 }): Promise<CollectionSearchResult[]> {
-  const { regionId, categoryIds = [], q = "", excludeUserIds = [] } = input;
-  // 멀티 단어 검색: "강남 맛집" → [강남] (흔한 말 '맛집/지도' 제외) → 제목에 토큰 하나라도 포함되면 매칭
-  const STOP = new Set(["맛집", "맛집지도", "지도", "추천", "리스트", "맛집추천", "맛집리스트"]);
-  const tokens = q.trim().split(/\s+/).filter((t) => t.length > 0 && !STOP.has(t));
+  const { coords, regionId, categoryIds = [], excludeUserIds = [], radiusKm = 2 } = input;
+  // 위치(좌표) = 지오코딩 결과 주변 반경(바운딩 박스) 내 맛집을 가진 지도. 상황 = 카테고리.
+  const dLat = radiusKm / 111;
+  const dLng = coords ? radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180)) : 0;
   const cols = await prisma.collection.findMany({
     where: {
       isPublic: true,
       ...(regionId ? { regionId } : {}),
-      ...(tokens.length ? { OR: tokens.map((t) => ({ title: { contains: t, mode: "insensitive" as const } })) } : {}),
-      ...(categoryIds.length
-        ? { items: { some: { post: { categories: { some: { categoryId: { in: categoryIds } } } } } } }
-        : {}),
       ...(excludeUserIds.length ? { userId: { notIn: excludeUserIds } } : {}),
+      AND: [
+        ...(coords
+          ? [
+              {
+                items: {
+                  some: {
+                    restaurant: {
+                      latitude: { gte: coords.lat - dLat, lte: coords.lat + dLat },
+                      longitude: { gte: coords.lng - dLng, lte: coords.lng + dLng },
+                    },
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(categoryIds.length
+          ? [{ items: { some: { post: { categories: { some: { categoryId: { in: categoryIds } } } } } } }]
+          : []),
+      ],
     },
     select: {
       id: true,

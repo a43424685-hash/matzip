@@ -2,7 +2,8 @@ import Link from "next/link";
 import { SlidersHorizontal, SearchX, Coins, Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { searchCollections } from "@/server/collection/CollectionService";
-import { getMyOverallRank } from "@/server/ranking/RankingService";
+import { geocodeKeyword } from "@/lib/kakaoGeocode";
+import { getMyOverallRank, getTopRankerIds } from "@/server/ranking/RankingService";
 import OfficialBadge from "@/components/OfficialBadge";
 import EmptyState from "@/components/EmptyState";
 import { getActiveRegions, getActiveCategories, groupCategoriesByType } from "@/server/catalog";
@@ -77,11 +78,14 @@ export default async function SearchPage({
   );
 
   // 검색 의도(지역·상황·키워드)가 있을 때만 추천 큐레이션 지도 노출 — 신뢰순
+  // 위치는 지오코딩(검색어→좌표)으로 받고, 상황은 카테고리로. "충무로역 3번출구" 같은 것도 좌표로 해석됨.
   const hasQuery = !!(regionId || q.trim() || categoryIds.length);
+  const coords = q.trim() ? await geocodeKeyword(q) : null;
   const collections = hasQuery
-    ? await searchCollections({ regionId: regionId || null, categoryIds, q, excludeUserIds: blocked })
+    ? await searchCollections({ coords, regionId: regionId || null, categoryIds, excludeUserIds: blocked })
     : [];
   const colRanks = await Promise.all(collections.map((c) => getMyOverallRank(c.ownerId)));
+  const topRankers = await getTopRankerIds();
 
   return (
     <main className="px-5 py-6">
@@ -220,6 +224,7 @@ export default async function SearchPage({
                   liked={likedPosts.has(p.id)}
                   saved={savedRestaurants.has(p.restaurantId)}
                   isLoggedIn={!!user}
+                  authorIsRanker={topRankers.has(p.authorId)}
                 />
               ))}
             </div>

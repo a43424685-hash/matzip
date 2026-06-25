@@ -17,10 +17,17 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
   });
   if (!user || user.deactivatedAt) notFound();
 
+  // 유료/무료 분리: 유료 지도에 잠긴(맛보기 아님) 글은 무료 프로필 목록에서 제외
+  const lockedRows = await prisma.collectionItem.findMany({
+    where: { isPreview: false, postId: { not: null }, collection: { userId, isPaid: true } },
+    select: { postId: true },
+  });
+  const lockedIds = lockedRows.map((r) => r.postId).filter((x): x is string => !!x);
+
   const [rank, posts, maps] = await Promise.all([
     getMyOverallRank(userId),
     prisma.restaurantPost.findMany({
-      where: { userId },
+      where: { userId, ...(lockedIds.length ? { id: { notIn: lockedIds } } : {}) },
       orderBy: { createdAt: "desc" },
       take: 30,
       select: {
@@ -56,6 +63,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
+            {rank > 0 && rank <= 30 && <span title="상위 랭커" className="shrink-0 text-lg leading-none">👑</span>}
             <span className="truncate text-xl font-extrabold text-ink">{user.nickname}</span>
             {user.isAdmin && <OfficialBadge size={18} />}
             <span className="badge-lv shrink-0">Lv.{user.totalLevel}</span>

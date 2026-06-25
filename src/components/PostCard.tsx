@@ -17,11 +17,13 @@ export default function PostCard({
   liked,
   saved,
   isLoggedIn,
+  authorIsRanker = false,
 }: {
   post: PostCardData;
   liked: boolean;
   saved: boolean;
   isLoggedIn: boolean;
+  authorIsRanker?: boolean;
 }) {
   const tags = post.categories.slice(0, 3);
 
@@ -39,7 +41,7 @@ export default function PostCard({
             <VerificationBadges v={post.verification} compact />
           </div>
         )}
-        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} />
+        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} authorIsRanker={authorIsRanker} />
       </article>
     );
   }
@@ -84,7 +86,7 @@ export default function PostCard({
             <VerificationBadges v={post.verification} compact />
           </div>
         )}
-        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} />
+        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} authorIsRanker={authorIsRanker} />
       </div>
     </article>
   );
@@ -151,15 +153,18 @@ function Footer({
   liked,
   saved,
   isLoggedIn,
+  authorIsRanker,
 }: {
   post: PostCardData;
   liked: boolean;
   saved: boolean;
   isLoggedIn: boolean;
+  authorIsRanker?: boolean;
 }) {
   return (
     <div className="mt-3.5 flex items-center justify-between">
       <span className="flex items-center gap-1.5 text-xs text-stone-400">
+        {authorIsRanker && <span title="상위 랭커" className="text-sm leading-none">👑</span>}
         <span className="badge-lv">Lv.{post.authorLevel}</span>
         {post.authorNickname}
         <span>· {formatPostDate(post.createdAt)} 등록</span>

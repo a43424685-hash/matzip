@@ -553,6 +553,14 @@ export async function searchPosts(input: SearchInput) {
   // 비활성화한 사용자의 글은 숨김
   where.user = { deactivatedAt: null };
 
+  // 유료/무료 분리: 유료 지도에 '잠긴'(맛보기 아님) 글은 무료 화면(홈·검색·피드)에서 제외
+  const lockedItems = await prisma.collectionItem.findMany({
+    where: { isPreview: false, postId: { not: null }, collection: { isPaid: true } },
+    select: { postId: true },
+  });
+  const lockedIds = lockedItems.map((l) => l.postId).filter((x): x is string => !!x);
+  if (lockedIds.length > 0) where.id = { notIn: lockedIds };
+
   const orderBy =
     sort === "saves"
       ? [{ saveCount: "desc" as const }]

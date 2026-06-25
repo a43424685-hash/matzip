@@ -129,6 +129,12 @@ export async function getMyOverallRank(userId: string): Promise<number> {
   return ahead + 1;
 }
 
+/** 상위 랭커 userId 집합 (앱 전체 왕관 표시용). 기본 상위 30명. */
+export async function getTopRankerIds(limit = 30): Promise<Set<string>> {
+  const rows = await getOverallUserRankingCached();
+  return new Set(rows.slice(0, limit).map((r) => r.userId));
+}
+
 export interface RankNeighbor {
   rank: number;
   nickname: string;

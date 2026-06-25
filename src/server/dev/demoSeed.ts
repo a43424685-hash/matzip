@@ -93,12 +93,12 @@ export async function runDemoSeed() {
   const countFor = (u: number) => (u < 3 ? 20 : 3);
   // 각 크리에이터 = 한 동네에 집중 → 지도 티저에 그 동네 핀이 쫙 깔림
   const CENTERS = [
-    { lat: 37.498, lng: 127.027 }, // 강남
-    { lat: 37.544, lng: 127.056 }, // 성수
-    { lat: 37.556, lng: 126.923 }, // 홍대
-    { lat: 37.571, lng: 126.991 }, // 종로
-    { lat: 37.534, lng: 126.994 }, // 이태원
-    { lat: 37.521, lng: 126.924 }, // 여의도
+    { name: "강남", lat: 37.498, lng: 127.028 },
+    { name: "을지로", lat: 37.566, lng: 126.991 },
+    { name: "성수", lat: 37.544, lng: 127.056 },
+    { name: "홍대", lat: 37.556, lng: 126.923 },
+    { name: "충무로", lat: 37.561, lng: 126.994 },
+    { name: "여의도", lat: 37.521, lng: 126.924 },
   ];
   for (let u = 0; u < 6; u++) {
     const userId = `demo-u${u + 1}`;
@@ -119,7 +119,7 @@ export async function runDemoSeed() {
             name: spot.name,
             primaryRegionId: regionId,
             createdByUserId: userId,
-            address: "서울특별시",
+            address: `서울 ${c.name}`,
             latitude: lat,
             longitude: lng,
             saveCount: 15 + ((j * 17) % 80),
@@ -153,8 +153,8 @@ export async function runDemoSeed() {
   // 3) 상위 3명에게 유료 지도 1개씩 (맛보기 2곳 공개)
   const MAPS = [
     { title: "강남 데이트 끝판왕 맛집 지도", price: 4900 },
+    { title: "을지로 노포 정복 지도", price: 2900 },
     { title: "성수 핫플 큐레이션", price: 2900 },
-    { title: "홍대 혼밥 성지 모음", price: 2900 },
   ];
   for (let u = 0; u < 3; u++) {
     const userId = `demo-u${u + 1}`;
