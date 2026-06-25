@@ -47,12 +47,18 @@ export default async function CollectionDetailPage({
   const addableRestaurants = isOwner ? await getMyRestaurantsForPicker(col.ownerId, col.id) : [];
   const ownerRank = await getMyOverallRank(col.ownerId);
   const perSpot = col.itemCount > 0 ? Math.round((col.priceWon ?? 0) / col.itemCount) : 0;
+  const ownerIsRanker = ownerRank > 0 && ownerRank <= 30;
 
   return (
     <main className="pb-10">
       {/* 헤더 */}
       <header className="bg-forest px-5 pb-6 pt-3 text-white">
-        <BackButton fallback="/" className="-ml-2 mb-1 text-white" />
+        <div className="mb-1 flex items-center justify-between">
+          <BackButton fallback="/" className="-ml-2 text-white" />
+          <Link href={`/collections/${col.id}/share`} aria-label="공유" className="flex h-9 w-9 items-center justify-center rounded-full text-white/90 active:scale-95">
+            <Share2 size={20} />
+          </Link>
+        </div>
         <div className="flex items-center gap-2 text-[13px] text-white/70">
           {col.regionName && (
             <span className="flex items-center gap-0.5">
@@ -75,6 +81,7 @@ export default async function CollectionDetailPage({
           <p className="mt-2 text-sm text-white/85">{col.description}</p>
         )}
         <div className="mt-3 flex items-center gap-2 text-[13px]">
+          {ownerIsRanker && <span className="text-base leading-none">👑</span>}
           <span className="rounded-md bg-coral px-1.5 py-0.5 text-[11px] font-extrabold">
             Lv.{col.ownerLevel}
           </span>
@@ -90,10 +97,6 @@ export default async function CollectionDetailPage({
       {col.purchased && <UnlockCelebration collectionId={col.id} title={col.title} count={col.itemCount} />}
 
       <div className="px-5 pt-4">
-        <Link href={`/collections/${col.id}/share`} className="btn-primary h-12 w-full !text-base">
-          <Share2 size={18} /> 이 리스트 공유하기
-        </Link>
-
         {/* 가치 배너 — 판매자 신뢰(데이터) + 인증 집계 (유료·열람 가능 시) */}
         {col.isPaid && !col.locked && (
           <div className="mt-4 rounded-2xl border border-forest/20 bg-forest-soft/25 p-4">
@@ -115,29 +118,14 @@ export default async function CollectionDetailPage({
 
         {/* 유료 잠금: 맛보기(무료 공개)만 실제로 보여주고 나머지는 잠금 */}
         {col.locked ? (
-          <div className="mt-5 space-y-4">
-            <div className="card p-5">
-              <div className="flex items-center gap-1.5 text-sm font-extrabold text-ink">
-                <Coins size={16} className="text-forest" /> 유료 맛집 지도
-              </div>
-              <p className="mt-1 text-[13px] text-ink-muted">
-                맛보기 {col.items.length}곳을 먼저 둘러보고, 구매하면 총 {col.itemCount}곳이 모두 열려요.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {col.regionCounts.map((r) => (
-                  <span
-                    key={r.name}
-                    className="rounded-lg bg-forest-soft/40 px-2.5 py-1 text-[13px] font-semibold text-forest"
-                  >
-                    {r.name} {r.count}곳
-                  </span>
-                ))}
-              </div>
-            </div>
+          <div className="mt-2 space-y-4">
+            {/* 지도 티저 — 가치를 한눈에 (제일 위 비주얼) */}
+            {col.mapPins.length > 0 && <MapTeaser pins={col.mapPins} />}
 
-            {/* 크리에이터 신뢰 + 가성비 (전환) */}
+            {/* 크리에이터 신뢰 + 가성비 — 한 카드로 슬림 */}
             <div className="card p-4">
               <div className="flex flex-wrap items-center gap-1.5">
+                {ownerIsRanker && <span className="text-base leading-none">👑</span>}
                 <span className="rounded-md bg-coral px-1.5 py-0.5 text-[11px] font-extrabold text-white">Lv.{col.ownerLevel}</span>
                 {ownerRank > 0 && (
                   <span className="flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-extrabold text-amber-700">
@@ -146,18 +134,13 @@ export default async function CollectionDetailPage({
                 )}
                 <span className="text-sm font-bold text-ink">{col.ownerNickname}</span>
                 {col.ownerIsAdmin && <OfficialBadge size={15} />}
+                {!col.ownerIsAdmin && <span className="text-[12px] text-ink-muted">· 인증 {col.ownerVerifiedTotal}곳</span>}
               </div>
-              <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
-                {col.ownerIsAdmin ? "운영자가" : `인증 맛집 ${col.ownerVerifiedTotal}곳을 기록한 미식가가`} 직접 발로 뛴 큐레이션 · 전부 위치·영수증 인증
-              </p>
               <div className="mt-3 flex items-center justify-between rounded-xl bg-forest-soft/40 px-3 py-2">
-                <span className="text-[13px] font-bold text-forest">맛집 {col.itemCount}곳</span>
-                <span className="text-[13px] font-extrabold text-forest">한 곳당 {perSpot.toLocaleString()}원</span>
+                <span className="text-[13px] font-bold text-forest">맛집 {col.itemCount}곳 · 맛보기 {col.items.length}곳 무료</span>
+                <span className="text-[13px] font-extrabold text-forest">곳당 {perSpot.toLocaleString()}원</span>
               </div>
             </div>
-
-            {/* 지도 티저 — 분포는 보여주되 정확 위치 숨김 */}
-            {col.mapPins.length > 0 && <MapTeaser pins={col.mapPins} />}
 
             {/* 맛보기 무료 공개 가게 (실제 노출) */}
             {col.items.length > 0 && (
