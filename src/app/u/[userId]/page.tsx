@@ -53,17 +53,19 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
 
       {/* 프로필 헤더 */}
       <section className="flex items-center gap-4">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-forest-soft ring-2 ring-forest/15">
-          {user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-2xl font-black text-forest">{user.nickname.slice(0, 1)}</span>
-          )}
+        <div className="relative shrink-0">
+          <div className={`h-20 w-20 overflow-hidden rounded-full bg-forest-soft ${rank > 0 && rank <= 30 ? "ring-[3px] ring-amber-400" : "ring-2 ring-forest/15"}`}>
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-2xl font-black text-forest">{user.nickname.slice(0, 1)}</span>
+            )}
+          </div>
+          {rank > 0 && rank <= 30 && <span className="absolute -right-1 -top-1 text-2xl leading-none drop-shadow">👑</span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            {rank > 0 && rank <= 30 && <span title="상위 랭커" className="shrink-0 text-lg leading-none">👑</span>}
             <span className="truncate text-xl font-extrabold text-ink">{user.nickname}</span>
             {user.isAdmin && <OfficialBadge size={18} />}
             <span className="badge-lv shrink-0">Lv.{user.totalLevel}</span>

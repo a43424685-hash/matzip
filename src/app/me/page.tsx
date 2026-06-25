@@ -24,7 +24,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import OfficialBadge from "@/components/OfficialBadge";
 import LogoutButton from "@/components/LogoutButton";
-import { getMyOverallRank, getMyRegionRank } from "@/server/ranking/RankingService";
+import { getMyOverallRank, getMyRegionRanks } from "@/server/ranking/RankingService";
 import { unreadCount } from "@/server/notification/NotificationService";
 import { calculateLevel } from "@/server/xp/LevelService";
 
@@ -40,16 +40,10 @@ export default async function MePage() {
 
   const prog = calculateLevel(user.totalXp);
 
-  const topRegion = await prisma.userRegionStat.findFirst({
-    where: { userId: user.id, regionXp: { gt: 0 } },
-    orderBy: { regionXp: "desc" },
-    select: { regionId: true, region: { select: { name: true } } },
-  });
-
-  const [overallRank, regionRank, verifiedCount, registeredCount, savedCount, collectionsCount, unread] =
+  const [overallRank, regionRanks, verifiedCount, registeredCount, savedCount, collectionsCount, unread] =
     await Promise.all([
       getMyOverallRank(user.id),
-      topRegion ? getMyRegionRank(user.id, topRegion.regionId) : Promise.resolve(0),
+      getMyRegionRanks(user.id),
       prisma.restaurantPost.count({ where: { userId: user.id, locationVerified: true } }),
       prisma.restaurantPost.count({ where: { userId: user.id } }),
       prisma.save.count({ where: { userId: user.id } }),
@@ -95,11 +89,12 @@ export default async function MePage() {
             <span>
               전체 <b className="text-ink">{overallRank > 0 ? `${overallRank}위` : "—"}</b>
             </span>
-            {topRegion && regionRank > 0 && (
-              <span>
-                {topRegion.region.name} <b className="text-ink">{regionRank}위</b>
+            {regionRanks.slice(0, 3).map((r, i) => (
+              <span key={r.regionName}>
+                {i === 0 && r.rank <= 3 && "🥇 "}
+                {r.regionName} <b className="text-ink">{r.rank}위</b>
               </span>
-            )}
+            ))}
           </div>
           {/* 경험치 게이지 */}
           <div className="mt-2">

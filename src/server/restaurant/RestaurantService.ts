@@ -527,16 +527,27 @@ export interface SearchInput {
   limit?: number;
   excludeUserIds?: string[]; // 차단한 사용자 글 제외
   q?: string | null; // 가게 이름 키워드 검색
+  coords?: { lat: number; lng: number } | null; // 위치 검색(지오코딩 결과) — 있으면 반경 우선
+  radiusKm?: number;
   includeUnverified?: boolean; // true면 미인증 글도 노출(갓 올라온 맛집)
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, includeUnverified } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 2, includeUnverified } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
   if (regionId) restaurantWhere.primaryRegionId = regionId;
-  if (q && q.trim()) restaurantWhere.name = { contains: q.trim(), mode: "insensitive" };
+  // 위치 검색: 좌표가 있으면 반경(바운딩박스)으로 — "수유역 맛집" → 수유역 근처 맛집(이름 무관).
+  // 좌표 없을 때만 이름 키워드로 폴백.
+  if (coords) {
+    const dLat = radiusKm / 111;
+    const dLng = radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180));
+    restaurantWhere.latitude = { gte: coords.lat - dLat, lte: coords.lat + dLat };
+    restaurantWhere.longitude = { gte: coords.lng - dLng, lte: coords.lng + dLng };
+  } else if (q && q.trim()) {
+    restaurantWhere.name = { contains: q.trim(), mode: "insensitive" };
+  }
   if (Object.keys(restaurantWhere).length > 0) where.restaurant = restaurantWhere;
   if (priceRange) where.priceRange = priceRange;
   if (categoryIds && categoryIds.length > 0) {

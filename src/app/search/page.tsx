@@ -63,12 +63,15 @@ export default async function SearchPage({
   const recommendedIds = new Set(recommended.map((c) => c.id));
 
   const blocked = await getBlockedIds(user?.id ?? null);
+  // 위치 검색: 검색어 → 좌표(지오코딩). 있으면 개별 맛집도 반경으로 찾음("수유역 맛집" → 수유역 근처).
+  const coords = q.trim() ? await geocodeKeyword(q) : null;
   const posts = await searchPosts({
     regionId: regionId || null,
     priceRange: priceRange || null,
     categoryIds,
     sort,
     q,
+    coords,
     excludeUserIds: blocked,
   });
   const { likedPosts, savedRestaurants } = await getViewerReactions(
@@ -80,7 +83,6 @@ export default async function SearchPage({
   // 검색 의도(지역·상황·키워드)가 있을 때만 추천 큐레이션 지도 노출 — 신뢰순
   // 위치는 지오코딩(검색어→좌표)으로 받고, 상황은 카테고리로. "충무로역 3번출구" 같은 것도 좌표로 해석됨.
   const hasQuery = !!(regionId || q.trim() || categoryIds.length);
-  const coords = q.trim() ? await geocodeKeyword(q) : null;
   const collections = hasQuery
     ? await searchCollections({ coords, regionId: regionId || null, categoryIds, excludeUserIds: blocked })
     : [];

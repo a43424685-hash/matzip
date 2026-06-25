@@ -135,6 +135,18 @@ export async function getTopRankerIds(limit = 30): Promise<Set<string>> {
   return new Set(rows.slice(0, limit).map((r) => r.userId));
 }
 
+/** 내가 활동한 모든 지역의 순위 (높은 순). 대표 지역 = 가장 높은 순위. */
+export async function getMyRegionRanks(userId: string): Promise<{ regionName: string; rank: number }[]> {
+  const stats = await prisma.userRegionStat.findMany({
+    where: { userId },
+    select: { regionId: true, region: { select: { name: true } } },
+  });
+  const ranks = await Promise.all(
+    stats.map(async (s) => ({ regionName: s.region.name, rank: await getMyRegionRank(userId, s.regionId) }))
+  );
+  return ranks.filter((r) => r.rank > 0).sort((a, b) => a.rank - b.rank);
+}
+
 export interface RankNeighbor {
   rank: number;
   nickname: string;

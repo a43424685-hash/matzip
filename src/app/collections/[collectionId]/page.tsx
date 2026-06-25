@@ -46,20 +46,19 @@ export default async function CollectionDetailPage({
   const canSell = isOwner ? await canSellPaidMaps(col.ownerId) : false;
   const addableRestaurants = isOwner ? await getMyRestaurantsForPicker(col.ownerId, col.id) : [];
   const ownerRank = await getMyOverallRank(col.ownerId);
-  const perSpot = col.itemCount > 0 ? Math.round((col.priceWon ?? 0) / col.itemCount) : 0;
   const ownerIsRanker = ownerRank > 0 && ownerRank <= 30;
 
   return (
     <main className="pb-10">
       {/* 헤더 */}
-      <header className="bg-forest px-5 pb-6 pt-3 text-white">
-        <div className="mb-1 flex items-center justify-between">
-          <BackButton fallback="/" className="-ml-2 text-white" />
-          <Link href={`/collections/${col.id}/share`} aria-label="공유" className="flex h-9 w-9 items-center justify-center rounded-full text-white/90 active:scale-95">
+      <header className="px-5 pb-2 pt-3">
+        <div className="mb-2 flex items-center justify-between">
+          <BackButton fallback="/" className="-ml-2 text-ink" />
+          <Link href={`/collections/${col.id}/share`} aria-label="공유" className="flex h-9 w-9 items-center justify-center rounded-full text-stone-500 active:scale-95">
             <Share2 size={20} />
           </Link>
         </div>
-        <div className="flex items-center gap-2 text-[13px] text-white/70">
+        <div className="flex items-center gap-2 text-[13px] text-ink-muted">
           {col.regionName && (
             <span className="flex items-center gap-0.5">
               <MapPin size={13} /> {col.regionName}
@@ -76,19 +75,7 @@ export default async function CollectionDetailPage({
             </span>
           )}
         </div>
-        <h1 className="mt-1.5 text-2xl font-black tracking-tight">{col.title}</h1>
-        {col.description && (
-          <p className="mt-2 text-sm text-white/85">{col.description}</p>
-        )}
-        <div className="mt-3 flex items-center gap-2 text-[13px]">
-          {ownerIsRanker && <span className="text-base leading-none">👑</span>}
-          <span className="rounded-md bg-coral px-1.5 py-0.5 text-[11px] font-extrabold">
-            Lv.{col.ownerLevel}
-          </span>
-          <span className="font-semibold">{col.ownerNickname}</span>
-          {col.ownerIsAdmin && <OfficialBadge size={15} />}
-          <span className="text-white/60">· 맛집 {col.itemCount}곳</span>
-        </div>
+        <h1 className="mt-1.5 text-xl font-black tracking-tight text-ink">{col.title}</h1>
       </header>
 
       <Suspense fallback={null}>
@@ -122,24 +109,17 @@ export default async function CollectionDetailPage({
             {/* 지도 티저 — 가치를 한눈에 (제일 위 비주얼) */}
             {col.mapPins.length > 0 && <MapTeaser pins={col.mapPins} />}
 
-            {/* 크리에이터 신뢰 + 가성비 — 한 카드로 슬림 */}
-            <div className="card p-4">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {ownerIsRanker && <span className="text-base leading-none">👑</span>}
-                <span className="rounded-md bg-coral px-1.5 py-0.5 text-[11px] font-extrabold text-white">Lv.{col.ownerLevel}</span>
-                {ownerRank > 0 && (
-                  <span className="flex items-center gap-0.5 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-extrabold text-amber-700">
-                    <Trophy size={11} /> 전체 {ownerRank}위
-                  </span>
-                )}
-                <span className="text-sm font-bold text-ink">{col.ownerNickname}</span>
-                {col.ownerIsAdmin && <OfficialBadge size={15} />}
-                {!col.ownerIsAdmin && <span className="text-[12px] text-ink-muted">· 인증 {col.ownerVerifiedTotal}곳</span>}
-              </div>
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-forest-soft/40 px-3 py-2">
-                <span className="text-[13px] font-bold text-forest">맛집 {col.itemCount}곳 · 맛보기 {col.items.length}곳 무료</span>
-                <span className="text-[13px] font-extrabold text-forest">곳당 {perSpot.toLocaleString()}원</span>
-              </div>
+            {/* 크리에이터 — 담백한 한 줄 */}
+            <div className="flex flex-wrap items-center gap-1.5 px-1 text-[13px]">
+              {ownerIsRanker && <span className="leading-none">👑</span>}
+              {ownerRank > 0 && (
+                <span className="flex items-center gap-0.5 rounded bg-amber-100 px-1 py-0.5 text-[11px] font-extrabold text-amber-700">
+                  <Trophy size={10} /> 전체 {ownerRank}위
+                </span>
+              )}
+              <span className="font-bold text-ink">{col.ownerNickname}</span>
+              {col.ownerIsAdmin && <OfficialBadge size={14} />}
+              <span className="text-ink-muted">Lv.{col.ownerLevel} · 인증 {col.ownerVerifiedTotal}곳 · 맛집 {col.itemCount}곳</span>
             </div>
 
             {/* 맛보기 무료 공개 가게 (실제 노출) */}

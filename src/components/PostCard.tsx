@@ -164,7 +164,7 @@ function Footer({
   return (
     <div className="mt-3.5 flex items-center justify-between">
       <span className="flex items-center gap-1.5 text-xs text-stone-400">
-        {authorIsRanker && <span title="상위 랭커" className="text-sm leading-none">👑</span>}
+        {authorIsRanker && <span title="상위 랭커" className="text-base leading-none">👑</span>}
         <span className="badge-lv">Lv.{post.authorLevel}</span>
         {post.authorNickname}
         <span>· {formatPostDate(post.createdAt)} 등록</span>
