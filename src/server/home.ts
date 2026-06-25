@@ -13,6 +13,8 @@ import { getOverallUserRankingCached } from "@/server/ranking/RankingService";
 import { getActiveCategories } from "@/server/catalog";
 import { getBlockedIds } from "@/server/block/BlockService";
 
+const DEMO_USER_ID_PREFIX = "demo-u";
+
 export interface HomeCollection {
   id: string;
   title: string;
@@ -32,7 +34,7 @@ export async function getPublicCollections(
     where: {
       isPublic: true,
       items: { some: {} },
-      user: { deactivatedAt: null },
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(excludeUserIds.length > 0 ? { userId: { notIn: excludeUserIds } } : {}),
     },
     orderBy: { updatedAt: "desc" },
@@ -87,7 +89,7 @@ export async function getPaidMaps(
       isPaid: true,
       isPublic: true,
       items: { some: {} },
-      user: { deactivatedAt: null },
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(excludeUserIds.length > 0 ? { userId: { notIn: excludeUserIds } } : {}),
     },
     orderBy: { updatedAt: "desc" },
@@ -150,7 +152,9 @@ export async function getHomeData(viewerId?: string | null) {
     saved,
     myPostCount,
     // 차단한 사용자는 랭킹에서 제외 (캐시는 전역, 표시 시 뷰어별 필터)
-    topUsers: blockedIds.length > 0 ? topUsers.filter((u) => !blockedIds.includes(u.userId)) : topUsers,
+    topUsers: topUsers.filter(
+      (u) => !u.userId.startsWith(DEMO_USER_ID_PREFIX) && !blockedIds.includes(u.userId)
+    ),
     categories,
   };
 }

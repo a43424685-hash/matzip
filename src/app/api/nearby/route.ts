@@ -11,6 +11,8 @@ import { getBlockedIds } from "@/server/block/BlockService";
 export const dynamic = "force-dynamic";
 
 const R = 6371000;
+const DEMO_POST_ID_PREFIX = "demo-p";
+const DEMO_USER_ID_PREFIX = "demo-u";
 
 function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number) {
   const dLat = ((bLat - aLat) * Math.PI) / 180;
@@ -55,9 +57,12 @@ export async function GET(request: Request) {
         longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
       },
       OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
-      user: { deactivatedAt: null },
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
-      ...(lockedIds.length > 0 ? { id: { notIn: lockedIds } } : {}),
+      id: {
+        not: { startsWith: DEMO_POST_ID_PREFIX },
+        ...(lockedIds.length > 0 ? { notIn: lockedIds } : {}),
+      },
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
     take: 200,

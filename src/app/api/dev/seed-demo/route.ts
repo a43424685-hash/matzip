@@ -8,15 +8,12 @@ export const dynamic = "force-dynamic";
 //   채우기:  /api/dev/seed-demo
 //   지우기:  /api/dev/seed-demo?clean=1
 export async function GET(req: Request) {
-  // 운영(production)에서는 운영자만 — 안전. 프리뷰/개발(테스트)에서는 로그인 없이 허용.
-  if (process.env.VERCEL_ENV === "production") {
-    const admin = await getSessionAdmin();
-    if (!admin?.isAdmin) {
-      return NextResponse.json(
-        { ok: false, error: "운영자 계정으로 로그인 후 다시 시도하세요." },
-        { status: 403 }
-      );
-    }
+  const admin = await getSessionAdmin();
+  if (!admin?.isAdmin) {
+    return NextResponse.json(
+      { ok: false, error: "운영자 계정으로 로그인 후 다시 시도하세요." },
+      { status: 403 }
+    );
   }
 
   const clean = new URL(req.url).searchParams.get("clean") === "1";

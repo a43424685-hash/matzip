@@ -7,6 +7,8 @@
 import { prisma } from "@/lib/db";
 import { sendWebPush } from "@/server/push/PushService";
 
+const DEMO_USER_ID_PREFIX = "demo-u";
+
 const mediaPick = { select: { type: true, url: true, thumbnailUrl: true }, orderBy: { sortOrder: "asc" as const }, take: 1 };
 
 export interface CreateCollectionInput {
@@ -607,6 +609,7 @@ export async function searchCollections(input: {
       isPublic: true,
       ...(regionId ? { regionId } : {}),
       ...(excludeUserIds.length ? { userId: { notIn: excludeUserIds } } : {}),
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       AND: [
         ...(coords
           ? [

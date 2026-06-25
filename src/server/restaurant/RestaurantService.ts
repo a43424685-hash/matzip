@@ -518,6 +518,8 @@ export async function recordShare(
 // 검색
 // ─────────────────────────────────────────────────────────────
 export type SortKey = "latest" | "saves" | "likes" | "weekly" | "name";
+const DEMO_POST_ID_PREFIX = "demo-p";
+const DEMO_USER_ID_PREFIX = "demo-u";
 
 export interface SearchInput {
   regionId?: string | null;
@@ -561,8 +563,8 @@ export async function searchPosts(input: SearchInput) {
   if (!includeUnverified) {
     where.OR = [{ locationVerified: true }, { user: { isAdmin: true } }];
   }
-  // 비활성화한 사용자의 글은 숨김
-  where.user = { deactivatedAt: null };
+  // 비활성화한 사용자와 프리뷰 시드 데모 계정의 글은 숨김
+  where.user = { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null };
 
   // 유료/무료 분리: 유료 지도에 '잠긴'(맛보기 아님) 글은 무료 화면(홈·검색·피드)에서 제외
   const lockedItems = await prisma.collectionItem.findMany({
@@ -570,7 +572,10 @@ export async function searchPosts(input: SearchInput) {
     select: { postId: true },
   });
   const lockedIds = lockedItems.map((l) => l.postId).filter((x): x is string => !!x);
-  if (lockedIds.length > 0) where.id = { notIn: lockedIds };
+  where.id = {
+    not: { startsWith: DEMO_POST_ID_PREFIX },
+    ...(lockedIds.length > 0 ? { notIn: lockedIds } : {}),
+  };
 
   const orderBy =
     sort === "saves"
