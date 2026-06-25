@@ -12,6 +12,16 @@ const config: CapacitorConfig = {
   server: {
     url: "https://matzip-psi-nine.vercel.app",
     cleartext: false,
+    // 로그인(Apple·카카오) OAuth를 외부 브라우저가 아닌 앱 내 WebView에서 진행
+    // → App Store 가이드라인 4 (인앱 로그인) 준수
+    allowNavigation: [
+      "appleid.apple.com",
+      "*.apple.com",
+      "kauth.kakao.com",
+      "accounts.kakao.com",
+      "*.kakao.com",
+      "logins.daum.net",
+    ],
   },
   ios: {
     contentInset: "always",

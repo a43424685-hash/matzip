@@ -123,7 +123,15 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         카카오로 시작하기
       </a>
 
-      <p className="mt-6 text-center text-sm text-neutral-500">
+      <p className="mt-5 text-center text-[12px] leading-relaxed text-stone-400">
+        로그인·가입 시{" "}
+        <Link href="/terms" className="underline">이용약관</Link> 및{" "}
+        <Link href="/privacy" className="underline">개인정보처리방침</Link>에 동의하며,
+        불쾌·혐오 콘텐츠와 악성 사용자에 대한{" "}
+        <b className="font-semibold text-stone-500">무관용 정책</b>에 동의합니다.
+      </p>
+
+      <p className="mt-5 text-center text-sm text-neutral-500">
         아직 계정이 없나요?{" "}
         <Link href="/signup" className="font-semibold text-forest">
           회원가입

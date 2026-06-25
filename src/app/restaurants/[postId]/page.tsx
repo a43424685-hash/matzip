@@ -108,6 +108,10 @@ export default async function PostDetailPage({
   const mapUrl = post.restaurant.latitude
     ? `https://map.kakao.com/link/map/${encodeURIComponent(post.restaurant.name)},${post.restaurant.latitude},${post.restaurant.longitude}`
     : `https://map.kakao.com/?q=${encodeURIComponent(post.restaurant.name + " " + (post.restaurant.address ?? ""))}`;
+  // Apple 지도(네이티브) 열기 옵션 — App Store 가이드라인 4 준수
+  const appleMapUrl = post.restaurant.latitude
+    ? `https://maps.apple.com/?ll=${post.restaurant.latitude},${post.restaurant.longitude}&q=${encodeURIComponent(post.restaurant.name)}`
+    : `https://maps.apple.com/?q=${encodeURIComponent(post.restaurant.name + " " + (post.restaurant.address ?? ""))}`;
 
   // 표시 주소: 저장된 주소가 있으면 그대로 사용(빠름). 없을 때만 좌표로 역지오코딩 후
   // restaurant.address 에 캐시 → 다음 조회부턴 외부호출 없이 즉시.
@@ -372,6 +376,14 @@ export default async function PostDetailPage({
                 <CopyAddressButton address={displayAddress} />
               </div>
             )}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <a href={appleMapUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
+                <MapPin size={15} /> Apple 지도
+              </a>
+              <a href={mapUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
+                <MapPin size={15} /> 카카오 지도
+              </a>
+            </div>
           </section>
         )}
 
