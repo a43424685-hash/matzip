@@ -47,8 +47,34 @@ export async function nativeAppleLogin(): Promise<{ ok: boolean; error?: string 
     return { ok: false, error: data.error || "server" };
   } catch (e) {
     // 사용자가 취소하면 여기로 옴 (에러 아님)
-    const msg = e instanceof Error ? e.message : "";
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/cancel|1001/i.test(msg)) return { ok: false, error: "canceled" };
+    return { ok: false, error: msg || "failed" };
+  }
+}
+
+// 카카오는 네이티브 SDK(카톡앱)로 로그인 → accessToken을 서버에서 검증 → 세션.
+export async function nativeKakaoLogin(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { KakaoLoginPlugin } = await import("capacitor-kakao-login-plugin");
+    const res = await KakaoLoginPlugin.goLogin();
+    const accessToken = res?.accessToken;
+    if (!accessToken) return { ok: false, error: "no_token" };
+
+    const r = await fetch("/api/auth/kakao/native", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken }),
+    });
+    const data = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (r.ok && data.ok) {
+      window.location.href = "/";
+      return { ok: true };
+    }
+    return { ok: false, error: data.error || "server" };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     if (/cancel/i.test(msg)) return { ok: false, error: "canceled" };
-    return { ok: false, error: "failed" };
+    return { ok: false, error: msg || "failed" };
   }
 }

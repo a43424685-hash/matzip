@@ -1,0 +1,68 @@
+import { randomUUID } from "crypto";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { createSession } from "@/lib/auth";
+
+interface KakaoMeResponse {
+  id: number;
+  kakao_account?: {
+    email?: string;
+    is_email_verified?: boolean;
+  };
+}
+
+// 네이티브 카카오 로그인(카톡앱)에서 받은 accessToken으로 카카오 사용자 정보를 조회하고 세션 발급.
+export async function POST(req: Request) {
+  const { accessToken } = (await req.json().catch(() => ({}))) as { accessToken?: string };
+  if (!accessToken) {
+    return NextResponse.json({ ok: false, error: "no_token" }, { status: 400 });
+  }
+
+  const meRes = await fetch("https://kapi.kakao.com/v2/user/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const me = (await meRes.json().catch(() => null)) as KakaoMeResponse | null;
+  if (!meRes.ok || !me?.id) {
+    console.error("[kakao-native] me 조회 실패", { status: meRes.status, body: me });
+    return NextResponse.json({ ok: false, error: "me_failed" }, { status: 401 });
+  }
+
+  const providerUserId = String(me.id);
+  const rawEmail = me.kakao_account?.email?.trim().toLowerCase();
+  const emailVerified = me.kakao_account?.is_email_verified === true && !!rawEmail;
+  const email = emailVerified ? (rawEmail as string) : `kakao-${providerUserId}@kakao.local`;
+  const nickname = `카카오${providerUserId}`;
+
+  const user = await prisma.$transaction(async (tx) => {
+    const account = await tx.authAccount.findUnique({
+      where: { provider_providerUserId: { provider: "kakao", providerUserId } },
+      select: { userId: true },
+    });
+    if (account) {
+      await tx.user.update({
+        where: { id: account.userId },
+        data: { emailVerifiedAt: new Date(), deactivatedAt: null },
+      });
+      return tx.user.findUniqueOrThrow({ where: { id: account.userId }, select: { id: true } });
+    }
+    const existing = await tx.user.findUnique({ where: { email }, select: { id: true } });
+    const createdOrExisting =
+      existing ??
+      (await tx.user.create({
+        data: {
+          email,
+          nickname,
+          passwordHash: `oauth:kakao:${randomUUID()}`,
+          emailVerifiedAt: new Date(),
+        },
+        select: { id: true },
+      }));
+    await tx.authAccount.create({
+      data: { userId: createdOrExisting.id, provider: "kakao", providerUserId, email },
+    });
+    return createdOrExisting;
+  });
+
+  await createSession(user.id);
+  return NextResponse.json({ ok: true });
+}

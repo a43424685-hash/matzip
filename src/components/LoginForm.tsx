@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
-import { isNativeApp, openNativeLogin, nativeAppleLogin } from "@/lib/nativeAuth";
+import { isNativeApp, nativeAppleLogin, nativeKakaoLogin } from "@/lib/nativeAuth";
 
 export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?: string; returnTo?: string }) {
   // 오픈 리다이렉트 방지: 내부 절대경로(/foo)만 허용
@@ -114,7 +114,7 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
             e.preventDefault();
             nativeAppleLogin().then((r) => {
               if (!r.ok && r.error && r.error !== "canceled") {
-                setMessage("Apple 로그인에 실패했어요. 다시 시도해주세요.");
+                setMessage(`Apple 로그인 실패: ${r.error}`);
               }
             });
           }
@@ -132,7 +132,11 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         onClick={(e) => {
           if (isNativeApp()) {
             e.preventDefault();
-            openNativeLogin("kakao");
+            nativeKakaoLogin().then((r) => {
+              if (!r.ok && r.error && r.error !== "canceled") {
+                setMessage(`카카오 로그인 실패: ${r.error}`);
+              }
+            });
           }
         }}
         className="mt-3 flex h-12 w-full items-center justify-center rounded-xl bg-[#FEE500] text-sm font-extrabold text-[#191600]"
