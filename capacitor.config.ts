@@ -24,7 +24,9 @@ const config: CapacitorConfig = {
     ],
   },
   ios: {
-    contentInset: "always",
+    // 안전영역은 CSS(env(safe-area-inset-*))로만 처리 → 네이티브 이중 인셋 제거
+    // (위쪽 빈 공간/스크롤 바운스 어색함 해결)
+    contentInset: "never",
   },
 };
 
