@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 
 export default function AppSplash() {
-  const [visible, setVisible] = useState(false);
+  // 처음부터 노출(홈 깜빡임 방지). pointer-events-none이라 터치는 안 막음.
+  const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    if (window.sessionStorage.getItem("mukgopin-splash-seen") === "1") return;
+    if (window.sessionStorage.getItem("mukgopin-splash-seen") === "1") {
+      setVisible(false);
+      return;
+    }
     window.sessionStorage.setItem("mukgopin-splash-seen", "1");
-    setVisible(true);
 
     const leave = window.setTimeout(() => setLeaving(true), 1300);
     const hide = window.setTimeout(() => setVisible(false), 1600);

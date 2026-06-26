@@ -24,8 +24,9 @@ const config: CapacitorConfig = {
     ],
   },
   ios: {
-    // 로그인 잘 되던 원래 값으로 복구 (never로 바꿨더니 터치 좌표가 어긋나 로그인 버튼이 안 눌림)
-    contentInset: "always",
+    // 안전영역은 CSS(env(safe-area-inset-*))로만 처리 → 위쪽 빈 공간/바운스 어색함 해결
+    // (로그인 안 되던 건 contentInset이 아니라 OAuth WebView 차단 문제였음 — 확인됨)
+    contentInset: "never",
   },
 };
 

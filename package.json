@@ -23,6 +23,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@capacitor-community/apple-sign-in": "^7.1.0",
     "@capacitor/android": "^8.4.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",
@@ -33,6 +34,7 @@
     "@prisma/client": "^6.3.0",
     "bcryptjs": "^2.4.3",
     "html-to-image": "^1.11.13",
+    "jose": "^6.2.3",
     "lucide-react": "^1.17.0",
     "next": "15.5.19",
     "react": "19.0.0",

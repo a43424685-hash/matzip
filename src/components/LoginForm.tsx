@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
-import { isNativeApp, openNativeLogin } from "@/lib/nativeAuth";
+import { isNativeApp, openNativeLogin, nativeAppleLogin } from "@/lib/nativeAuth";
 
 export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?: string; returnTo?: string }) {
   // 오픈 리다이렉트 방지: 내부 절대경로(/foo)만 허용
@@ -112,7 +112,11 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         onClick={(e) => {
           if (isNativeApp()) {
             e.preventDefault();
-            openNativeLogin("apple");
+            nativeAppleLogin().then((r) => {
+              if (!r.ok && r.error && r.error !== "canceled") {
+                setMessage("Apple 로그인에 실패했어요. 다시 시도해주세요.");
+              }
+            });
           }
         }}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-black text-sm font-extrabold text-white"
