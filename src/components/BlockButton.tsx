@@ -28,7 +28,9 @@ export default function BlockButton({
     });
     setBusy(false);
     if (r.ok) {
-      router.refresh();
+      alert(`${nickname}님을 차단했어요.\n이 사용자의 글과 댓글이 더 이상 보이지 않아요.\n(마이페이지 > 차단한 사용자 에서 해제 가능)`);
+      // 차단하면 현재 보던 글이 가려지므로 홈으로 이동 (빈 화면 방지)
+      router.push("/");
     } else {
       alert("차단에 실패했어요.");
     }

@@ -86,8 +86,9 @@ export default async function PostDetailPage({
 
   if (!post) notFound();
 
-  // 차단한 사용자의 글은 직접 URL로도 보이지 않게
-  if (user) {
+  // 차단한 사용자의 글은 직접 URL로도 보이지 않게.
+  // 단, 운영자(admin)는 신고 처리/검수를 위해 차단했어도 볼 수 있어야 함.
+  if (user && !user.isAdmin) {
     const blocked = await getBlockedIds(user.id);
     if (blocked.includes(post.userId)) notFound();
   }
