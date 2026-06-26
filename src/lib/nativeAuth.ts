@@ -54,10 +54,12 @@ export async function nativeAppleLogin(): Promise<{ ok: boolean; error?: string 
 }
 
 // 카카오는 네이티브 SDK(카톡앱)로 로그인 → accessToken을 서버에서 검증 → 세션.
+// iOS는 앱에 직접 넣은 커스텀 플러그인("KakaoLogin")이 Kakao SDK를 호출.
 export async function nativeKakaoLogin(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { KakaoLoginPlugin } = await import("capacitor-kakao-login-plugin");
-    const res = await KakaoLoginPlugin.goLogin();
+    const { registerPlugin } = await import("@capacitor/core");
+    const KakaoLogin = registerPlugin<{ login: () => Promise<{ accessToken: string }> }>("KakaoLogin");
+    const res = await KakaoLogin.login();
     const accessToken = res?.accessToken;
     if (!accessToken) return { ok: false, error: "no_token" };
 
