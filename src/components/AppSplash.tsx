@@ -27,7 +27,7 @@ export default function AppSplash() {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] mx-auto w-full max-w-md overflow-hidden bg-stone-900 transition-opacity duration-300 ${
+      className={`pointer-events-none fixed inset-0 z-[100] mx-auto w-full max-w-md overflow-hidden bg-stone-900 transition-opacity duration-300 ${
         leaving ? "opacity-0" : "opacity-100"
       }`}
       aria-hidden
