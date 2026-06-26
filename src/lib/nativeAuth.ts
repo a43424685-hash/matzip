@@ -25,13 +25,10 @@ export async function openNativeLogin(provider: "apple" | "kakao"): Promise<void
 // 토큰을 JS가 직접 받아 서버에서 검증 → 같은 WebView에 세션 쿠키 발급.
 export async function nativeAppleLogin(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { SignInWithApple } = await import("@capacitor-community/apple-sign-in");
-    const result = await SignInWithApple.authorize({
-      clientId: "com.codebueok.mukgopin",
-      redirectURI: `${window.location.origin}/api/auth/apple/callback`,
-      scopes: "email name",
-    });
-    const identityToken = result.response?.identityToken;
+    const { registerPlugin } = await import("@capacitor/core");
+    const AppleLogin = registerPlugin<{ login: () => Promise<{ identityToken: string }> }>("AppleLogin");
+    const result = await AppleLogin.login();
+    const identityToken = result?.identityToken;
     if (!identityToken) return { ok: false, error: "no_token" };
 
     const res = await fetch("/api/auth/apple/native", {
