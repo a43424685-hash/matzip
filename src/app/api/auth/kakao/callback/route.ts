@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { createSession } from "@/lib/auth";
+import { createSession, makeExchangeToken } from "@/lib/auth";
 
 interface KakaoTokenResponse {
   access_token?: string;
@@ -29,7 +29,9 @@ export async function GET(req: Request) {
 
   // 로그인 후 복귀할 내부 경로 (state). 외부 URL 차단 — 내부 절대경로만 허용.
   const stateRaw = url.searchParams.get("state") || "";
-  const returnTo = stateRaw.startsWith("/") && !stateRaw.startsWith("//") ? stateRaw : "/";
+  const native = stateRaw.startsWith("native:");
+  const rt = native ? stateRaw.slice("native:".length) : stateRaw;
+  const returnTo = rt.startsWith("/") && !rt.startsWith("//") ? rt : "/";
 
   const clientId = process.env.KAKAO_CLIENT_ID || process.env.KAKAO_REST_API_KEY;
   if (!clientId) {
@@ -131,6 +133,14 @@ export async function GET(req: Request) {
     return createdOrExisting;
   });
 
+  // 네이티브: 쿠키 대신 교환 토큰을 딥링크로 앱에 넘긴다 (앱이 WebView에서 세션 발급)
+  if (native) {
+    const tok = makeExchangeToken(user.id);
+    return new NextResponse(null, {
+      status: 303,
+      headers: { Location: `mukgopin://auth?token=${encodeURIComponent(tok)}` },
+    });
+  }
   await createSession(user.id);
   if (!user.nicknameConfirmedAt) {
     return NextResponse.redirect(new URL("/onboarding/nickname", req.url));

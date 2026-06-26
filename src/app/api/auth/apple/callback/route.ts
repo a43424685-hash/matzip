@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { createSession } from "@/lib/auth";
+import { createSession, makeExchangeToken } from "@/lib/auth";
 import { makeAppleClientSecret, decodeAppleIdToken } from "@/lib/appleAuth";
 
 interface AppleTokenResponse {
@@ -19,7 +19,9 @@ export async function POST(req: Request) {
   const form = await req.formData().catch(() => null);
   const code = form?.get("code")?.toString();
   const stateRaw = form?.get("state")?.toString() || "";
-  const returnTo = stateRaw.startsWith("/") && !stateRaw.startsWith("//") ? stateRaw : "/";
+  const native = stateRaw.startsWith("native:");
+  const rt = native ? stateRaw.slice("native:".length) : stateRaw;
+  const returnTo = rt.startsWith("/") && !rt.startsWith("//") ? rt : "/";
 
   const fail = (reason: string) =>
     NextResponse.redirect(new URL(`/login?error=${reason}`, req.url), 303);
@@ -111,6 +113,14 @@ export async function POST(req: Request) {
     return createdOrExisting;
   });
 
+  // 네이티브: 쿠키 대신 교환 토큰을 딥링크로 앱에 넘긴다 (앱이 WebView에서 세션 발급)
+  if (native) {
+    const tok = makeExchangeToken(user.id);
+    return new NextResponse(null, {
+      status: 303,
+      headers: { Location: `mukgopin://auth?token=${encodeURIComponent(tok)}` },
+    });
+  }
   await createSession(user.id);
   if (!user.nicknameConfirmedAt) {
     return NextResponse.redirect(new URL("/onboarding/nickname", req.url), 303);

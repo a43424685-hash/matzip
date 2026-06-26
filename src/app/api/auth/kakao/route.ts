@@ -11,15 +11,19 @@ export async function GET(req: Request) {
     process.env.KAKAO_REDIRECT_URI ||
     `${base.replace(/\/$/, "")}/api/auth/kakao/callback`;
   // 로그인 후 돌아갈 내부 경로를 state로 전달 (외부 URL 차단 — 내부 절대경로만)
-  const returnToRaw = new URL(req.url).searchParams.get("returnTo") || "";
+  const sp = new URL(req.url).searchParams;
+  const returnToRaw = sp.get("returnTo") || "";
   const returnTo = returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "";
+  // 네이티브 앱(Safari View Controller) 흐름이면 state에 표시 → 콜백이 딥링크로 응답
+  const native = sp.get("native") === "1";
+  const stateVal = native ? `native:${returnTo}` : returnTo;
 
   const u = new URL("https://kauth.kakao.com/oauth/authorize");
   u.searchParams.set("client_id", clientId);
   u.searchParams.set("redirect_uri", redirectUri);
   u.searchParams.set("response_type", "code");
   u.searchParams.set("scope", "profile_nickname account_email");
-  if (returnTo) u.searchParams.set("state", returnTo);
+  if (stateVal) u.searchParams.set("state", stateVal);
 
   return NextResponse.redirect(u);
 }

@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
+import { isNativeApp, openNativeLogin } from "@/lib/nativeAuth";
 
 export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?: string; returnTo?: string }) {
   // 오픈 리다이렉트 방지: 내부 절대경로(/foo)만 허용
@@ -108,6 +109,12 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
 
       <a
         href={returnTo && returnTo !== "/" ? `/api/auth/apple?returnTo=${encodeURIComponent(returnTo)}` : "/api/auth/apple"}
+        onClick={(e) => {
+          if (isNativeApp()) {
+            e.preventDefault();
+            openNativeLogin("apple");
+          }
+        }}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-black text-sm font-extrabold text-white"
       >
         <svg width="14" height="17" viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true">
@@ -118,6 +125,12 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
 
       <a
         href={returnTo && returnTo !== "/" ? `/api/auth/kakao?returnTo=${encodeURIComponent(returnTo)}` : "/api/auth/kakao"}
+        onClick={(e) => {
+          if (isNativeApp()) {
+            e.preventDefault();
+            openNativeLogin("kakao");
+          }
+        }}
         className="mt-3 flex h-12 w-full items-center justify-center rounded-xl bg-[#FEE500] text-sm font-extrabold text-[#191600]"
       >
         카카오로 시작하기

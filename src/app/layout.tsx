@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AppSplash from "@/components/AppSplash";
+import NativeAuthBridge from "@/components/NativeAuthBridge";
 import ScrollReset from "@/components/ScrollReset";
 import XpToastWatcher from "@/components/XpToastWatcher";
 import Analytics from "@/components/Analytics";
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="app-shell">{children}</div>
         <BottomNav />
         <AppSplash />
+        <NativeAuthBridge />
       </body>
     </html>
   );

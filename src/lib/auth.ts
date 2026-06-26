@@ -67,6 +67,31 @@ export async function destroySession(): Promise<void> {
   store.delete(COOKIE_NAME);
 }
 
+// ── 네이티브 앱 로그인용 1회성 교환 토큰 ──────────────────────────
+// Safari View Controller에서 OAuth 완료 후, 쿠키 대신 짧은 수명의 서명 토큰을
+// 딥링크(mukgopin://)로 앱에 넘긴다. 앱은 이 토큰을 /api/auth/exchange 로 보내
+// WebView 안에서 진짜 세션 쿠키를 발급받는다. (2분 만료)
+const EXCHANGE_MAX_AGE = 120;
+
+export function makeExchangeToken(userId: string): string {
+  const exp = Math.floor(Date.now() / 1000) + EXCHANGE_MAX_AGE;
+  const payload = `${userId}~${exp}`;
+  return `${payload}~${sign(payload)}`;
+}
+
+export function verifyExchangeToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const parts = token.split("~");
+  if (parts.length !== 3) return null;
+  const [userId, expStr, sig] = parts;
+  const expected = sign(`${userId}~${expStr}`);
+  if (sig.length !== expected.length) return null;
+  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || Math.floor(Date.now() / 1000) > exp) return null;
+  return userId;
+}
+
 /** 현재 로그인 userId (없으면 null) */
 export async function getSessionUserId(): Promise<string | null> {
   const store = await cookies();

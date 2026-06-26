@@ -11,8 +11,12 @@ export async function GET(req: Request) {
   const redirectUri = process.env.APPLE_REDIRECT_URI || `${base}/api/auth/apple/callback`;
 
   // 로그인 후 돌아갈 내부 경로를 state로 전달 (외부 URL 차단 — 내부 절대경로만)
-  const returnToRaw = new URL(req.url).searchParams.get("returnTo") || "";
+  const sp = new URL(req.url).searchParams;
+  const returnToRaw = sp.get("returnTo") || "";
   const returnTo = returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "";
+  // 네이티브 앱(Safari View Controller) 흐름이면 state에 표시 → 콜백이 딥링크로 응답
+  const native = sp.get("native") === "1";
+  const stateVal = native ? `native:${returnTo}` : returnTo;
 
   const u = new URL("https://appleid.apple.com/auth/authorize");
   u.searchParams.set("client_id", clientId);
@@ -21,7 +25,7 @@ export async function GET(req: Request) {
   // name/email scope를 요청하면 응답을 form_post 로 받아야 함(Apple 규칙)
   u.searchParams.set("response_mode", "form_post");
   u.searchParams.set("scope", "name email");
-  if (returnTo) u.searchParams.set("state", returnTo);
+  if (stateVal) u.searchParams.set("state", stateVal);
 
   return NextResponse.redirect(u);
 }
