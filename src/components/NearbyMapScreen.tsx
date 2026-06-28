@@ -29,6 +29,14 @@ function formatDistance(m: number) {
   return `${(m / 1000).toFixed(m < 10000 ? 1 : 0)}km`;
 }
 
+// 카카오 지도 줌 레벨(작을수록 확대) → 검색 반경(m). 확대하면 좁게, 축소하면 넓게.
+function radiusForLevel(level: number): number {
+  const table: Record<number, number> = {
+    1: 400, 2: 700, 3: 1200, 4: 2000, 5: 3000, 6: 5000, 7: 8000, 8: 13000,
+  };
+  return table[level] ?? (level >= 9 ? 20000 : 3000);
+}
+
 function sheetClass(state: SheetState) {
   if (state === "collapsed") return "h-[14dvh]";
   if (state === "expanded") return "h-[calc(100dvh-98px)]";
@@ -53,6 +61,11 @@ export default function NearbyMapScreen() {
   const [mode, setMode] = useState<FilterMode>("verified");
   const [category, setCategory] = useState("전체");
   const [loading, setLoading] = useState(false);
+  // 검색(지오코딩→지도 이동) + "이 지역 다시 검색"
+  const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [moved, setMoved] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LAST_LOCATION_KEY);
@@ -83,6 +96,9 @@ export default function NearbyMapScreen() {
           level: 5,
         });
         mapRef.current = map;
+        // 지도를 옮기거나 줌하면 "이 지역 다시 검색" 버튼을 띄운다 (자동 갱신은 안 함)
+        kakao.maps.event.addListener(map, "dragend", () => setMoved(true));
+        kakao.maps.event.addListener(map, "zoom_changed", () => setMoved(true));
         setMapReady(true);
       })
       .catch((e: Error) => {
@@ -160,15 +176,50 @@ export default function NearbyMapScreen() {
     });
   }, [filteredItems, mapReady]);
 
-  async function loadNearby(pos: LatLng) {
+  async function loadNearby(pos: LatLng, radius?: number) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}`);
+      const lvl = mapRef.current?.getLevel?.() ?? 5;
+      const r = radius ?? radiusForLevel(lvl);
+      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}&radius=${r}`);
       const data = (await res.json()) as { ok?: boolean; items?: NearbyItem[] };
       setItems(res.ok && data.ok ? data.items ?? [] : []);
     } finally {
       setLoading(false);
     }
+  }
+
+  // 검색어 → 좌표(지오코딩) → 지도 이동 후 그 지역 맛집 로드
+  async function runSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const query = q.trim();
+    if (!query) return;
+    setSearching(true);
+    setNotFound(false);
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+      const data = (await res.json()) as { ok?: boolean; lat?: number; lng?: number };
+      if (data.ok && Number.isFinite(data.lat) && Number.isFinite(data.lng)) {
+        setMoved(false);
+        setCenter({ lat: data.lat as number, lng: data.lng as number });
+      } else {
+        setNotFound(true);
+      }
+    } catch {
+      setNotFound(true);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  // "이 지역 다시 검색" — 현재 지도 중심/줌 기준으로 다시 로드 (줌만 바뀐 경우도 강제 갱신)
+  function researchHere() {
+    const c = mapRef.current?.getCenter?.();
+    if (!c) return;
+    const pos = { lat: c.getLat(), lng: c.getLng() };
+    setCenter(pos);
+    void loadNearby(pos);
+    setMoved(false);
   }
 
   function applyUserLocation(next: LatLng) {
@@ -240,11 +291,23 @@ export default function NearbyMapScreen() {
           <Link href="/" aria-label="홈으로" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink">
             <ArrowLeft size={25} />
           </Link>
-          <Link href="/search" className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-full bg-stone-100 px-4 text-[15px] font-semibold text-stone-400">
-            <Search size={19} className="text-forest" />
-            지역·상호명 검색
-          </Link>
+          <form onSubmit={runSearch} className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-full bg-stone-100 px-4">
+            <Search size={19} className="shrink-0 text-forest" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="지역·상호명 검색 (예: 수유역, 강릉)"
+              className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-ink outline-none placeholder:text-stone-400"
+              enterKeyHint="search"
+            />
+            {searching && <span className="shrink-0 text-xs text-stone-400">검색중</span>}
+          </form>
         </div>
+        {notFound && (
+          <p className="mt-1.5 px-5 text-[12px] text-coral-dark">
+            ‘{q.trim()}’ 위치를 못 찾았어요. 동/역/지역명으로 다시 검색해보세요.
+          </p>
+        )}
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">
           {CATEGORY_LABELS.map((label) => (
             <button
@@ -260,6 +323,16 @@ export default function NearbyMapScreen() {
           ))}
         </div>
       </div>
+
+      {moved && (
+        <button
+          type="button"
+          onClick={researchHere}
+          className="absolute left-1/2 top-[128px] z-20 -translate-x-1/2 rounded-full bg-forest px-4 py-2.5 text-sm font-bold text-white shadow-lg active:scale-95"
+        >
+          이 지역 다시 검색
+        </button>
+      )}
 
       <button
         type="button"
