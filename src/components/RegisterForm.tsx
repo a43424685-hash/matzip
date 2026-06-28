@@ -198,9 +198,6 @@ export default function RegisterForm({
   const foodGroup = categoryGroups.find((g) => g.type === "food")?.items ?? [];
   const situationGroup = categoryGroups.find((g) => g.type === "situation")?.items ?? [];
   const credentialGroup = categoryGroups.find((g) => g.type === "credential")?.items ?? [];
-  const placeChosen = !!(name.trim() && regionId);
-  // 단계 진행 가능 여부
-  const canNext = step === 0 ? placeChosen : step === 1 ? selected.size >= 1 : true;
   const stepShown = (n: number) => (isEdit ? "" : step === n ? "" : "hidden");
   // 장소 검색 / 좌표
   const [name, setName] = useState(initial?.name ?? "");
@@ -213,6 +210,9 @@ export default function RegisterForm({
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<PlaceResult | null>(null); // 선택된 카카오 장소
   const [manualMode, setManualMode] = useState(false); // 직접 입력(예외 흐름)
+  const placeChosen = !!(name.trim() && regionId);
+  // 단계 진행 가능 여부
+  const canNext = step === 0 ? placeChosen : step === 1 ? selected.size >= 1 : true;
 
   async function searchPlace() {
     if (!query.trim()) return;
