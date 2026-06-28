@@ -33,6 +33,8 @@ interface PlaceResult {
   longitude: number;
   regionName: string | null;
   kakaoPlaceId: string | null;
+  categoryName?: string | null;
+  foodCategory?: string | null;
   alreadyRegistered?: boolean;
 }
 
@@ -226,6 +228,13 @@ export default function RegisterForm({
     setKakaoPlaceId(p.kakaoPlaceId ?? "");
     // 주소 → 17개 시도 자동 매핑 (실패하면 사용자가 직접 선택)
     setRegionId(p.regionName ? regions.find((x) => x.name === p.regionName)?.id ?? "" : "");
+    // 음식 종류 자동 선택 (카카오 분류 기반) — 틀리면 사용자가 칩에서 바꿀 수 있음
+    if (p.foodCategory) {
+      const foodId = categoryGroups
+        .find((g) => g.type === "food")
+        ?.items.find((c) => c.name === p.foodCategory)?.id;
+      if (foodId) setSelected((prev) => new Set(prev).add(foodId));
+    }
     setPicked(p);
     setManualMode(false);
     setResults(null);

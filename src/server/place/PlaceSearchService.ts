@@ -12,6 +12,37 @@ export interface PlaceResult {
   longitude: number;
   regionName: string | null; // 우리 17개 시도 중 매칭된 이름
   kakaoPlaceId: string | null; // 카카오 장소 고유 ID (중복 가게 판별용). 카카오 검색만 있음.
+  categoryName: string | null; // 카카오 원본 분류 (예: "음식점 > 한식 > 국밥")
+  foodCategory: string | null; // 우리 음식 종류로 매핑된 값 (예: "한식"). 등록 시 자동 선택용.
+}
+
+/**
+ * 카카오 분류 문자열("음식점 > 한식 > 국밥") → 우리 음식 종류 카테고리 이름으로 매핑.
+ * 자동완성용. 매칭 실패 시 null → 사용자가 직접 고름.
+ * 반환 문자열은 반드시 seed의 food 카테고리 name 과 정확히 일치해야 함.
+ */
+const FOOD_RULES: { re: RegExp; food: string }[] = [
+  { re: /카페|커피|coffee/i, food: "카페" },
+  { re: /베이커리|제과|빵/, food: "베이커리" },
+  { re: /디저트|아이스크림|빙수|도넛|케이크/, food: "디저트" },
+  { re: /바\b|와인|호프|주점|이자카야|펍|bar|포차/i, food: "바/와인" },
+  { re: /회|해산물|조개|굴|생선|횟집|수산|해물|장어/, food: "회/해산물" },
+  { re: /고기|육류|구이|삼겹|갈비|곱창|족발|보쌈|닭|치킨/, food: "고기" },
+  { re: /국밥|탕|찌개|전골|해장|곰탕|설렁탕/, food: "국밥/탕" },
+  { re: /국수|냉면|칼국수|우동|라멘|쌀국수|면\b/, food: "면" },
+  { re: /일식|초밥|스시|돈가스|덮밥|규동/, food: "일식" },
+  { re: /중식|중국집|중국요리|마라|딤섬/, food: "중식" },
+  { re: /양식|파스타|스테이크|이탈리|피자|버거|멕시칸|브런치/, food: "양식" },
+  { re: /분식|떡볶이|김밥|순대/, food: "분식" },
+  { re: /한식|백반|한정식|국|밥/, food: "한식" },
+];
+
+export function foodCategoryFromKakao(categoryName: string | null): string | null {
+  if (!categoryName) return null;
+  for (const { re, food } of FOOD_RULES) {
+    if (re.test(categoryName)) return food;
+  }
+  return null;
 }
 
 /** 주소 문자열 → 17개 시도 이름 매핑 */
@@ -81,6 +112,8 @@ async function searchNominatim(q: string): Promise<PlaceResult[]> {
           longitude: Number(d.lon),
           regionName: regionFromAddress(stateText) ?? regionFromAddress(address),
           kakaoPlaceId: null, // OSM 은 카카오 ID 없음
+          categoryName: null, // OSM 은 분류 없음
+          foodCategory: null,
         };
       })
       .filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
@@ -120,6 +153,8 @@ async function searchKakao(q: string): Promise<PlaceResult[]> {
         longitude: Number(d.x),
         regionName: regionFromAddress(address),
         kakaoPlaceId: d.id ?? null,
+        categoryName: d.category_name ?? null,
+        foodCategory: foodCategoryFromKakao(d.category_name ?? null),
       };
     });
   } catch {
@@ -130,6 +165,7 @@ async function searchKakao(q: string): Promise<PlaceResult[]> {
 interface KakaoDoc {
   id?: string; // 카카오 장소 고유 ID
   place_name: string;
+  category_name?: string; // 예: "음식점 > 한식 > 국밥"
   address_name?: string;
   road_address_name?: string;
   x: string; // lng
