@@ -21,10 +21,11 @@ export interface PrepareResult {
 export async function preparePurchase(userId: string, collectionId: string): Promise<PrepareResult> {
   const col = await prisma.collection.findUnique({
     where: { id: collectionId },
-    select: { id: true, title: true, isPaid: true, priceWon: true, userId: true },
+    select: { id: true, title: true, isPaid: true, isPublic: true, priceWon: true, userId: true },
   });
   if (!col) return { ok: false, reason: "NOT_FOUND" };
-  if (!col.isPaid || !col.priceWon) return { ok: false, reason: "NOT_FOR_SALE" };
+  // 판매 중(공개 리스팅)인 유료 지도만 구매 가능 — 비공개 초안(isPublic=false)은 구매 불가
+  if (!col.isPaid || !col.isPublic || !col.priceWon) return { ok: false, reason: "NOT_FOR_SALE" };
   if (col.userId === userId) return { ok: false, reason: "OWNER" };
 
   const existing = await prisma.mapPurchase.findUnique({

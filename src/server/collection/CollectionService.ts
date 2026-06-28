@@ -474,12 +474,21 @@ export async function canSellPaidMaps(userId: string): Promise<boolean> {
   return (await getSellerEligibility(userId)).eligible;
 }
 
-/** 컬렉션을 유료 지도로 전환/해제 (소유자 + 자격 + 가격 990~9900). 유료면 공개로 강제. */
+/**
+ * 컬렉션의 유료 상태 설정.
+ *  - 자산/판매 분리:
+ *    · forSale=false → "비공개 초안 잠금": 자격 없이 누구나 가능. isPaid=true + isPublic=false.
+ *      (담긴 맛집이 검색/지도에서 잠겨 '나만의 자산'으로 쌓임. 레벨20 전에도 모아둘 수 있음)
+ *    · forSale=true  → "실제 판매(공개 리스팅)": 자격 + 내 인증 맛집만 + 맛보기 5곳 + 가격 필요.
+ *      isPaid=true + isPublic=true (마켓/추천에 노출되고 구매 가능).
+ *  - isPaid=false → 무료로 전환(공개 복귀).
+ */
 export async function setPaidMap(
   userId: string,
   collectionId: string,
   isPaid: boolean,
-  priceWon: number | null
+  priceWon: number | null,
+  forSale: boolean = true
 ): Promise<{ ok: boolean; reason?: string }> {
   const col = await prisma.collection.findUnique({
     where: { id: collectionId },
@@ -491,13 +500,28 @@ export async function setPaidMap(
   if (!isPaid) {
     await prisma.collection.update({
       where: { id: collectionId },
-      data: { isPaid: false, priceWon: null },
+      data: { isPaid: false, isPublic: true, priceWon: null },
     });
     return { ok: true };
   }
 
-  if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   if (col._count.items < 1) return { ok: false, reason: "EMPTY" };
+
+  // ── 비공개 초안 잠금 (자격 불필요) ──
+  if (!forSale) {
+    const draftPrice =
+      priceWon != null && priceWon >= PAID_MAP_MIN_WON && priceWon <= PAID_MAP_MAX_WON
+        ? Math.round(priceWon)
+        : null;
+    await prisma.collection.update({
+      where: { id: collectionId },
+      data: { isPaid: true, isPublic: false, priceWon: draftPrice },
+    });
+    return { ok: true };
+  }
+
+  // ── 실제 판매(공개 리스팅) ── 자격 + 인증 + 맛보기 + 가격 필요
+  if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   // 유료 지도는 '내가 인증한 맛집'만 담을 수 있다 — 미인증 항목이 하나라도 있으면 거부
   const items = await prisma.collectionItem.findMany({ where: { collectionId }, select: { restaurantId: true } });
   const restIds = items.map((i) => i.restaurantId);

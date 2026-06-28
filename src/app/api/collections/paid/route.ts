@@ -20,7 +20,8 @@ export async function POST(req: Request) {
     userId,
     String(body.collectionId ?? ""),
     !!body.isPaid,
-    body.priceWon != null ? Number(body.priceWon) : null
+    body.priceWon != null ? Number(body.priceWon) : null,
+    body.forSale !== false // 기본 true(판매). false면 비공개 초안 잠금(자격 불필요).
   );
   if (!r.ok) {
     const status = r.reason === "FORBIDDEN" ? 403 : r.reason === "NOT_FOUND" ? 404 : 400;
