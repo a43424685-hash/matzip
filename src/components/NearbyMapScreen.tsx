@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
@@ -269,6 +269,15 @@ export default function NearbyMapScreen() {
       >
         <LocateFixed size={22} />
       </button>
+
+      {/* Apple 지도(네이티브)로 이 지역 열기 — App Store 가이드라인 4 (카카오 외 옵션 제공) */}
+      <a
+        href={`https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`}
+        className="absolute bottom-[calc(30dvh_+_3.5rem)] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95"
+        aria-label="Apple 지도로 보기"
+      >
+        <MapPin size={18} className="text-forest" /> Apple 지도
+      </a>
 
       <section
         className={`absolute inset-x-0 bottom-0 z-30 rounded-t-[28px] bg-white shadow-[0_-8px_24px_rgba(0,0,0,.12)] transition-[height] duration-200 ${sheetClass(sheet)}`}
