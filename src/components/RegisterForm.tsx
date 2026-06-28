@@ -195,6 +195,8 @@ export default function RegisterForm({
   const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set(initial?.atmosphereTags ?? []));
   const [revisitIntent, setRevisitIntent] = useState(initial?.revisitIntent ?? "");
   const [waitingLevel, setWaitingLevel] = useState(initial?.waitingLevel ?? "");
+  // 공개 범위: 모두에게 공개(public, 기본) / 나만 보관(private)
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
   // 장소 검색 / 좌표
   const [name, setName] = useState(initial?.name ?? "");
   const [regionId, setRegionId] = useState(initial?.regionId ?? "");
@@ -750,6 +752,39 @@ export default function RegisterForm({
           <SelectField name="waitingLevel" label="웨이팅" hint="+10 XP" options={WAITING_LEVELS} value={waitingLevel} onChange={setWaitingLevel} />
         </div>
       </details>
+
+      {/* 공개 범위 선택 (등록 시에만) */}
+      {!isEdit && (
+        <div>
+          <label className="label">이 맛집, 어떻게 할까요?</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibility("public")}
+              className={`rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+                visibility === "public" ? "border-forest bg-forest-soft/40" : "border-stone-200 bg-white"
+              }`}
+            >
+              <span className="block text-sm font-bold text-ink">모두에게 공개</span>
+              <span className="mt-0.5 block text-[12px] text-ink-muted">검색·지도에 떠요 (기본)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("private")}
+              className={`rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+                visibility === "private" ? "border-forest bg-forest-soft/40" : "border-stone-200 bg-white"
+              }`}
+            >
+              <span className="block text-sm font-bold text-ink">나만 보관</span>
+              <span className="mt-0.5 block text-[12px] text-ink-muted">남에게 안 보임</span>
+            </button>
+          </div>
+          <p className="mt-1.5 text-[12px] text-stone-400">
+            나중에 팔 생각이 있는 아끼는 맛집이라면 ‘나만 보관’을 추천해요.
+          </p>
+          <input type="hidden" name="visibility" value={visibility} />
+        </div>
+      )}
 
       {state?.error && <p className="text-sm text-coral-dark">{state.error}</p>}
 

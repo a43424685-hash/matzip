@@ -42,6 +42,7 @@ export interface CreatePostInput {
   priceRange?: string | null;
   priceMemo?: string | null;
   waitingLevel?: "none" | "short" | "long" | null;
+  visibility?: "public" | "private" | string | null; // 기본 public. "private"이면 나만 보관.
   categoryIds: string[];
   media: MediaInput[];
 }
@@ -131,6 +132,7 @@ export async function createRestaurantPost(
         priceRange: input.priceRange ?? null,
         priceMemo: input.priceMemo?.trim() || null,
         waitingLevel: input.waitingLevel ?? null,
+        visibility: input.visibility === "private" ? "private" : "public",
       },
       select: { id: true },
     });
@@ -196,6 +198,7 @@ export interface UpdatePostInput {
   priceRange?: string | null;
   priceMemo?: string | null;
   waitingLevel?: "none" | "short" | "long" | null;
+  visibility?: "public" | "private" | string | null; // 기본 public. "private"이면 나만 보관.
   categoryIds: string[];
   media: MediaInput[];
 }
@@ -558,6 +561,8 @@ export async function searchPosts(input: SearchInput) {
   if (excludeUserIds && excludeUserIds.length > 0) {
     where.userId = { notIn: excludeUserIds };
   }
+  // 공개 범위: "나만 보관(private)" 글은 검색·홈피드 등 공개 발견 화면에서 제외.
+  where.visibility = "public";
   // 노출 게이트: 위치 인증된 글만. 단 운영자(admin) 글은 미인증이어도 노출(운영자 맛집).
   // includeUnverified면 게이트 없이 전체 노출(갓 올라온 맛집 — 인증 안 돼도 보임).
   if (!includeUnverified) {

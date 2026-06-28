@@ -239,6 +239,9 @@ model RestaurantPost {
   priceMemo    String? // 20만원 이상 등 직접 입력 가격 메모
   // waitingLevel: none | short | long | (null)
   waitingLevel String?
+  // visibility: public(검색·지도·홈피드·프로필 노출) | private(나만 보관 — 공개 발견 화면에서 숨김, 본인만 봄)
+  // 레벨20 전에도 비공개로 자산을 쌓을 수 있게 하는 기준 필드.
+  visibility   String   @default("public")
   likeCount    Int      @default(0)
   saveCount    Int      @default(0)
   shareCount   Int      @default(0)

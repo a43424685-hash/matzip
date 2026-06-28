@@ -33,6 +33,7 @@ const schema = z.object({
   videoThumbUrl: z.string().optional(),
   videoDuration: z.string().optional(),
   videoMuted: z.string().optional(),
+  visibility: z.string().optional(), // public | private (나만 보관)
 });
 
 function parseCoord(v?: string): number | null {
@@ -77,6 +78,7 @@ export async function registerPostAction(
     videoThumbUrl: formData.get("videoThumbUrl") || undefined,
     videoDuration: formData.get("videoDuration") || undefined,
     videoMuted: formData.get("videoMuted") || undefined,
+    visibility: formData.get("visibility") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.errors[0].message };
   const d = parsed.data;
@@ -129,6 +131,7 @@ export async function registerPostAction(
       priceMemo: d.priceMemo ?? null,
       revisitIntent: (d.revisitIntent as never) || null,
       waitingLevel: (d.waitingLevel as never) || null,
+      visibility: d.visibility === "private" ? "private" : "public",
       categoryIds: d.categoryIds,
       media,
     });

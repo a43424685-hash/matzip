@@ -57,6 +57,7 @@ export async function GET(request: Request) {
         longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
       },
       OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
+      visibility: "public", // "나만 보관" 글은 주변 지도에서 제외
       user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
       id: {

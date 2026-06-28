@@ -27,7 +27,8 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
   const [rank, posts, maps] = await Promise.all([
     getMyOverallRank(userId),
     prisma.restaurantPost.findMany({
-      where: { userId, ...(lockedIds.length ? { id: { notIn: lockedIds } } : {}) },
+      // 남이 보는 공개 프로필 → "나만 보관(private)" 글은 제외 (본인은 내 기록 페이지에서 봄)
+      where: { userId, visibility: "public", ...(lockedIds.length ? { id: { notIn: lockedIds } } : {}) },
       orderBy: { createdAt: "desc" },
       take: 30,
       select: {
