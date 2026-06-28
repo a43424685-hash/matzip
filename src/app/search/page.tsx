@@ -82,8 +82,10 @@ export default async function SearchPage({
 
   // 검색 의도(지역·상황·키워드)가 있을 때만 추천 큐레이션 지도 노출 — 신뢰순
   // 위치는 지오코딩(검색어→좌표)으로 받고, 상황은 카테고리로. "충무로역 3번출구" 같은 것도 좌표로 해석됨.
-  const hasQuery = !!(regionId || q.trim() || categoryIds.length);
-  const collections = hasQuery
+  // 추천 지도는 검색어가 "실제로" 위치(좌표)·지역·카테고리로 해석됐을 때만 노출.
+  // "zzzz" 처럼 아무 글자나 친 경우엔 coords=null + 지역/카테고리 없음 → 추천 안 띄움(광고처럼 튀는 것 방지).
+  const hasResolvedIntent = !!(coords || regionId || categoryIds.length);
+  const collections = hasResolvedIntent
     ? await searchCollections({ coords, regionId: regionId || null, categoryIds, excludeUserIds: blocked })
     : [];
   const colRanks = await Promise.all(collections.map((c) => getMyOverallRank(c.ownerId)));
@@ -212,11 +214,28 @@ export default async function SearchPage({
         <div className="mt-6">
           <p className="mb-3 text-sm text-ink-muted">맛집 {posts.length}곳</p>
           {posts.length === 0 ? (
-            <EmptyState
-              icon={SearchX}
-              title="조건에 맞는 맛집이 없어요"
-              description="검색어나 필터를 바꿔서 다시 찾아보세요."
-            />
+            <div>
+              <EmptyState
+                icon={SearchX}
+                title={q.trim() ? `‘${q.trim()}’ 근처엔 아직 맛집이 적어요` : "조건에 맞는 맛집이 없어요"}
+                description={
+                  q.trim()
+                    ? "이 동네의 첫 맛집을 등록하거나, 인기 맛집을 둘러보세요."
+                    : "검색어나 필터를 바꿔서 다시 찾아보세요."
+                }
+              />
+              <div className="mt-4 flex flex-col gap-2">
+                <Link href="/register" className="btn-primary flex h-11 w-full items-center justify-center">
+                  첫 맛집 등록하기
+                </Link>
+                <Link
+                  href="/rankings"
+                  className="flex h-11 w-full items-center justify-center rounded-xl border border-stone-200 bg-white text-sm font-semibold text-ink"
+                >
+                  인기 맛집 둘러보기
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className="space-y-4">
               {posts.map((p) => (
