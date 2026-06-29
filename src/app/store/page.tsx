@@ -18,7 +18,7 @@ export default async function StorePage() {
       priceWon: true,
       region: { select: { name: true } },
       user: { select: { nickname: true } },
-      _count: { select: { items: true } },
+      _count: { select: { items: true, purchases: true } },
     },
   });
 
@@ -53,7 +53,7 @@ export default async function StorePage() {
         </section>
 
         <ul className="mt-4 space-y-1.5 text-[13px] text-ink-muted">
-          <li className="flex items-start gap-1.5"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-forest" /> 위치·영수증·메뉴 3종 인증을 거친 맛집 위주로 구성됩니다.</li>
+          <li className="flex items-start gap-1.5"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-forest" /> 위치·메뉴 인증을 거친 맛집 위주로 구성됩니다.</li>
           <li className="flex items-start gap-1.5"><Coins size={15} className="mt-0.5 shrink-0 text-forest" /> 결제는 카카오페이·네이버페이 등 간편결제(PG)로 처리됩니다.</li>
         </ul>
 
@@ -70,7 +70,7 @@ export default async function StorePage() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-ink">{c.title}</div>
                   <div className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-muted">
-                    <MapPin size={12} /> {c.region.name} · 맛집 {c._count.items}곳 · {c.user.nickname}
+                    <MapPin size={12} /> {c.region.name} · 맛집 {c._count.items}곳{c._count.purchases > 0 && ` · 구매 ${c._count.purchases}건`} · {c.user.nickname}
                   </div>
                 </div>
                 <div className="shrink-0 text-right">

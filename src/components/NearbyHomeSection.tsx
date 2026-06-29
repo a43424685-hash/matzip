@@ -15,6 +15,8 @@ function dist(m: number) {
 export default function NearbyHomeSection() {
   const [state, setState] = useState<"loading" | "granted" | "denied">("loading");
   const [items, setItems] = useState<NearbyItem[]>([]);
+  // 위치 권한을 "영구 거부"한 경우 — 버튼을 눌러도 안 떠서, 설정 안내가 따로 필요
+  const [permBlocked, setPermBlocked] = useState(false);
 
   function locate() {
     setState("loading");
@@ -33,7 +35,11 @@ export default function NearbyHomeSection() {
           setState("denied");
         }
       },
-      () => setState("denied"),
+      (err) => {
+        // 사용자가 위치 권한을 거부(특히 영구 거부)한 경우
+        if (err.code === err.PERMISSION_DENIED) setPermBlocked(true);
+        setState("denied");
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   }
@@ -68,13 +74,30 @@ export default function NearbyHomeSection() {
             ))}
           </div>
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/55 px-6 text-center">
-            <p className="text-[13px] font-bold text-ink">위치를 켜면 내 주변 맛집을 추천해드려요</p>
-            <button
-              onClick={locate}
-              className="flex items-center gap-1.5 rounded-full bg-forest px-3.5 py-1.5 text-[13px] font-bold text-white active:scale-95"
-            >
-              <LocateFixed size={14} /> 위치 켜기
-            </button>
+            {permBlocked ? (
+              <>
+                <p className="text-[13px] font-bold text-ink">위치 권한이 꺼져 있어요</p>
+                <p className="text-[12px] leading-snug text-ink-muted">
+                  주소창의 자물쇠(또는 휴대폰 설정 → 권한)에서 <b className="text-ink">위치 허용</b>으로 바꾼 뒤 새로고침해주세요.
+                </p>
+                <button
+                  onClick={locate}
+                  className="mt-1 flex items-center gap-1.5 rounded-full bg-stone-200 px-3.5 py-1.5 text-[13px] font-bold text-ink active:scale-95"
+                >
+                  <LocateFixed size={14} /> 다시 시도
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[13px] font-bold text-ink">위치를 켜면 내 주변 맛집을 추천해드려요</p>
+                <button
+                  onClick={locate}
+                  className="flex items-center gap-1.5 rounded-full bg-forest px-3.5 py-1.5 text-[13px] font-bold text-white active:scale-95"
+                >
+                  <LocateFixed size={14} /> 위치 켜기
+                </button>
+              </>
+            )}
           </div>
         </div>
       ) : state === "loading" ? (

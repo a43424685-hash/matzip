@@ -141,9 +141,17 @@ export default async function MePage() {
             유료 맛집지도 만들기
           </a>
         ) : (
-          <p className="mt-3 text-[12px] text-ink-muted">
-            조건을 모두 달성하면 유료 맛집지도를 열 수 있어요.
-          </p>
+          <>
+            <p className="mt-3 text-[12px] text-ink-muted">
+              조건을 모두 달성하면 유료 맛집지도를 열 수 있어요. 맛집을 등록하고 현장에서 위치 인증해보세요.
+            </p>
+            <a
+              href="/register"
+              className="mt-3 flex h-11 items-center justify-center rounded-xl border border-forest/30 bg-forest-soft/40 text-sm font-bold text-forest active:scale-[0.99]"
+            >
+              맛집 등록하러 가기
+            </a>
+          </>
         )}
       </section>
 
@@ -166,7 +174,6 @@ export default async function MePage() {
 
       {/* 활동 관리 */}
       <Section title="활동 관리">
-        <Row href="/me/reviews" icon={<FileText size={18} />} label="내가 쓴 리뷰" />
         <Row href="/me/reactions" icon={<Heart size={18} />} label="받은 좋아요·저장" />
         <Row href="/me/shared" icon={<Share2 size={18} />} label="공유한 맛집" />
         <Row href="/me/blocked-users" icon={<ShieldAlert size={18} />} label="차단한 사용자" />

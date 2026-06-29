@@ -211,7 +211,9 @@ function UserRow({ row, highlight, cardRef }: { row: UserRankRow; highlight?: bo
             <span className="truncate text-[15px] font-bold">{row.nickname}</span>
             {highlight && <span className="shrink-0 rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold">나</span>}
           </div>
-          <div className={`text-[11px] tabular-nums ${highlight ? "text-white/70" : "text-stone-400"}`}>{row.xp.toLocaleString()} XP</div>
+          <div className={`text-[11px] tabular-nums ${highlight ? "text-white/70" : "text-stone-400"}`}>
+            {row.xp.toLocaleString()} XP{row.verifiedCount > 0 && ` · 인증 ${row.verifiedCount}곳`}
+          </div>
         </div>
         <span className={`rounded-lg px-2.5 py-1 text-[15px] font-black ${highlight ? "bg-white/20 text-white" : "bg-forest-soft text-forest"}`}>Lv.{row.level}</span>
       </Link>

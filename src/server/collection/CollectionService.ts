@@ -533,7 +533,7 @@ export async function setPaidMap(
   if (restIds.some((id) => !verifiedSet.has(id))) return { ok: false, reason: "NEED_VERIFIED" };
   // 맛보기(무료 공개) 가게를 정확히 PAID_MAP_PREVIEW_COUNT(5)곳 지정해야 유료 오픈 가능 (최소=최대)
   const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
-  if (previewCount !== PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
+  if (previewCount < PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
   const price = Math.round(priceWon ?? 0);
   if (price < PAID_MAP_MIN_WON || price > PAID_MAP_MAX_WON) return { ok: false, reason: "BAD_PRICE" };
 

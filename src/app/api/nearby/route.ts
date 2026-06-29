@@ -73,6 +73,7 @@ export async function GET(request: Request) {
         select: {
           id: true,
           name: true,
+          saveCount: true,
           latitude: true,
           longitude: true,
           primaryRegion: { select: { id: true, name: true } },

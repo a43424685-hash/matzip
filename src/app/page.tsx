@@ -80,9 +80,9 @@ export default async function HomePage() {
                 )}
               </Link>
             ) : (
-              <span className="text-stone-500">
+              <Link href="/login" className="text-stone-500" aria-label="알림 — 로그인이 필요해요">
                 <Bell size={22} strokeWidth={1.9} />
-              </span>
+              </Link>
             )}
           </div>
         </div>
@@ -208,9 +208,9 @@ export default async function HomePage() {
         arrow="down"
       />
 
-      {/* 맛집 등록 FAB (홈에서만) */}
+      {/* 맛집 등록 FAB (홈에서만) — 비로그인은 로그인으로 */}
       <Link
-        href="/register"
+        href={user ? "/register" : "/login"}
         aria-label="맛집 등록"
         className="fixed bottom-[88px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-forest text-white shadow-[0_8px_24px_rgba(31,77,63,.4)] active:scale-95"
       >
@@ -281,7 +281,7 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
             </span>
           )}
           {!post.isOfficial && !post.verification.location && !showVerified && (
-            <span className="rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+            <span className="rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
           )}
         </div>
       </div>
@@ -325,7 +325,7 @@ function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: b
           )}
         </div>
         <div className="relative z-[1] mt-auto">
-          <div className="text-[11px] font-bold text-forest">사진 준비 전</div>
+          <div className="text-[11px] font-bold text-forest">사진 준비 중</div>
           {post.shortReview && (
             <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-ink-muted">
               {post.shortReview}
@@ -382,7 +382,9 @@ function RankRow({ u }: { u: UserRankRow }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-bold text-ink">{u.nickname}</div>
-        <div className="text-[11px] tabular-nums text-stone-400">{u.xp.toLocaleString()} XP</div>
+        <div className="text-[11px] tabular-nums text-stone-400">
+          {u.xp.toLocaleString()} XP{u.verifiedCount > 0 && ` · 인증 ${u.verifiedCount}곳`}
+        </div>
       </div>
       <span className="badge-lv">Lv.{u.level}</span>
     </li>
