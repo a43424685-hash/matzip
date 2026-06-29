@@ -534,11 +534,12 @@ export interface SearchInput {
   q?: string | null; // 가게 이름 키워드 검색
   coords?: { lat: number; lng: number } | null; // 위치 검색(지오코딩 결과) — 있으면 반경 우선
   radiusKm?: number;
+  keywordTerms?: string[]; // 검색어에서 뽑은 분류어(야장·노포 등). 태그뿐 아니라 한줄평/리뷰 글에서도 매칭.
   includeUnverified?: boolean; // true면 미인증 글도 노출(갓 올라온 맛집)
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, includeUnverified } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, keywordTerms, includeUnverified } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
@@ -572,8 +573,19 @@ export async function searchPosts(input: SearchInput) {
   }
   if (Object.keys(restaurantWhere).length > 0) where.restaurant = restaurantWhere;
   if (priceRange) where.priceRange = priceRange;
-  if (categoryIds && categoryIds.length > 0) {
-    where.categories = { some: { categoryId: { in: categoryIds } } };
+  // 분류 필터: (1) 태그가 달렸거나 (2) 한줄평/리뷰 글에 분류어가 들어있으면 매칭.
+  //   → 옛날에 등록돼 태그가 없는 맛집도 글에 "야장" 등이 있으면 검색에 잡힌다.
+  const catTerms = keywordTerms ?? [];
+  if ((categoryIds && categoryIds.length > 0) || catTerms.length > 0) {
+    const catOr: Record<string, unknown>[] = [];
+    if (categoryIds && categoryIds.length > 0) {
+      catOr.push({ categories: { some: { categoryId: { in: categoryIds } } } });
+    }
+    for (const w of catTerms) {
+      catOr.push({ shortReview: { contains: w, mode: "insensitive" } });
+      catOr.push({ content: { contains: w, mode: "insensitive" } });
+    }
+    where.AND = [{ OR: catOr }];
   }
   if (excludeUserIds && excludeUserIds.length > 0) {
     where.userId = { notIn: excludeUserIds };

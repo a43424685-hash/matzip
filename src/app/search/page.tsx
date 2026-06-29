@@ -68,10 +68,12 @@ export default async function SearchPage({
   //   예) "수유 야장" → 위치 "수유" + 분류 [야장]  → 수유의 야장 맛집만.
   // (분류는 칩으로만 걸리던 걸, 글로 친 경우도 인식하도록.)
   const derivedCatIds: string[] = [];
+  const catWords: string[] = []; // 검색어에서 뽑은 분류어(야장 등) — 리뷰 글 매칭용
   let locationQuery = q;
   for (const c of categories) {
     if (c.name.length >= 2 && q.includes(c.name)) {
       derivedCatIds.push(c.id);
+      catWords.push(c.name);
       locationQuery = locationQuery.split(c.name).join(" ");
     }
   }
@@ -85,6 +87,7 @@ export default async function SearchPage({
     regionId: regionId || null,
     priceRange: priceRange || null,
     categoryIds: effectiveCategoryIds,
+    keywordTerms: catWords,
     sort,
     q: locationQuery,
     coords,
