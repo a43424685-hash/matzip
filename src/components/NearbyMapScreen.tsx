@@ -114,8 +114,10 @@ export default function NearbyMapScreen() {
           autoSearchTimer.current = window.setTimeout(() => {
             const c = map.getCenter();
             setMoved(false);
-            setCenter({ lat: c.getLat(), lng: c.getLng() });
-          }, 450);
+            // pan(중심이동)이든 zoom(확대/축소)이든 항상 직접 재검색.
+            // 예전엔 setCenter로 처리해서, 줌은 중심이 안 바뀌어 재검색이 아예 안 됐음(버그).
+            void loadNearby({ lat: c.getLat(), lng: c.getLng() });
+          }, 400);
         };
         kakao.maps.event.addListener(map, "dragend", onMapMove);
         kakao.maps.event.addListener(map, "zoom_changed", onMapMove);
