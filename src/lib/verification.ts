@@ -10,12 +10,13 @@ export interface VerificationFlags {
   menu: boolean; // 메뉴판 인증
 }
 
-export const VERIFICATION_KEYS = ["location", "receipt", "menu"] as const;
+// 영수증 인증은 제거(개인정보 노출 위험·과한 마찰) → 위치·메뉴판만 노출.
+// (VerificationFlags.receipt 필드는 기존 데이터 호환 위해 남겨두되, 어디서도 표시·집계하지 않음)
+export const VERIFICATION_KEYS = ["location", "menu"] as const;
 export type VerificationKey = (typeof VERIFICATION_KEYS)[number];
 
 export const VERIFICATION_LABEL: Record<VerificationKey, string> = {
   location: "위치",
-  receipt: "영수증",
   menu: "메뉴판",
 };
 
