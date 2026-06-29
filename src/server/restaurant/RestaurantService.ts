@@ -688,7 +688,7 @@ export const postCardSelect = {
   receiptVerified: true,
   menuVerified: true,
   restaurant: {
-    select: { id: true, name: true, primaryRegion: { select: { id: true, name: true } } },
+    select: { id: true, name: true, saveCount: true, primaryRegion: { select: { id: true, name: true } } },
   },
   user: { select: { id: true, nickname: true, totalLevel: true, isAdmin: true } },
   media: { select: { type: true, url: true, thumbnailUrl: true, muted: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
@@ -713,7 +713,8 @@ export function toPostCard(p: NonNullable<PostRow>) {
     priceRange: p.priceRange,
     priceMemo: p.priceMemo,
     likeCount: p.likeCount,
-    saveCount: p.saveCount,
+    // 저장 수는 "가게 단위"가 정답(저장은 user×restaurant 유니크) → 상세/카드 어디서나 같은 숫자
+    saveCount: p.restaurant.saveCount,
     createdAt: p.createdAt,
     restaurantId: p.restaurant.id,
     restaurantName: p.restaurant.name,
