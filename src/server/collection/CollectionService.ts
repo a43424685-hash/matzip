@@ -451,7 +451,7 @@ export interface SellerEligibility {
   eligible: boolean;
 }
 
-/** 유료 지도 판매 자격 상태 (Lv.20 + 위치 인증 30곳 + 그중 영수증/메뉴 5곳). 운영자는 항상 통과. */
+/** 유료 지도 판매 자격 상태 (Lv.20 + 위치 인증 30곳). 운영자는 항상 통과. */
 export async function getSellerEligibility(userId: string): Promise<SellerEligibility> {
   const [user, verifiedCount, proofCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true, isAdmin: true } }),

@@ -55,7 +55,7 @@ export default function PaidMapToggle({
           <Lock size={16} className="text-forest" /> 비공개 초안으로 모아두기
         </h2>
         <p className="mt-1 text-[13px] text-ink-muted">
-          판매는 자격(Lv.20 · 위치 인증 30곳, 그중 영수증/메뉴 5곳) 달성 후 열려요. 그 전에도 이 리스트를{" "}
+          판매는 자격(Lv.20 · 위치 인증 30곳) 달성 후 열려요. 그 전에도 이 리스트를{" "}
           <b className="text-ink">비공개로 잠가</b> 두면, 담긴 맛집이 검색·지도에서 숨겨져 나중에 팔 자산으로 모여요.
         </p>
         <div className="mt-3">
