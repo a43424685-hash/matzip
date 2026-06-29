@@ -37,6 +37,17 @@ function radiusForLevel(level: number): number {
   return table[level] ?? (level >= 9 ? 20000 : 3000);
 }
 
+// 지도에 "보이는 영역 전체"를 덮는 반경(중심→모서리 거리, m). 보이는 맛집이 빠지지 않게.
+function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 function sheetClass(state: SheetState) {
   if (state === "collapsed") return "h-[14dvh]";
   if (state === "expanded") return "h-[calc(100dvh-98px)]";
@@ -48,6 +59,7 @@ export default function NearbyMapScreen() {
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<any[]>([]);
   const userMarkerRef = useRef<any>(null);
+  const autoSearchTimer = useRef<number | undefined>(undefined);
   const watchIdRef = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
 
@@ -96,9 +108,17 @@ export default function NearbyMapScreen() {
           level: 5,
         });
         mapRef.current = map;
-        // 지도를 옮기거나 줌하면 "이 지역 다시 검색" 버튼을 띄운다 (자동 갱신은 안 함)
-        kakao.maps.event.addListener(map, "dragend", () => setMoved(true));
-        kakao.maps.event.addListener(map, "zoom_changed", () => setMoved(true));
+        // 지도를 옮기거나 줌하면 그 지역을 "자동으로" 다시 검색한다 (멈춘 뒤 0.45초)
+        const onMapMove = () => {
+          if (autoSearchTimer.current) window.clearTimeout(autoSearchTimer.current);
+          autoSearchTimer.current = window.setTimeout(() => {
+            const c = map.getCenter();
+            setMoved(false);
+            setCenter({ lat: c.getLat(), lng: c.getLng() });
+          }, 450);
+        };
+        kakao.maps.event.addListener(map, "dragend", onMapMove);
+        kakao.maps.event.addListener(map, "zoom_changed", onMapMove);
         setMapReady(true);
       })
       .catch((e: Error) => {
@@ -179,9 +199,19 @@ export default function NearbyMapScreen() {
   async function loadNearby(pos: LatLng, radius?: number) {
     setLoading(true);
     try {
-      const lvl = mapRef.current?.getLevel?.() ?? 5;
-      const r = radius ?? radiusForLevel(lvl);
-      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}&radius=${r}`);
+      const map = mapRef.current;
+      let r = radius;
+      if (r == null) {
+        const bounds = map?.getBounds?.();
+        if (bounds) {
+          // 지도에 보이는 영역(중심→북동 모서리) 전체를 덮는 반경 + 여유 10%
+          const ne = bounds.getNorthEast();
+          r = Math.min(haversineMeters(pos.lat, pos.lng, ne.getLat(), ne.getLng()) * 1.1, 30000);
+        } else {
+          r = radiusForLevel(map?.getLevel?.() ?? 5);
+        }
+      }
+      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}&radius=${Math.round(r)}`);
       const data = (await res.json()) as { ok?: boolean; items?: NearbyItem[] };
       setItems(res.ok && data.ok ? data.items ?? [] : []);
     } finally {
