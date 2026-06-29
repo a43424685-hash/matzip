@@ -29,13 +29,20 @@ export default async function SettingsPage() {
           <ChevronRight size={18} className="text-stone-300" />
         </Link>
 
-        <div className="flex items-center gap-3 px-1 py-3.5">
-          <Link2 size={18} className="text-stone-400" />
-          <span className="flex-1 text-[15px] text-ink">카카오 계정 연결</span>
-          <span className={`text-[13px] font-semibold ${kakao ? "text-forest" : "text-stone-400"}`}>
-            {kakao ? "연결됨" : "연결 안 됨"}
-          </span>
-        </div>
+        {kakao ? (
+          <div className="flex items-center gap-3 px-1 py-3.5">
+            <Link2 size={18} className="text-stone-400" />
+            <span className="flex-1 text-[15px] text-ink">카카오 계정 연결</span>
+            <span className="text-[13px] font-semibold text-forest">연결됨</span>
+          </div>
+        ) : (
+          <a href="/api/auth/kakao" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
+            <Link2 size={18} className="text-stone-400" />
+            <span className="flex-1 text-[15px] text-ink">카카오 계정 연결</span>
+            <span className="text-[13px] font-semibold text-forest">연결하기</span>
+            <ChevronRight size={18} className="text-stone-300" />
+          </a>
+        )}
 
         <Link href="/me/notification-settings" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">
           <Bell size={18} className="text-stone-400" />
