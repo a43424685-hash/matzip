@@ -462,10 +462,9 @@ export async function getSellerEligibility(userId: string): Promise<SellerEligib
   ]);
   const level = user?.totalLevel ?? 1;
   const isAdmin = !!user?.isAdmin;
+  // 판매 자격: 레벨 20 + 위치 인증 30곳 (영수증/메뉴 5곳 조건은 제거 — 화면 간 조건 통일)
   const eligible =
-    !!user &&
-    (isAdmin ||
-      (level >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED && proofCount >= SELL_MIN_PROOF));
+    !!user && (isAdmin || (level >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED));
   return { level, verifiedCount, proofCount, isAdmin, eligible };
 }
 

@@ -36,8 +36,8 @@ export default function SignupForm() {
           />
         </div>
         <div>
-          <label className="label">닉네임</label>
-          <input name="nickname" required minLength={2} maxLength={20} className="input" placeholder="맛잘알" />
+          <label className="label">닉네임 <span className="font-normal text-stone-400">2~12자</span></label>
+          <input name="nickname" required minLength={2} maxLength={12} className="input" placeholder="맛잘알" />
         </div>
         <div>
           <label className="label">비밀번호</label>
@@ -47,6 +47,13 @@ export default function SignupForm() {
           <label className="label">비밀번호 확인</label>
           <input name="confirmPassword" type="password" required minLength={6} className="input" placeholder="한 번 더 입력" />
         </div>
+        <label className="flex items-start gap-2 text-[13px] text-ink-muted">
+          <input type="checkbox" name="agree" required className="mt-0.5 h-4 w-4 shrink-0 accent-forest" />
+          <span>
+            <Link href="/terms" className="font-semibold text-forest underline">이용약관</Link> 및{" "}
+            <Link href="/privacy" className="font-semibold text-forest underline">개인정보 처리방침</Link>에 동의합니다.
+          </span>
+        </label>
         {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
         <button type="submit" disabled={pending} className="btn-primary w-full">
           {pending ? "가입 중…" : "이메일로 가입하기"}
