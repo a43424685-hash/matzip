@@ -174,7 +174,6 @@ export default async function MePage() {
 
       {/* 활동 관리 */}
       <Section title="활동 관리">
-        <Row href="/me/reviews" icon={<FileText size={18} />} label="내가 쓴 리뷰" />
         <Row href="/me/reactions" icon={<Heart size={18} />} label="받은 좋아요·저장" />
         <Row href="/me/shared" icon={<Share2 size={18} />} label="공유한 맛집" />
         <Row href="/me/blocked-users" icon={<ShieldAlert size={18} />} label="차단한 사용자" />
