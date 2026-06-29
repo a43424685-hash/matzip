@@ -627,6 +627,19 @@ export async function searchPosts(input: SearchInput) {
     select: postCardSelect,
   });
 
+  // 이름/주소가 검색어와 맞으면 맨 위로. 예: "수유시장 호떡" 치면 그 가게가 1등,
+  // 나머지(수유 근처 다른 맛집)는 아래로. 동점이면 기존 정렬(인기순 등) 유지(안정 정렬).
+  if (qTrim) {
+    const ql = qTrim.toLowerCase();
+    const matchScore = (p: (typeof posts)[number]): number => {
+      const name = (p.restaurant?.name ?? "").toLowerCase();
+      if (name === ql) return 3; // 완전 일치
+      if (name.includes(ql)) return 2; // 이름 포함
+      return 0;
+    };
+    posts.sort((a, b) => matchScore(b) - matchScore(a));
+  }
+
   if (sort !== "weekly") return posts.map(toPostCard);
 
   // 이번 주 인기순: 최근 7일 좋아요+저장(가중) 으로 재정렬
