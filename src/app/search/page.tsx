@@ -63,14 +63,30 @@ export default async function SearchPage({
   const recommendedIds = new Set(recommended.map((c) => c.id));
 
   const blocked = await getBlockedIds(user?.id ?? null);
-  // 위치 검색: 검색어 → 좌표(지오코딩). 있으면 개별 맛집도 반경으로 찾음("수유역 맛집" → 수유역 근처).
-  const coords = q.trim() ? await geocodeKeyword(q) : null;
+
+  // 검색어에서 분류 단어(야장·노포·카페 등)를 자동으로 뽑아 "위치"와 "분류"를 분리한다.
+  //   예) "수유 야장" → 위치 "수유" + 분류 [야장]  → 수유의 야장 맛집만.
+  // (분류는 칩으로만 걸리던 걸, 글로 친 경우도 인식하도록.)
+  const derivedCatIds: string[] = [];
+  let locationQuery = q;
+  for (const c of categories) {
+    if (c.name.length >= 2 && q.includes(c.name)) {
+      derivedCatIds.push(c.id);
+      locationQuery = locationQuery.split(c.name).join(" ");
+    }
+  }
+  // 의미 없는 일반어 제거 후 위치 부분만 남김
+  locationQuery = locationQuery.replace(/맛집|식당|추천|근처/g, " ").replace(/\s+/g, " ").trim();
+  const effectiveCategoryIds = Array.from(new Set([...categoryIds, ...derivedCatIds]));
+
+  // 위치 부분이 있으면 그것만 지오코딩(없으면 분류만으로 검색)
+  const coords = locationQuery ? await geocodeKeyword(locationQuery) : null;
   const posts = await searchPosts({
     regionId: regionId || null,
     priceRange: priceRange || null,
-    categoryIds,
+    categoryIds: effectiveCategoryIds,
     sort,
-    q,
+    q: locationQuery,
     coords,
     excludeUserIds: blocked,
   });
@@ -84,9 +100,9 @@ export default async function SearchPage({
   // 위치는 지오코딩(검색어→좌표)으로 받고, 상황은 카테고리로. "충무로역 3번출구" 같은 것도 좌표로 해석됨.
   // 추천 지도는 검색어가 "실제로" 위치(좌표)·지역·카테고리로 해석됐을 때만 노출.
   // "zzzz" 처럼 아무 글자나 친 경우엔 coords=null + 지역/카테고리 없음 → 추천 안 띄움(광고처럼 튀는 것 방지).
-  const hasResolvedIntent = !!(coords || regionId || categoryIds.length);
+  const hasResolvedIntent = !!(coords || regionId || effectiveCategoryIds.length);
   const collections = hasResolvedIntent
-    ? await searchCollections({ coords, regionId: regionId || null, categoryIds, excludeUserIds: blocked })
+    ? await searchCollections({ coords, regionId: regionId || null, categoryIds: effectiveCategoryIds, excludeUserIds: blocked })
     : [];
   const colRanks = await Promise.all(collections.map((c) => getMyOverallRank(c.ownerId)));
   const topRankers = await getTopRankerIds();

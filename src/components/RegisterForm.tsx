@@ -189,8 +189,8 @@ export default function RegisterForm({
   const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set(initial?.atmosphereTags ?? []));
   const [revisitIntent, setRevisitIntent] = useState(initial?.revisitIntent ?? "");
   const [waitingLevel, setWaitingLevel] = useState(initial?.waitingLevel ?? "");
-  // 공개 범위: 모두에게 공개(public, 기본) / 나만 보관(private)
-  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  // 공개 범위: 등록 시 반드시 직접 선택 (기본값 없음 → 안 고르면 등록 불가)
+  const [visibility, setVisibility] = useState<"public" | "private" | null>(null);
   // 단계별 등록(create 모드만). 0:가게 1:카테고리 2:사진·한줄평 3:공개여부
   const TOTAL_STEPS = 4;
   const [step, setStep] = useState(0);
@@ -337,6 +337,7 @@ export default function RegisterForm({
 
       {/* STEP 0: 가게 선택 — 카카오 장소 검색이 기본, 직접 입력은 예외 */}
       <div className={`space-y-4 ${stepShown(0)}`}>
+        {!isEdit && <p className="text-lg font-extrabold text-ink">1 / 4 · 가게 선택</p>}
         {/* (A) 장소 검색 흐름 — 기본값 (수정 모드에선 가게 변경 불가) */}
         {!isEdit && !picked && !manualMode && (
           <div className="rounded-2xl bg-stone-50 p-4">
@@ -534,6 +535,7 @@ export default function RegisterForm({
 
       {/* STEP 1: 카테고리 (음식 → 어떤 가게 → 인증). 날씨·계절·가격 태그는 등록에서 제외 */}
       <div className={`space-y-5 ${stepShown(1)}`}>
+        {!isEdit && <p className="text-lg font-extrabold text-ink">2 / 4 · 어떤 곳인가요</p>}
         <div>
           <label className="label">
             무슨 음식이에요? <span className="font-normal text-stone-400">가게를 고르면 자동 선택돼요 (바꿀 수 있어요)</span>
@@ -571,6 +573,7 @@ export default function RegisterForm({
 
       {/* STEP 2: 사진/영상 + 한줄평 */}
       <div className={`space-y-4 ${stepShown(2)}`}>
+        {!isEdit && <p className="text-lg font-extrabold text-ink">3 / 4 · 사진과 한줄평</p>}
         <div className="rounded-2xl bg-stone-50 p-4">
           <p className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted">
             <Camera size={15} /> 맛집 사진·영상 (선택)
@@ -735,14 +738,6 @@ export default function RegisterForm({
           <ChevronDown size={16} />
         </summary>
         <div className="space-y-4 px-4 pb-4">
-          <div>
-            <label className="label">분위기 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
-            <MultiChoice
-              selected={atmosphereTags}
-              onToggle={(v) => toggleValue(setAtmosphereTags, v)}
-              options={ATMOSPHERE_TAGS}
-            />
-          </div>
           <SelectField name="priceRange" label="가격대" hint="+10 XP" options={PRICE_RANGES} value={priceRange} onChange={setPriceRange} />
           {priceRange === "over_200k" && (
             <div>
@@ -764,6 +759,7 @@ export default function RegisterForm({
       {/* STEP 3: 공개 범위 선택 (등록 시에만) */}
       {!isEdit && (
         <div className={stepShown(3)}>
+          <p className="mb-2 text-lg font-extrabold text-ink">4 / 4 · 공개 여부</p>
           <label className="label">이 맛집, 어떻게 할까요?</label>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -774,7 +770,7 @@ export default function RegisterForm({
               }`}
             >
               <span className="block text-sm font-bold text-ink">모두에게 공개</span>
-              <span className="mt-0.5 block text-[12px] text-ink-muted">검색·지도에 떠요 (기본)</span>
+              <span className="mt-0.5 block text-[12px] text-ink-muted">검색·지도에 떠요</span>
             </button>
             <button
               type="button"
@@ -790,7 +786,10 @@ export default function RegisterForm({
           <p className="mt-1.5 text-[12px] text-stone-400">
             나중에 팔 생각이 있는 아끼는 맛집이라면 ‘나만 보관’을 추천해요.
           </p>
-          <input type="hidden" name="visibility" value={visibility} />
+          {!visibility && (
+            <p className="mt-1 text-[12px] font-semibold text-coral-dark">공개 여부를 선택해야 등록할 수 있어요.</p>
+          )}
+          <input type="hidden" name="visibility" value={visibility ?? ""} />
         </div>
       )}
 
@@ -845,10 +844,10 @@ export default function RegisterForm({
             ) : (
               <button
                 type="submit"
-                disabled={pending || !name.trim() || !regionId}
+                disabled={pending || !name.trim() || !regionId || !visibility}
                 className="btn-primary h-12 flex-[2] !text-base"
               >
-                {pending ? "등록 중…" : "맛집 등록하기"}
+                {pending ? "등록 중…" : !visibility ? "공개 여부를 선택하세요" : "맛집 등록하기"}
               </button>
             )}
           </div>
