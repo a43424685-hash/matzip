@@ -104,7 +104,7 @@ export default function SearchBox({ initialQ = "" }: { initialQ?: string }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setOpen(true)}
-        placeholder="가게 이름으로 검색"
+        placeholder="지역·상호명·분류로 검색 (예: 강남 노포)"
         className="input h-12 !pl-10"
         autoComplete="off"
       />
