@@ -120,6 +120,13 @@ export default function NearbyMapScreen() {
         kakao.maps.event.addListener(map, "dragend", onMapMove);
         kakao.maps.event.addListener(map, "zoom_changed", onMapMove);
         setMapReady(true);
+        // 재진입(다시 들어옴) 시 컨테이너 크기가 늦게 잡혀 지도/마커가 안 그려지는 것 방지
+        window.setTimeout(() => {
+          if (!cancelled && mapRef.current) {
+            mapRef.current.relayout();
+            mapRef.current.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+          }
+        }, 250);
       })
       .catch((e: Error) => {
         if (!cancelled) setMapError(e.message === "NO_KEY" ? "지도 키가 필요해요." : "지도를 불러오지 못했어요.");
