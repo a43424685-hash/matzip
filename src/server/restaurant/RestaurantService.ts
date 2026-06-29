@@ -538,20 +538,37 @@ export interface SearchInput {
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 2, includeUnverified } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, includeUnverified } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
   if (regionId) restaurantWhere.primaryRegionId = regionId;
-  // 위치 검색: 좌표가 있으면 반경(바운딩박스)으로 — "수유역 맛집" → 수유역 근처 맛집(이름 무관).
-  // 좌표 없을 때만 이름 키워드로 폴백.
-  if (coords) {
-    const dLat = radiusKm / 111;
-    const dLng = radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180));
-    restaurantWhere.latitude = { gte: coords.lat - dLat, lte: coords.lat + dLat };
-    restaurantWhere.longitude = { gte: coords.lng - dLng, lte: coords.lng + dLng };
-  } else if (q && q.trim()) {
-    restaurantWhere.name = { contains: q.trim(), mode: "insensitive" };
+  // 위치 검색: "강남" 같은 동네는 (1) 좌표 주변 반경 박스 + (2) 가게 이름/주소에 검색어 포함 을 함께(OR) 잡는다.
+  // → 좌표가 살짝 떨어져 있어도 이름/주소가 맞으면 검색되어 "0곳" 문제를 막는다.
+  const qTrim = q?.trim();
+  const geoBox = coords
+    ? {
+        latitude: { gte: coords.lat - radiusKm / 111, lte: coords.lat + radiusKm / 111 },
+        longitude: {
+          gte: coords.lng - radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180)),
+          lte: coords.lng + radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180)),
+        },
+      }
+    : null;
+  const textMatch = qTrim
+    ? {
+        OR: [
+          { name: { contains: qTrim, mode: "insensitive" } },
+          { address: { contains: qTrim, mode: "insensitive" } },
+        ],
+      }
+    : null;
+  if (geoBox && textMatch) {
+    restaurantWhere.OR = [geoBox, textMatch];
+  } else if (geoBox) {
+    Object.assign(restaurantWhere, geoBox);
+  } else if (textMatch) {
+    Object.assign(restaurantWhere, textMatch);
   }
   if (Object.keys(restaurantWhere).length > 0) where.restaurant = restaurantWhere;
   if (priceRange) where.priceRange = priceRange;
