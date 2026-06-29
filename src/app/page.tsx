@@ -382,7 +382,9 @@ function RankRow({ u }: { u: UserRankRow }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-bold text-ink">{u.nickname}</div>
-        <div className="text-[11px] tabular-nums text-stone-400">{u.xp.toLocaleString()} XP</div>
+        <div className="text-[11px] tabular-nums text-stone-400">
+          {u.xp.toLocaleString()} XP{u.verifiedCount > 0 && ` · 인증 ${u.verifiedCount}곳`}
+        </div>
       </div>
       <span className="badge-lv">Lv.{u.level}</span>
     </li>

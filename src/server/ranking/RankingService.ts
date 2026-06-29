@@ -43,6 +43,7 @@ export interface UserRankRow {
   level: number;
   xp: number;
   recent30dXp: number;
+  verifiedCount: number; // 위치 인증한 맛집 수 (신뢰 신호)
 }
 
 export interface RestaurantRankRow {
@@ -100,6 +101,17 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
     )
     .slice(0, limit);
 
+  // 각 랭커의 "인증 맛집 수" — 순위 옆 신뢰 신호
+  const ids = sorted.map((u) => u.id);
+  const counts = ids.length
+    ? await prisma.restaurantPost.groupBy({
+        by: ["userId"],
+        where: { userId: { in: ids }, locationVerified: true },
+        _count: { _all: true },
+      })
+    : [];
+  const verifiedMap = new Map(counts.map((c) => [c.userId, c._count._all]));
+
   return sorted.map((u, i) => ({
     rank: i + 1,
     userId: u.id,
@@ -108,6 +120,7 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
     level: u.totalLevel,
     xp: u.totalXp,
     recent30dXp: u.recent30dXp,
+    verifiedCount: verifiedMap.get(u.id) ?? 0,
   }));
 }
 
@@ -259,6 +272,17 @@ export async function getRegionUserRanking(
     )
     .slice(0, limit);
 
+  // 이 지역에서 인증한 맛집 수 (신뢰 신호)
+  const ids = sorted.map((s) => s.userId);
+  const counts = ids.length
+    ? await prisma.restaurantPost.groupBy({
+        by: ["userId"],
+        where: { userId: { in: ids }, locationVerified: true, restaurant: { is: { primaryRegionId: regionId } } },
+        _count: { _all: true },
+      })
+    : [];
+  const verifiedMap = new Map(counts.map((c) => [c.userId, c._count._all]));
+
   return sorted.map((s, i) => ({
     rank: i + 1,
     userId: s.userId,
@@ -267,6 +291,7 @@ export async function getRegionUserRanking(
     level: s.regionLevel,
     xp: s.regionXp,
     recent30dXp: s.recent30dXp,
+    verifiedCount: verifiedMap.get(s.userId) ?? 0,
   }));
 }
 
