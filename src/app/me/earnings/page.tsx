@@ -120,7 +120,7 @@ export default async function EarningsPage() {
       )}
 
       <p className="mt-4 px-1 text-[12px] leading-relaxed text-stone-400">
-        ※ 판매액에서 결제·운영 수수료 30%가 차감된 금액이 정산돼요. 실제 정산 지급 기능은 준비 중이에요.
+        ※ 판매액에서 결제·운영 수수료 30%가 차감된 금액이 정산돼요. 출금을 신청하면 운영자가 확인 후 등록하신 계좌로 입금해드려요.
       </p>
     </main>
   );

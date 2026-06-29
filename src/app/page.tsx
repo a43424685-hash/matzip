@@ -12,7 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getHomeData } from "@/server/home";
+import { getHomeData, type PaidMapCard } from "@/server/home";
 import { unreadCount } from "@/server/notification/NotificationService";
 import type { PostCard } from "@/server/restaurant/RestaurantService";
 import type { UserRankRow } from "@/server/ranking/RankingService";
@@ -37,7 +37,7 @@ function formatPostDate(value: Date | string) {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const { weekly, recent, saved, topUsers, categories, myPostCount } = await getHomeData(user?.id);
+  const { weekly, recent, saved, topUsers, categories, myPostCount, paidMaps } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
@@ -147,21 +147,34 @@ export default async function HomePage() {
       )}
 
       {/* 섹션 4-2. 유료 맛집 지도 — 둘러보고 구매 (누구나 Lv.1부터 구매 가능) */}
-      <div className="px-5 pt-9">
-        <h2 className="section-title flex items-center gap-1.5">
-          <Coins size={17} className="text-forest" /> 유료 맛집 지도
-        </h2>
-        <p className="mt-1 text-[13px] text-ink-muted">검증된 로컬이 직접 만든 진짜 맛집 지도를 둘러보세요</p>
+      <div className="flex items-end justify-between px-5 pb-3 pt-9">
+        <div>
+          <h2 className="section-title flex items-center gap-1.5">
+            <Coins size={17} className="text-forest" /> 유료 맛집 지도
+          </h2>
+          <p className="mt-1 text-[13px] text-ink-muted">검증된 로컬이 직접 만든 진짜 맛집 지도</p>
+        </div>
+        <Link href="/store" className="flex items-center text-[13px] font-semibold text-forest">
+          전체 <ChevronRight size={15} />
+        </Link>
+      </div>
+      {paidMaps.length === 0 ? (
         <Link
           href="/store"
-          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 active:scale-[0.99]"
+          className="mx-5 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 active:scale-[0.99]"
         >
           <span className="flex items-center gap-2 text-sm font-bold text-ink">
             <Coins size={18} className="text-forest" /> 지도 둘러보고 구매하기
           </span>
           <ChevronRight size={18} className="text-stone-300" />
         </Link>
-      </div>
+      ) : (
+        <div className="no-scrollbar flex items-start gap-3 overflow-x-auto px-5 pb-1">
+          {paidMaps.map((m) => (
+            <PaidMapCardItem key={m.id} map={m} />
+          ))}
+        </div>
+      )}
 
       {/* 섹션 5. 맛잘알 랭킹 */}
       <div className="px-5 pt-9">
@@ -333,6 +346,30 @@ function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: b
           <Heart size={11} /> {post.likeCount}
         </span>
       </div>
+    </Link>
+  );
+}
+
+// 유료 맛집 지도 카드 (홈 가로 스크롤)
+function PaidMapCardItem({ map }: { map: PaidMapCard }) {
+  return (
+    <Link
+      href={`/collections/${map.id}`}
+      className="flex h-[238px] w-[184px] shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-2"
+    >
+      <div className="relative h-[132px] overflow-hidden rounded-xl bg-stone-100">
+        {map.coverUrl ? (
+          <CardImage src={map.coverUrl} alt={map.title} label="사진 준비 중" className="h-full w-full object-cover" />
+        ) : (
+          <div className="thumb-empty h-full w-full" />
+        )}
+        <span className="absolute right-2 top-2 rounded-full bg-forest px-2 py-0.5 text-[11px] font-extrabold text-white">
+          {map.priceWon.toLocaleString()}원
+        </span>
+      </div>
+      <div className="mt-2 line-clamp-2 min-h-[40px] text-sm font-bold leading-tight text-ink">{map.title}</div>
+      <div className="truncate text-[12px] text-stone-400">{map.regionName} · 맛집 {map.itemCount}곳</div>
+      <div className="mt-auto truncate text-[11px] font-semibold text-forest">{map.authorNickname}</div>
     </Link>
   );
 }
