@@ -250,6 +250,9 @@ model RestaurantPost {
   videoViewCount  Int   @default(0)
 
   // ── 방문 인증 (음식점 자체가 아니라 "이 유저의 해당 맛집 기록"에 귀속) ──
+  // 운영자 PICK: 운영자가 "가보고 싶어" 큐레이션한 곳(실제 방문·인증 아님). 후기 유도용.
+  // → 인증(locationVerified)과 구분: PICK은 인증 뱃지 없이 "운영자 PICK"으로 표시.
+  isOperatorPick             Boolean   @default(false)
   // 뱃지 3종: 위치 / 영수증 / 메뉴판 (음식·현장 사진 인증은 폐지 — 등록 사진으로 대체)
   locationVerified           Boolean   @default(false)
   receiptVerified            Boolean   @default(false)

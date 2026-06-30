@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Play, Check } from "lucide-react";
+import { MapPin, Play, Check, Star } from "lucide-react";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import { priceLabel, tasteRatingLabel } from "@/lib/labels";
 import LikeSaveButtons from "./LikeSaveButtons";
@@ -99,10 +99,16 @@ function Header({ post }: { post: PostCardData }) {
         href={`/restaurants/${post.id}`}
         className="flex min-w-0 items-center gap-1.5 text-base font-bold text-ink"
       >
-        {post.isOfficial && (
-          <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
-            <Check size={10} strokeWidth={3.5} /> 운영자
+        {post.isOperatorPick ? (
+          <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+            <Star size={10} strokeWidth={3} /> 운영자 PICK
           </span>
+        ) : (
+          post.isOfficial && (
+            <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+              <Check size={10} strokeWidth={3.5} /> 운영자
+            </span>
+          )
         )}
         <span className="truncate">{post.restaurantName}</span>
       </Link>

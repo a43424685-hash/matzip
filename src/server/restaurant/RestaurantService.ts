@@ -687,6 +687,7 @@ export const postCardSelect = {
   locationVerified: true,
   receiptVerified: true,
   menuVerified: true,
+  isOperatorPick: true,
   restaurant: {
     select: { id: true, name: true, saveCount: true, primaryRegion: { select: { id: true, name: true } } },
   },
@@ -724,6 +725,7 @@ export function toPostCard(p: NonNullable<PostRow>) {
     authorNickname: p.user.nickname,
     authorLevel: p.user.totalLevel,
     isOfficial: p.user.isAdmin, // 운영자 맛집 (피드 노출 허용 + 배지)
+    isOperatorPick: p.isOperatorPick, // 운영자 PICK (가보고 싶어 찜 — 인증 아님, 후기 유도)
     media: p.media[0] ?? null,
     categories: p.categories.map((c) => c.category.name),
     verification: {

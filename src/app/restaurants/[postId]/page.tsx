@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Camera, MapPin, Share2, Check, Pencil } from "lucide-react";
+import { Camera, MapPin, Share2, Check, Pencil, Star } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
+import PickCoachmark from "@/components/PickCoachmark";
 import Coachmark from "@/components/Coachmark";
 import { prisma } from "@/lib/db";
 import KakaoMap from "@/components/KakaoMap";
@@ -59,6 +60,7 @@ export default async function PostDetailPage({
       commentCount: true,
       createdAt: true,
       locationVerified: true,
+      isOperatorPick: true,
       receiptVerified: true,
       menuVerified: true,
       receiptPhotoUrl: true,
@@ -127,6 +129,7 @@ export default async function PostDetailPage({
 
   return (
     <main className="pb-6">
+      {post.isOperatorPick && <PickCoachmark postId={postId} />}
       <StickyDetailHeader name={post.restaurant.name} />
       {/* 미디어 — 뒤로가기 + 장수 표시 + 점 인디케이터 */}
       {post.media.length === 0 ? (
@@ -157,20 +160,31 @@ export default async function PostDetailPage({
           </div>
           {/* 메타 — 운영자 · 인증 · 등록일 (작게) */}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-stone-400">
-            {post.user.isAdmin && (
+            {post.isOperatorPick ? (
               <>
-                <span className="flex items-center gap-0.5 font-bold text-[#1d9bf0]">
-                  <Check size={12} strokeWidth={3} /> 운영자
+                <span className="flex items-center gap-0.5 font-bold text-amber-600">
+                  <Star size={12} strokeWidth={3} /> 운영자 PICK
                 </span>
                 <span>·</span>
               </>
-            )}
-            {post.locationVerified && (
+            ) : (
               <>
-                <span className="flex items-center gap-0.5 font-bold text-forest">
-                  <Check size={12} strokeWidth={3} /> 인증
-                </span>
-                <span>·</span>
+                {post.user.isAdmin && (
+                  <>
+                    <span className="flex items-center gap-0.5 font-bold text-[#1d9bf0]">
+                      <Check size={12} strokeWidth={3} /> 운영자
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
+                {post.locationVerified && (
+                  <>
+                    <span className="flex items-center gap-0.5 font-bold text-forest">
+                      <Check size={12} strokeWidth={3} /> 인증
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
               </>
             )}
             {post.receiptVerified && (
