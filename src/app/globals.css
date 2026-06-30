@@ -6,8 +6,15 @@
   color-scheme: light;
 }
 
+html {
+  /* 스크롤 앵커링 끄기 — 페이지 진입 후 위쪽 이미지/비동기 콘텐츠가 늦게 로드돼도
+     브라우저가 화면을 아래로 끌어내리지 않게(= '맨 위가 아니라 좀 아래' 버그 방지) */
+  overflow-anchor: none;
+}
+
 body {
   @apply bg-stone-50 text-ink antialiased;
+  overflow-anchor: none;
 }
 
 /* 모바일 우선: 본문은 가운데 정렬된 폰 너비 컬럼 */
