@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
 
 type LatLng = { lat: number; lng: number };
 type SheetState = "collapsed" | "default" | "expanded";
-type FilterMode = "saved" | "verified";
+type FilterMode = "all" | "saved" | "verified";
 
 type NearbyItem = {
   post: PostCardData;
@@ -69,8 +69,8 @@ export default function NearbyMapScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetState>("default");
-  // 기본은 '인증 맛집' — 첫 사용자(저장 0)도 바로 주변 맛집을 보게 한다.
-  const [mode, setMode] = useState<FilterMode>("verified");
+  // 기본은 '전체' — 인증 맛집 + 운영자 PICK(추천) 모두 보여 콘텐츠를 꽉 채운다.
+  const [mode, setMode] = useState<FilterMode>("all");
   const [category, setCategory] = useState("전체");
   const [loading, setLoading] = useState(false);
   // 검색(지오코딩→지도 이동) + "이 지역 다시 검색"
@@ -185,7 +185,10 @@ export default function NearbyMapScreen() {
 
     filteredItems.slice(0, 30).forEach((item) => {
       const pos = new kakao.maps.LatLng(item.latitude, item.longitude);
-      const label = item.saved ? "저장" : "인증";
+      const pick = item.post.isOperatorPick;
+      const label = item.saved ? "저장" : pick ? "★PICK" : "인증";
+      const bg = item.saved ? "#1f4d3f" : pick ? "#f59e0b" : "#ffffff";
+      const fg = item.saved || pick ? "#ffffff" : "#1f2b25";
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         yAnchor: 1.15,
@@ -193,8 +196,8 @@ export default function NearbyMapScreen() {
           <a href="/restaurants/${item.post.id}" style="
             display:inline-flex;align-items:center;gap:4px;
             padding:6px 10px;border:1px solid rgba(31,61,43,.18);
-            border-radius:999px;background:${item.saved ? "#1f4d3f" : "#ffffff"};
-            color:${item.saved ? "#ffffff" : "#1f2b25"};
+            border-radius:999px;background:${bg};
+            color:${fg};
             font-size:12px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.16);
             white-space:nowrap;text-decoration:none;">
             ${label} · ${formatDistance(item.distanceMeters)}
@@ -314,7 +317,12 @@ export default function NearbyMapScreen() {
   }
 
   const savedCount = items.filter((item) => item.saved).length;
-  const headerText = mode === "saved" ? `내 주변 저장 맛집 ${savedCount}곳` : `주변 인증 맛집 ${filteredItems.length}곳`;
+  const headerText =
+    mode === "saved"
+      ? `내 주변 저장 맛집 ${savedCount}곳`
+      : mode === "verified"
+        ? `주변 인증 맛집 ${filteredItems.length}곳`
+        : `주변 맛집 ${filteredItems.length}곳`;
 
   return (
     <main className="relative h-[calc(100dvh-76px)] overflow-hidden bg-stone-100">
@@ -416,12 +424,12 @@ export default function NearbyMapScreen() {
         <div className="mt-3 flex gap-2 px-5">
           <button
             type="button"
-            onClick={() => setMode("saved")}
+            onClick={() => setMode("all")}
             className={`h-9 rounded-full px-3 text-[13px] font-bold ${
-              mode === "saved" ? "bg-forest text-white" : "bg-stone-100 text-ink"
+              mode === "all" ? "bg-forest text-white" : "bg-stone-100 text-ink"
             }`}
           >
-            저장한 맛집
+            전체
           </button>
           <button
             type="button"
@@ -431,6 +439,15 @@ export default function NearbyMapScreen() {
             }`}
           >
             인증 맛집
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("saved")}
+            className={`h-9 rounded-full px-3 text-[13px] font-bold ${
+              mode === "saved" ? "bg-forest text-white" : "bg-stone-100 text-ink"
+            }`}
+          >
+            저장한 맛집
           </button>
         </div>
 
@@ -500,7 +517,11 @@ function NearbyCard({ item }: { item: NearbyItem }) {
       </div>
       <div className="min-w-0 flex-1 py-1">
         <div className="flex items-center gap-1 text-[12px] font-bold text-forest">
-          {item.post.isOfficial ? (
+          {item.post.isOperatorPick ? (
+            <span className="flex items-center gap-1 text-amber-600">
+              <Star size={13} /> 운영자 PICK
+            </span>
+          ) : item.post.isOfficial ? (
             <span className="flex items-center gap-1 text-amber-600">
               <ShieldCheck size={13} /> 운영자
             </span>
