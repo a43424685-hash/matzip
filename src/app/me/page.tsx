@@ -20,6 +20,7 @@ import {
   Headphones,
   Info,
   Upload,
+  CreditCard,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -169,6 +170,7 @@ export default async function MePage() {
         <Row href="/me/purchases" icon={<ShoppingBag size={18} />} label="구매한 지도" sub="내가 산 유료 맛집 지도" />
         <Row href="/me/paid-map" icon={<Map size={18} />} label="유료 맛집지도 관리" sub="조건 달성 후 오픈 가능" />
         <Row href="/me/earnings" icon={<Coins size={18} />} label="판매 수익 내역" sub="수수료 차감 후 정산 예정" />
+        <Row href="/me/account" icon={<CreditCard size={18} />} label="정산 계좌" sub="출금받을 계좌 등록 (예금주=실명)" />
         <Row href="/me/benefits" icon={<Gift size={18} />} label="혜택 모음" />
         <Row href="/me/review-campaigns" icon={<Megaphone size={18} />} label="정직 리뷰 캠페인" />
       </Section>

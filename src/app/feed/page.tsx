@@ -1,0 +1,87 @@
+import { getCurrentUser } from "@/lib/auth";
+import { getBlockedIds } from "@/server/block/BlockService";
+import {
+  searchPosts,
+  getViewerReactions,
+  type SortKey,
+} from "@/server/restaurant/RestaurantService";
+import BackHomeHeader from "@/components/BackHomeHeader";
+import InfiniteList from "@/components/InfiniteList";
+
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 20;
+
+// 정렬 파라미터(weekly|latest|saves) → searchPosts SortKey. 기본은 인기순(saves).
+const SORT_MAP: Record<string, SortKey> = { weekly: "weekly", latest: "latest", saves: "saves" };
+
+function title(sort: string): string {
+  if (sort === "weekly") return "이번주 인기 맛집";
+  if (sort === "latest") return "갓 올라온 맛집";
+  return "맛집 전체";
+}
+
+export default async function FeedListPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const sortParam = (sp.sort as string) || "saves";
+  const sort: SortKey = SORT_MAP[sortParam] ?? "saves";
+  const q = (sp.q as string) || undefined;
+  const regionId = (sp.regionId as string) || undefined;
+  const priceRange = (sp.priceRange as string) || undefined;
+  const categoryIds = sp.categoryIds
+    ? Array.isArray(sp.categoryIds)
+      ? sp.categoryIds
+      : [sp.categoryIds]
+    : [];
+
+  const user = await getCurrentUser();
+  const excludeUserIds = await getBlockedIds(user?.id ?? null);
+
+  // 첫 페이지 서버 렌더 (skip:0)
+  const items = await searchPosts({
+    sort,
+    q,
+    regionId,
+    priceRange,
+    categoryIds,
+    limit: PAGE_SIZE,
+    skip: 0,
+    excludeUserIds,
+    includeUnverified: sort === "latest",
+  });
+
+  const { likedPosts, savedRestaurants } = await getViewerReactions(
+    user?.id ?? null,
+    items.map((p) => p.id),
+    items.map((p) => p.restaurantId)
+  );
+
+  // "더보기" 시 API 가 받을 동일 쿼리 (정렬/검색/필터 유지). categoryIds 는 반복 파라미터로 전달.
+  const query: Record<string, string> = { sort: sortParam };
+  if (q) query.q = q;
+  if (regionId) query.regionId = regionId;
+  if (priceRange) query.priceRange = priceRange;
+
+  return (
+    <main className="px-5 py-6">
+      <BackHomeHeader title={title(sortParam)} />
+      {items.length === 0 ? (
+        <p className="mx-1 rounded-2xl bg-stone-50 py-10 text-center text-sm text-stone-400">
+          아직 등록된 맛집이 없어요.
+        </p>
+      ) : (
+        <InfiniteList
+          initialItems={items}
+          query={query}
+          initialLiked={[...likedPosts]}
+          initialSaved={[...savedRestaurants]}
+          isLoggedIn={!!user}
+        />
+      )}
+    </main>
+  );
+}

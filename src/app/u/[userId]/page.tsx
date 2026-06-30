@@ -2,8 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Lock } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { getSessionUserId } from "@/lib/auth";
 import { getMyOverallRank } from "@/server/ranking/RankingService";
+import { getFollowCounts, isFollowing } from "@/server/follow/FollowService";
 import DetailBackButton from "@/components/DetailBackButton";
+import FollowButton from "@/components/FollowButton";
 import OfficialBadge from "@/components/OfficialBadge";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +26,14 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
     select: { postId: true },
   });
   const lockedIds = lockedRows.map((r) => r.postId).filter((x): x is string => !!x);
+
+  // 팔로우 — 로그인한 다른 사람이 볼 때만 버튼 노출
+  const viewerId = await getSessionUserId();
+  const isOwnProfile = viewerId === user.id;
+  const [followCounts, initialFollowing] = await Promise.all([
+    getFollowCounts(user.id),
+    viewerId && !isOwnProfile ? isFollowing(viewerId, user.id) : Promise.resolve(false),
+  ]);
 
   const [rank, posts, maps] = await Promise.all([
     getMyOverallRank(userId),
@@ -75,7 +86,14 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
             <span>전체 <b className="text-ink">{rank > 0 ? `${rank}위` : "—"}</b></span>
             <span className="tabular-nums">{user.totalXp.toLocaleString()} XP</span>
           </div>
+          <div className="mt-1.5 flex items-center gap-3 text-[13px] text-ink-muted">
+            <span>팔로워 <b className="text-ink tabular-nums">{followCounts.followers}</b></span>
+            <span>팔로잉 <b className="text-ink tabular-nums">{followCounts.following}</b></span>
+          </div>
         </div>
+        {viewerId && !isOwnProfile && (
+          <FollowButton targetId={user.id} initialFollowing={initialFollowing} />
+        )}
       </section>
 
       {/* 유료 지도 */}

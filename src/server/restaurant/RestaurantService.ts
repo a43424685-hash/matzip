@@ -536,10 +536,11 @@ export interface SearchInput {
   radiusKm?: number;
   keywordTerms?: string[]; // 검색어에서 뽑은 분류어(야장·노포 등). 태그뿐 아니라 한줄평/리뷰 글에서도 매칭.
   includeUnverified?: boolean; // true면 미인증 글도 노출(갓 올라온 맛집)
+  skip?: number; // 오프셋 페이지네이션(더보기) — 생략 시 0. weekly 정렬에는 적용 안 함.
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, keywordTerms, includeUnverified } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, keywordTerms, includeUnverified, skip } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
@@ -623,6 +624,8 @@ export async function searchPosts(input: SearchInput) {
   const posts = await prisma.restaurantPost.findMany({
     where,
     orderBy,
+    // weekly는 200개를 모아 7일 가중치로 재정렬하므로 skip 미적용. 그 외 정렬에만 오프셋 적용.
+    ...(sort === "weekly" ? {} : skip ? { skip } : {}),
     take: sort === "weekly" ? 200 : limit,
     select: postCardSelect,
   });

@@ -28,6 +28,12 @@ model User {
   deactivatedAt DateTime? // 비활성화(쉬어가기) — 글/프로필 숨김, 재로그인 시 자동 복구
   notifyLike    Boolean  @default(true) // 좋아요 알림 받기
   notifyComment Boolean  @default(true) // 댓글/답글 알림 받기
+  // 실명 — 비공개(정산/본인확인용). 한 번 설정하면 수정 불가. 화면엔 닉네임만 노출.
+  legalName    String?
+  // 정산 계좌 — 출금 전 등록 필수. 예금주명(accountHolder)은 legalName과 일치해야 등록 가능.
+  bankName      String?
+  accountNumber String?
+  accountHolder String?
   totalXp      Int      @default(0)
   totalLevel   Int      @default(1)
   createdAt    DateTime @default(now())
@@ -55,8 +61,25 @@ model User {
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
   pushSubscriptions PushSubscription[]
+  following     Follow[]          @relation("Follower")  // 내가 팔로우한 사람들
+  followers     Follow[]          @relation("Following") // 나를 팔로우한 사람들
 
   @@map("users")
+}
+
+// 팔로우 — follower 가 following 을 팔로우 (단방향)
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   // 팔로우 하는 사람
+  followingId String   // 팔로우 당하는 사람
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AppSplash from "@/components/AppSplash";
 import ScrollReset from "@/components/ScrollReset";
+import SwipeNav from "@/components/SwipeNav";
 import XpToastWatcher from "@/components/XpToastWatcher";
 import Analytics from "@/components/Analytics";
 
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <ScrollReset />
         </Suspense>
+        <SwipeNav />
         <Suspense fallback={null}>
           <Analytics />
         </Suspense>

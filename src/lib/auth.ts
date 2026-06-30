@@ -81,6 +81,7 @@ export interface SessionUser {
   totalXp: number;
   totalLevel: number;
   nicknameConfirmedAt: Date | null;
+  legalName: string | null;
   isAdmin: boolean;
 }
 
@@ -98,11 +99,16 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       totalXp: true,
       totalLevel: true,
       nicknameConfirmedAt: true,
+      legalName: true,
       isAdmin: true,
     },
   });
   if (user && !user.nicknameConfirmedAt) {
     redirect("/onboarding/nickname");
+  }
+  // 닉네임 다음 단계 — 실명 미입력이면 실명 입력 화면으로 (기존 가입자 포함)
+  if (user && user.nicknameConfirmedAt && !user.legalName) {
+    redirect("/onboarding/realname");
   }
   return user;
 }

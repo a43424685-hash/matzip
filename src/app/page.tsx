@@ -101,7 +101,7 @@ export default async function HomePage() {
       <CategoryIconGrid categories={navCats} />
 
       {/* 섹션 1. 이번 주 인기 맛집 */}
-      <SectionHead title="이번 주 인기 맛집" sub="사람들이 많이 저장한 곳" href="/feed/weekly" />
+      <SectionHead title="이번 주 인기 맛집" sub="사람들이 많이 저장한 곳" href="/feed?sort=weekly" />
       {weekly.length === 0 ? (
         <Empty>아직 이번 주 반응이 없어요.</Empty>
       ) : (
@@ -135,7 +135,7 @@ export default async function HomePage() {
       <NearbyHomeSection />
 
       {/* 섹션 3. 갓 올라온 맛집 (미인증 포함, 최신순) */}
-      <SectionHead title="갓 올라온 맛집" sub="방금 등록된 따끈한 맛집" href="/feed/recent" />
+      <SectionHead title="갓 올라온 맛집" sub="방금 등록된 따끈한 맛집" href="/feed?sort=latest" />
       {recent.length === 0 ? (
         <Empty>아직 등록된 맛집이 없어요. 첫 맛집을 올려보세요!</Empty>
       ) : (
@@ -235,7 +235,7 @@ function SectionHead({ title, sub, href }: { title: string; sub: string; href: s
         <p className="mt-1 text-[13px] text-ink-muted">{sub}</p>
       </div>
       <Link href={href} className="flex items-center text-[13px] font-semibold text-forest">
-        더보기 <ChevronRight size={15} />
+        전체보기 <ChevronRight size={15} />
       </Link>
     </div>
   );

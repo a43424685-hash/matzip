@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Coins } from "lucide-react";
+import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getSellerEarnings } from "@/server/payment/PaymentService";
 import { getSellerBalance, listMyWithdrawals, MIN_WITHDRAW_WON } from "@/server/payment/WithdrawalService";
@@ -23,11 +24,19 @@ export default async function EarningsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [e, balance, withdrawals] = await Promise.all([
+  const [e, balance, withdrawals, acc] = await Promise.all([
     getSellerEarnings(user.id),
     getSellerBalance(user.id),
     listMyWithdrawals(user.id),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { bankName: true, accountNumber: true, accountHolder: true },
+    }),
   ]);
+  const account =
+    acc?.bankName && acc.accountNumber && acc.accountHolder
+      ? { bankName: acc.bankName, accountNumber: acc.accountNumber, accountHolder: acc.accountHolder }
+      : null;
 
   return (
     <main className="px-5 pb-24 pt-5">
@@ -50,6 +59,7 @@ export default async function EarningsPage() {
         minWon={MIN_WITHDRAW_WON}
         canWithdraw={balance.canWithdraw}
         hasPending={balance.hasPending}
+        account={account}
       />
 
       {/* 출금 내역 */}
