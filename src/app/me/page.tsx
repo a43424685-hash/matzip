@@ -19,6 +19,7 @@ import {
   Settings,
   Headphones,
   Info,
+  Upload,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -171,6 +172,17 @@ export default async function MePage() {
         <Row href="/me/benefits" icon={<Gift size={18} />} label="혜택 모음" />
         <Row href="/me/review-campaigns" icon={<Megaphone size={18} />} label="정직 리뷰 캠페인" />
       </Section>
+
+      {user.isAdmin && (
+        <Section title="운영자">
+          <Row
+            href="/me/admin/import"
+            icon={<Upload size={18} />}
+            label="맛집 일괄등록"
+            sub="네이버 즐겨찾기로 운영자 PICK 한번에 등록"
+          />
+        </Section>
+      )}
 
       {/* 활동 관리 */}
       <Section title="활동 관리">
