@@ -5,6 +5,7 @@ import {
   getViewerReactions,
   type SortKey,
 } from "@/server/restaurant/RestaurantService";
+import { Search } from "lucide-react";
 import BackHomeHeader from "@/components/BackHomeHeader";
 import InfiniteList from "@/components/InfiniteList";
 
@@ -69,6 +70,15 @@ export default async function FeedListPage({
   return (
     <main className="px-5 py-6">
       <BackHomeHeader title={title(sortParam)} />
+      <form action="/search" method="get" className="mb-4 flex h-11 items-center gap-2 rounded-full bg-stone-100 px-4">
+        <Search size={17} className="shrink-0 text-stone-400" />
+        <input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="맛집·지역 검색"
+          className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-stone-400"
+        />
+      </form>
       {items.length === 0 ? (
         <p className="mx-1 rounded-2xl bg-stone-50 py-10 text-center text-sm text-stone-400">
           아직 등록된 맛집이 없어요.

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { saveBankAccountAction, type BankState } from "@/app/actions/account";
 
@@ -36,6 +37,16 @@ export default function BankAccountForm({
           본인 실명(<b className="text-ink">{legalName}</b>)과 일치해야 해요.
         </p>
       </div>
+      <label className="flex items-start gap-2 rounded-xl bg-stone-50 p-3 text-[12.5px] leading-relaxed text-ink-muted">
+        <input type="checkbox" name="agree" required className="mt-0.5 h-4 w-4 shrink-0 accent-forest" />
+        <span>
+          판매 수수료 30% 차감·정산액 관련 세금 본인 부담, 잘못 입력한 계좌의 오입금 책임, 구매자 환불 시 정산액
+          환수, 부정행위 적발 시 정산 보류·환수에 동의합니다.{" "}
+          <Link href="/terms" className="font-semibold text-forest underline">
+            자세히
+          </Link>
+        </span>
+      </label>
       {state?.error && <p className="text-sm text-coral-dark">{state.error}</p>}
       <button type="submit" disabled={pending} className="btn-primary w-full">
         {pending ? "저장 중…" : initial?.bankName ? "계좌 수정" : "계좌 등록"}

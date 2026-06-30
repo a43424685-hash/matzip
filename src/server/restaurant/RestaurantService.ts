@@ -669,7 +669,7 @@ export async function searchPosts(input: SearchInput) {
       score: (lMap.get(p.id) ?? 0) * 1 + (sMap.get(p.id) ?? 0) * 3,
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+    .slice(skip ?? 0, (skip ?? 0) + limit) // 더보기: 재정렬된 200개에서 오프셋만큼 건너뛰어 중복 방지
     .map((x) => x.card);
 }
 

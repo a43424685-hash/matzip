@@ -27,6 +27,8 @@ export async function saveBankAccountAction(_prev: BankState, formData: FormData
   const userId = await getSessionUserId();
   if (!userId) redirect("/login");
 
+  if (!formData.get("agree")) return { error: "정산 약관에 동의해야 등록할 수 있어요." };
+
   const parsed = bankSchema.safeParse({
     bankName: formData.get("bankName"),
     accountNumber: formData.get("accountNumber"),
