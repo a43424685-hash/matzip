@@ -22,6 +22,7 @@ import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
 import { reverseGeocode } from "@/server/place/PlaceSearchService";
 import { getBlockedIds } from "@/server/block/BlockService";
+import { canViewPost } from "@/server/visibility/PaidVisibility";
 import { getComments } from "@/server/comment/CommentService";
 import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
 
@@ -90,6 +91,9 @@ export default async function PostDetailPage({
   });
 
   if (!post) notFound();
+
+  // 유료 잠금 글은 소유자/구매자/관리자만 (직접 URL 접근 차단)
+  if (!(await canViewPost(user?.id ?? null, post.id))) notFound();
 
   if (user) {
     const blocked = await getBlockedIds(user.id);

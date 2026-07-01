@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
@@ -78,6 +79,17 @@ export default function NearbyMapScreen() {
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [moved, setMoved] = useState(false);
+  const searchParams = useSearchParams();
+
+  // 검색에서 넘어온 경우(/nearby?q=…) → 자동으로 그 위치로 지도 이동 (검색=지도 중심 이동)
+  useEffect(() => {
+    const initialQ = searchParams.get("q")?.trim();
+    if (initialQ) {
+      setQ(initialQ);
+      void geocodeAndMove(initialQ);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LAST_LOCATION_KEY);
@@ -232,14 +244,14 @@ export default function NearbyMapScreen() {
   }
 
   // 검색어 → 좌표(지오코딩) → 지도 이동 후 그 지역 맛집 로드
-  async function runSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const query = q.trim();
-    if (!query) return;
+  // 검색어 → 지도 중심 이동 (setCenter 가 지도 이동 + 그 지역 재검색을 트리거)
+  async function geocodeAndMove(query: string) {
+    const query2 = query.trim();
+    if (!query2) return;
     setSearching(true);
     setNotFound(false);
     try {
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(query2)}`);
       const data = (await res.json()) as { ok?: boolean; lat?: number; lng?: number };
       if (data.ok && Number.isFinite(data.lat) && Number.isFinite(data.lng)) {
         setMoved(false);
@@ -252,6 +264,11 @@ export default function NearbyMapScreen() {
     } finally {
       setSearching(false);
     }
+  }
+
+  async function runSearch(e: React.FormEvent) {
+    e.preventDefault();
+    await geocodeAndMove(q.trim());
   }
 
   // "이 지역 다시 검색" — 현재 지도 중심/줌 기준으로 다시 로드 (줌만 바뀐 경우도 강제 갱신)

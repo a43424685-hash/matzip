@@ -9,6 +9,16 @@ interface LatLng {
   lng: number;
 }
 
+// HTML 인젝션 방지 — 오버레이 content 에 넣기 전 가게명 이스케이프 (XSS 차단)
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 interface KakaoMapProps {
   /** 가게(권위 좌표) 위치 */
   center: LatLng;
@@ -54,7 +64,7 @@ export default function KakaoMap({
           new kakao.maps.CustomOverlay({
             position: pos,
             yAnchor: 2.1,
-            content: `<div style="padding:3px 8px;background:#1f3d2b;color:#fff;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">${name}</div>`,
+            content: `<div style="padding:3px 8px;background:#1f3d2b;color:#fff;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">${escapeHtml(name)}</div>`,
             map,
           });
         }

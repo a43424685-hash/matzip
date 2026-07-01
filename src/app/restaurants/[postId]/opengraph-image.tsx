@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
 import { OG_SIZE, ogFonts, OgFrame } from "@/lib/og";
+import { canViewPost } from "@/server/visibility/PaidVisibility";
 
 export const runtime = "nodejs";
 export const size = OG_SIZE;
@@ -9,6 +10,13 @@ export const alt = "먹고핀 맛집";
 
 export default async function Image({ params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params;
+  // OG는 비로그인 크롤러가 가져감 → 유료 잠금 글이면 이름/후기 대신 일반 이미지
+  if (!(await canViewPost(null, postId))) {
+    return new ImageResponse(<OgFrame title="먹고핀" subtitle="맛집을 발견하고 기록하세요" />, {
+      ...size,
+      fonts: await ogFonts(),
+    });
+  }
   const post = await prisma.restaurantPost
     .findUnique({
       where: { id: postId },

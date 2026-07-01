@@ -7,6 +7,7 @@ import {
   toPostCard,
 } from "@/server/restaurant/RestaurantService";
 import { getBlockedIds } from "@/server/block/BlockService";
+import { hiddenPostIds } from "@/server/visibility/PaidVisibility";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +45,8 @@ export async function GET(request: Request) {
 
   const user = await getCurrentUser();
   const blockedIds = await getBlockedIds(user?.id ?? null);
-  // 유료/무료 분리: 유료 지도에 잠긴(맛보기 아님) 글은 주변(무료)에서 제외
-  const lockedItems = await prisma.collectionItem.findMany({
-    where: { isPreview: false, postId: { not: null }, collection: { isPaid: true } },
-    select: { postId: true },
-  });
-  const lockedIds = lockedItems.map((l) => l.postId).filter((x): x is string => !!x);
+  // 유료 잠금 글 제외 — 중앙 정책(구매자/소유자/관리자는 자기 것 보임)
+  const lockedIds = await hiddenPostIds(user?.id ?? null);
   const posts = await prisma.restaurantPost.findMany({
     where: {
       restaurant: {

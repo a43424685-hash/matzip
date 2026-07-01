@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SlidersHorizontal, SearchX, Coins, Trophy } from "lucide-react";
+import { SlidersHorizontal, SearchX, Coins, Trophy, MapPin, ChevronRight } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { searchCollections } from "@/server/collection/CollectionService";
 import { geocodeKeyword } from "@/lib/kakaoGeocode";
@@ -114,6 +114,18 @@ export default async function SearchPage({
     <main className="px-5 py-6">
       <BackHomeHeader title="검색" />
       <p className="mb-4 text-[13px] text-ink-muted">지역과 상황으로 가고 싶은 맛집을 찾아보세요.</p>
+
+      {q && (
+        <a
+          href={`/nearby?q=${encodeURIComponent(q)}`}
+          className="mb-4 flex items-center justify-between rounded-2xl border border-forest/20 bg-forest-soft/30 p-4 active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold text-ink">
+            <MapPin size={17} className="text-forest" /> ‘{q}’ 지도로 보기
+          </span>
+          <ChevronRight size={17} className="text-forest" />
+        </a>
+      )}
 
       <form method="get" className="space-y-4">
         {/* 가게 이름 키워드 검색 — 최근 검색어 + 자동완성 */}
