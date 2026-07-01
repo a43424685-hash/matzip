@@ -85,6 +85,7 @@ export interface SessionUser {
   nicknameConfirmedAt: Date | null;
   legalName: string | null;
   isAdmin: boolean;
+  role: string;
 }
 
 /** 현재 로그인 사용자 (없으면 null) */
@@ -103,6 +104,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       nicknameConfirmedAt: true,
       legalName: true,
       isAdmin: true,
+      role: true,
       suspendedAt: true,
     },
   });
@@ -120,12 +122,12 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return user;
 }
 
-/** API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부만 */
-export async function getSessionAdmin(): Promise<{ id: string; isAdmin: boolean } | null> {
+/** API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부 + 역할(RBAC) */
+export async function getSessionAdmin(): Promise<{ id: string; isAdmin: boolean; role: string } | null> {
   const userId = await getSessionUserId();
   if (!userId) return null;
   return prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, isAdmin: true },
+    select: { id: true, isAdmin: true, role: true },
   });
 }

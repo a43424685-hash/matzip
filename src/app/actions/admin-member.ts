@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { getSessionAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { writeAudit } from "@/server/admin/AuditService";
+import { can } from "@/server/admin/permissions";
 
 export type MemberActionState = { ok?: boolean; error?: string } | undefined;
 
+/** 회원 제재 권한(member_sanction) 있는 관리자만. */
 async function requireAdmin() {
   const admin = await getSessionAdmin();
-  if (!admin?.isAdmin) return null;
+  if (!admin?.isAdmin || !can(admin.role, "member_sanction")) return null;
   return admin;
 }
 

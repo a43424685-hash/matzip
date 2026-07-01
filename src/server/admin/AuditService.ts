@@ -12,6 +12,7 @@ export async function writeAudit(input: {
   targetType: string;
   targetId: string;
   reason?: string | null;
+  result?: "ok" | "denied" | "error";
 }): Promise<void> {
   await prisma.auditLog.create({
     data: {
@@ -20,6 +21,7 @@ export async function writeAudit(input: {
       targetType: input.targetType,
       targetId: input.targetId,
       reason: input.reason?.trim() || null,
+      result: input.result ?? "ok",
     },
   });
 }
