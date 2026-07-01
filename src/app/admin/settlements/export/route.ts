@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { listWithdrawals, computePayout } from "@/server/payment/WithdrawalService";
+import { decryptField } from "@/lib/fieldCrypto";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function GET() {
       w.accountHolder,
       w.seller.nickname,
       w.bankName,
-      w.accountNumber,
+      decryptField(w.accountNumber),
       w.amountWon,
       withholdingWon,
       payoutWon,

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Banknote, RotateCcw, ShieldAlert, ChevronRight } from "lucide-react";
+import { Banknote, RotateCcw, ShieldAlert, Users, ChevronRight } from "lucide-react";
 import { getPayoutSummary } from "@/server/payment/WithdrawalService";
+import { countMembers } from "@/server/admin/MemberService";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const s = await getPayoutSummary();
+  const [s, memberCount] = await Promise.all([getPayoutSummary(), countMembers()]);
 
   return (
     <div>
@@ -24,7 +25,11 @@ export default async function AdminHome() {
         </Link>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="rounded-2xl border border-stone-200 bg-white p-4">
+          <div className="text-lg font-extrabold tabular-nums text-ink">{memberCount.toLocaleString()}명</div>
+          <div className="mt-0.5 text-[11px] text-stone-400">전체 회원</div>
+        </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4">
           <div className="text-lg font-extrabold tabular-nums text-ink">{s.paidWon.toLocaleString()}원</div>
           <div className="mt-0.5 text-[11px] text-stone-400">누적 지급(정산액)</div>
@@ -36,6 +41,7 @@ export default async function AdminHome() {
       </div>
 
       <div className="mt-5 space-y-2">
+        <MenuCard href="/admin/members" icon={<Users size={18} />} title="회원 관리" desc="회원 검색 · 360도 뷰 · 활동/정산/신뢰 지표" />
         <MenuCard href="/admin/settlements" icon={<Banknote size={18} />} title="정산 관리" desc="출금 신청 처리 · 원천징수 · 월별 내역 · CSV" />
         <MenuCard href="/admin/refunds" icon={<RotateCcw size={18} />} title="환불 관리" desc="결제 취소 · 접근 회수 · 정산 조정" />
         <MenuCard href="/admin/reports" icon={<ShieldAlert size={18} />} title="신고 · 문의" desc="신고된 글/사용자 · 고객 문의" />

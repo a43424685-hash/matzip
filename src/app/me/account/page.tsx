@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
 import BankAccountForm from "@/components/BankAccountForm";
+import { decryptField, maskAccountNumber } from "@/lib/fieldCrypto";
 
 export const metadata: Metadata = { title: "정산 계좌 · 먹고핀" };
 export const dynamic = "force-dynamic";
@@ -27,7 +28,15 @@ export default async function AccountPage() {
         </p>
         <BankAccountForm
           legalName={acc?.legalName ?? user.legalName ?? ""}
-          initial={acc ? { bankName: acc.bankName, accountNumber: acc.accountNumber, accountHolder: acc.accountHolder } : null}
+          initial={
+            acc
+              ? {
+                  bankName: acc.bankName,
+                  maskedNumber: acc.accountNumber ? maskAccountNumber(decryptField(acc.accountNumber)) : null,
+                  accountHolder: acc.accountHolder,
+                }
+              : null
+          }
         />
       </div>
     </main>

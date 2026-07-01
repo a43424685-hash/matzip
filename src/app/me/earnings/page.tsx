@@ -6,6 +6,7 @@ import { getSellerEarnings } from "@/server/payment/PaymentService";
 import { getSellerBalance, listMyWithdrawals, MIN_WITHDRAW_WON } from "@/server/payment/WithdrawalService";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
 import WithdrawForm from "@/components/WithdrawForm";
+import { decryptField, maskAccountNumber } from "@/lib/fieldCrypto";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,11 @@ export default async function EarningsPage() {
   ]);
   const account =
     acc?.bankName && acc.accountNumber && acc.accountHolder
-      ? { bankName: acc.bankName, accountNumber: acc.accountNumber, accountHolder: acc.accountHolder }
+      ? {
+          bankName: acc.bankName,
+          accountNumber: maskAccountNumber(decryptField(acc.accountNumber)), // 마스킹 표시
+          accountHolder: acc.accountHolder,
+        }
       : null;
 
   return (

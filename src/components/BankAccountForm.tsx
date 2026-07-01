@@ -9,12 +9,20 @@ export default function BankAccountForm({
   initial,
 }: {
   legalName: string;
-  initial?: { bankName: string | null; accountNumber: string | null; accountHolder: string | null } | null;
+  // maskedNumber: 복호화 후 마스킹된 표시용 값(원문 아님). 수정 시 안내로만 노출.
+  initial?: { bankName: string | null; maskedNumber: string | null; accountHolder: string | null } | null;
 }) {
   const [state, action, pending] = useActionState<BankState, FormData>(saveBankAccountAction, undefined);
+  const hasAccount = !!initial?.bankName && !!initial?.maskedNumber;
 
   return (
     <form action={action} className="space-y-3">
+      {hasAccount && (
+        <div className="rounded-xl bg-forest-soft/20 p-3 text-[13px] text-ink">
+          현재 등록: <b>{initial!.bankName}</b> · {initial!.maskedNumber}
+          <p className="mt-0.5 text-[12px] text-stone-400">보안을 위해 계좌번호는 일부만 표시돼요.</p>
+        </div>
+      )}
       <div>
         <label className="label">은행</label>
         <input name="bankName" defaultValue={initial?.bankName ?? ""} required className="input" placeholder="예: 카카오뱅크" />
@@ -23,12 +31,14 @@ export default function BankAccountForm({
         <label className="label">계좌번호</label>
         <input
           name="accountNumber"
-          defaultValue={initial?.accountNumber ?? ""}
-          required
+          required={!hasAccount}
           inputMode="numeric"
           className="input"
-          placeholder="‘-’ 포함 가능"
+          placeholder={hasAccount ? "변경할 때만 새 계좌번호 입력" : "‘-’ 포함 가능"}
         />
+        {hasAccount && (
+          <p className="mt-1 text-[12px] text-stone-400">비워두면 기존 계좌번호가 그대로 유지돼요.</p>
+        )}
       </div>
       <div>
         <label className="label">예금주명</label>
@@ -49,7 +59,7 @@ export default function BankAccountForm({
       </label>
       {state?.error && <p className="text-sm text-coral-dark">{state.error}</p>}
       <button type="submit" disabled={pending} className="btn-primary w-full">
-        {pending ? "저장 중…" : initial?.bankName ? "계좌 수정" : "계좌 등록"}
+        {pending ? "저장 중…" : hasAccount ? "계좌 수정" : "계좌 등록"}
       </button>
     </form>
   );

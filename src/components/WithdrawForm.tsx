@@ -53,11 +53,7 @@ export default function WithdrawForm({
     if (busy || !account) return;
     setBusy(true);
     setErr("");
-    const r = await fetch("/api/withdrawals/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(account),
-    });
+    const r = await fetch("/api/withdrawals/request", { method: "POST" });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (r.ok && d.ok) {
