@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 export default function FollowButton({
   targetId,
   initialFollowing,
+  full = false,
 }: {
   targetId: string;
   initialFollowing: boolean;
+  full?: boolean;
 }) {
   const router = useRouter();
   const [following, setFollowing] = useState(initialFollowing);
@@ -38,7 +40,9 @@ export default function FollowButton({
       type="button"
       onClick={toggle}
       disabled={busy}
-      className={`h-9 shrink-0 rounded-full px-4 text-sm font-bold disabled:opacity-60 ${
+      className={`shrink-0 rounded-full text-sm font-bold disabled:opacity-60 ${
+        full ? "h-11 w-full" : "h-9 px-4"
+      } ${
         following
           ? "border border-stone-300 bg-white text-ink-muted"
           : "bg-forest text-white"

@@ -1,18 +1,29 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MapPin, Lock } from "lucide-react";
+import { ShieldCheck, Grid3x3, Map as MapIcon, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
-import { getMyOverallRank } from "@/server/ranking/RankingService";
+import { getMyOverallRank, getMyRegionRanks } from "@/server/ranking/RankingService";
 import { getFollowCounts, isFollowing } from "@/server/follow/FollowService";
 import DetailBackButton from "@/components/DetailBackButton";
 import FollowButton from "@/components/FollowButton";
 import OfficialBadge from "@/components/OfficialBadge";
+import CardImage from "@/components/CardImage";
 
 export const dynamic = "force-dynamic";
 
-export default async function UserProfilePage({ params }: { params: Promise<{ userId: string }> }) {
+type Tab = "posts" | "verified" | "maps";
+
+export default async function UserProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ userId: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const { userId } = await params;
+  const sp = await searchParams;
+  const tab: Tab = sp.tab === "verified" ? "verified" : sp.tab === "maps" ? "maps" : "posts";
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -20,35 +31,28 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
   });
   if (!user || user.deactivatedAt) notFound();
 
-  // 유료/무료 분리: 유료 지도에 잠긴(맛보기 아님) 글은 무료 프로필 목록에서 제외
+  // 유료 지도에 잠긴(맛보기 아님) 글은 공개 프로필 목록에서 제외
   const lockedRows = await prisma.collectionItem.findMany({
     where: { isPreview: false, postId: { not: null }, collection: { userId, isPaid: true } },
     select: { postId: true },
   });
   const lockedIds = lockedRows.map((r) => r.postId).filter((x): x is string => !!x);
+  const baseWhere = {
+    userId,
+    visibility: "public" as const,
+    ...(lockedIds.length ? { id: { notIn: lockedIds } } : {}),
+  };
 
-  // 팔로우 — 로그인한 다른 사람이 볼 때만 버튼 노출
   const viewerId = await getSessionUserId();
   const isOwnProfile = viewerId === user.id;
-  const [followCounts, initialFollowing] = await Promise.all([
+
+  const [followCounts, initialFollowing, rank, regionRanks, postCount, verifiedCount, maps] = await Promise.all([
     getFollowCounts(user.id),
     viewerId && !isOwnProfile ? isFollowing(viewerId, user.id) : Promise.resolve(false),
-  ]);
-
-  const [rank, posts, maps] = await Promise.all([
     getMyOverallRank(userId),
-    prisma.restaurantPost.findMany({
-      // 남이 보는 공개 프로필 → "나만 보관(private)" 글은 제외 (본인은 내 기록 페이지에서 봄)
-      where: { userId, visibility: "public", ...(lockedIds.length ? { id: { notIn: lockedIds } } : {}) },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      select: {
-        id: true,
-        shortReview: true,
-        restaurant: { select: { name: true } },
-        media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
-      },
-    }),
+    getMyRegionRanks(userId),
+    prisma.restaurantPost.count({ where: baseWhere }),
+    prisma.restaurantPost.count({ where: { ...baseWhere, locationVerified: true } }),
     prisma.collection.findMany({
       where: { userId, isPaid: true, isPublic: true },
       orderBy: { createdAt: "desc" },
@@ -56,59 +60,118 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
     }),
   ]);
 
+  // 활성 탭 데이터
+  const gridPosts =
+    tab === "maps"
+      ? []
+      : await prisma.restaurantPost.findMany({
+          where: { ...baseWhere, ...(tab === "verified" ? { locationVerified: true } : {}) },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: {
+            id: true,
+            restaurant: { select: { name: true } },
+            locationVerified: true,
+            media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true, type: true } },
+          },
+        });
+
+  const topRegion = regionRanks[0];
+  const isRanker = rank > 0 && rank <= 30;
+
   return (
-    <main className="px-5 pb-10 pt-5">
-      <header className="mb-5 flex items-center gap-3">
+    <main className="pb-16">
+      <header className="flex items-center gap-3 px-5 pb-3 pt-5">
         <DetailBackButton />
         <h1 className="text-lg font-extrabold text-ink">프로필</h1>
       </header>
 
       {/* 프로필 헤더 */}
-      <section className="flex items-center gap-4">
-        <div className="relative shrink-0">
-          <div className={`h-20 w-20 overflow-hidden rounded-full bg-forest-soft ${rank > 0 && rank <= 30 ? "ring-[3px] ring-amber-400" : "ring-2 ring-forest/15"}`}>
-            {user.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-2xl font-black text-forest">{user.nickname.slice(0, 1)}</span>
-            )}
+      <section className="px-5">
+        <div className="flex items-center gap-5">
+          <div className="relative shrink-0">
+            <div className={`h-20 w-20 overflow-hidden rounded-full bg-forest-soft ${isRanker ? "ring-[3px] ring-amber-400" : "ring-2 ring-forest/15"}`}>
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-2xl font-black text-forest">{user.nickname.slice(0, 1)}</span>
+              )}
+            </div>
+            {isRanker && <span className="absolute -right-1 -top-1 text-2xl leading-none drop-shadow">👑</span>}
           </div>
-          {rank > 0 && rank <= 30 && <span className="absolute -right-1 -top-1 text-2xl leading-none drop-shadow">👑</span>}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-xl font-extrabold text-ink">{user.nickname}</span>
-            {user.isAdmin && <OfficialBadge size={18} />}
-            <span className="badge-lv shrink-0">Lv.{user.totalLevel}</span>
-          </div>
-          <div className="mt-1 flex items-center gap-3 text-[13px] text-ink-muted">
-            <span>전체 <b className="text-ink">{rank > 0 ? `${rank}위` : "—"}</b></span>
-            <span className="tabular-nums">{user.totalXp.toLocaleString()} XP</span>
-          </div>
-          <div className="mt-1.5 flex items-center gap-3 text-[13px] text-ink-muted">
-            <Link href={`/u/${user.id}/followers`}>
-              팔로워 <b className="text-ink tabular-nums">{followCounts.followers}</b>
+          {/* 카운트 3분할 — 탭→목록 */}
+          <div className="grid flex-1 grid-cols-3 text-center">
+            <div>
+              <div className="text-lg font-extrabold tabular-nums text-ink">{postCount.toLocaleString()}</div>
+              <div className="text-[12px] text-stone-400">게시물</div>
+            </div>
+            <Link href={`/u/${user.id}/followers`} className="active:opacity-60">
+              <div className="text-lg font-extrabold tabular-nums text-ink">{followCounts.followers.toLocaleString()}</div>
+              <div className="text-[12px] text-stone-400">팔로워</div>
             </Link>
-            <Link href={`/u/${user.id}/following`}>
-              팔로잉 <b className="text-ink tabular-nums">{followCounts.following}</b>
+            <Link href={`/u/${user.id}/following`} className="active:opacity-60">
+              <div className="text-lg font-extrabold tabular-nums text-ink">{followCounts.following.toLocaleString()}</div>
+              <div className="text-[12px] text-stone-400">팔로잉</div>
             </Link>
           </div>
         </div>
+
+        {/* 닉네임 + 레벨 */}
+        <div className="mt-3 flex items-center gap-1.5">
+          <span className="text-lg font-black text-ink">{user.nickname}</span>
+          {user.isAdmin && <OfficialBadge size={16} />}
+          <span className="badge-lv shrink-0">Lv.{user.totalLevel}</span>
+        </div>
+
+        {/* 신뢰 스트립 */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-muted">
+          <span className="flex items-center gap-1">
+            <ShieldCheck size={14} className="text-forest" /> 인증 <b className="text-ink">{verifiedCount}</b>
+          </span>
+          {rank > 0 && <span>전체 <b className="text-ink">{rank}위</b></span>}
+          {topRegion && (
+            <span>🏅 {topRegion.regionName} <b className="text-ink">{topRegion.rank}위</b></span>
+          )}
+          <span className="tabular-nums">{user.totalXp.toLocaleString()} XP</span>
+        </div>
+
+        {/* 팔로우 (풀폭) */}
         {viewerId && !isOwnProfile && (
-          <FollowButton targetId={user.id} initialFollowing={initialFollowing} />
+          <div className="mt-4">
+            <FollowButton targetId={user.id} initialFollowing={initialFollowing} full />
+          </div>
+        )}
+
+        {/* 판매 지도 넛지 (판매자면) */}
+        {maps.length > 0 && tab !== "maps" && (
+          <Link
+            href={`/u/${user.id}?tab=maps`}
+            className="mt-3 flex items-center gap-2 rounded-2xl border border-forest/20 bg-forest-soft/30 p-3.5 active:scale-[0.99]"
+          >
+            <MapIcon size={17} className="text-forest" />
+            <span className="flex-1 text-[14px] font-bold text-ink">이 미식가의 유료 지도 {maps.length}개</span>
+            <ChevronRight size={17} className="text-forest" />
+          </Link>
         )}
       </section>
 
-      {/* 유료 지도 */}
-      {maps.length > 0 && (
-        <section className="mt-7">
-          <h2 className="mb-3 text-[15px] font-extrabold text-ink">판매 중인 맛집 지도</h2>
-          <div className="space-y-2.5">
+      {/* 콘텐츠 탭 */}
+      <nav className="mt-5 grid grid-cols-3 border-y border-stone-200">
+        <TabLink userId={user.id} tab="posts" active={tab} icon={<Grid3x3 size={18} />} label="등록한 맛집" />
+        <TabLink userId={user.id} tab="verified" active={tab} icon={<ShieldCheck size={18} />} label="인증" />
+        <TabLink userId={user.id} tab="maps" active={tab} icon={<MapIcon size={18} />} label="지도" />
+      </nav>
+
+      {tab === "maps" ? (
+        maps.length === 0 ? (
+          <Empty text="판매 중인 맛집 지도가 없어요." />
+        ) : (
+          <div className="space-y-2.5 p-4">
             {maps.map((m) => (
-              <Link key={m.id} href={`/collections/${m.id}`} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4">
+              <Link key={m.id} href={`/collections/${m.id}`} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 active:bg-stone-50">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest-soft text-forest">
-                  <MapPin size={20} />
+                  <MapIcon size={20} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-ink">{m.title}</div>
@@ -118,35 +181,55 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
               </Link>
             ))}
           </div>
-        </section>
-      )}
-
-      {/* 등록한 맛집 */}
-      <section className="mt-7">
-        <h2 className="mb-3 text-[15px] font-extrabold text-ink">등록한 맛집 {posts.length > 0 && <span className="text-ink-muted">{posts.length}</span>}</h2>
-        {posts.length === 0 ? (
-          <p className="rounded-2xl bg-stone-50 py-8 text-center text-sm text-ink-muted">아직 등록한 맛집이 없어요.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {posts.map((p) => (
-              <Link key={p.id} href={`/restaurants/${p.id}`} className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white">
-                <div className="aspect-[4/3] w-full bg-stone-100">
-                  {p.media[0]?.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.media[0].url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-stone-300"><Lock size={20} /></span>
-                  )}
-                </div>
-                <div className="p-2.5">
-                  <div className="truncate text-[13px] font-bold text-ink">{p.restaurant.name}</div>
-                  {p.shortReview && <div className="mt-0.5 truncate text-[11px] text-ink-muted">{p.shortReview}</div>}
-                </div>
+        )
+      ) : gridPosts.length === 0 ? (
+        <Empty text={tab === "verified" ? "아직 위치 인증한 맛집이 없어요." : "아직 등록한 맛집이 없어요."} />
+      ) : (
+        <div className="grid grid-cols-3 gap-0.5 p-0.5">
+          {gridPosts.map((p) => {
+            const img = p.media[0]?.thumbnailUrl || (p.media[0]?.type === "video" ? null : p.media[0]?.url) || null;
+            return (
+              <Link key={p.id} href={`/restaurants/${p.id}`} className="relative aspect-square overflow-hidden bg-stone-100">
+                {img ? (
+                  <CardImage src={img} alt={p.restaurant.name} label="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full flex-col justify-end bg-forest-soft/60 p-2">
+                    <span className="line-clamp-3 text-[11px] font-bold leading-tight text-ink">{p.restaurant.name}</span>
+                  </div>
+                )}
+                {p.locationVerified && (
+                  <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-forest/90 text-white">
+                    <ShieldCheck size={11} />
+                  </span>
+                )}
+                {img && (
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/60 to-transparent px-1.5 pb-1 pt-4 text-[10px] font-semibold text-white">
+                    {p.restaurant.name}
+                  </span>
+                )}
               </Link>
-            ))}
-          </div>
-        )}
-      </section>
+            );
+          })}
+        </div>
+      )}
     </main>
   );
+}
+
+function TabLink({ userId, tab, active, icon, label }: { userId: string; tab: Tab; active: Tab; icon: React.ReactNode; label: string }) {
+  const on = tab === active;
+  return (
+    <Link
+      href={`/u/${userId}?tab=${tab}`}
+      className={`flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-bold ${
+        on ? "border-b-2 border-ink text-ink" : "text-stone-400"
+      }`}
+    >
+      {icon} {label}
+    </Link>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return <p className="px-6 py-16 text-center text-[14px] text-stone-400">{text}</p>;
 }
