@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
 import {
   awardXp,
   likeFromActorAllowed,
@@ -537,10 +538,11 @@ export interface SearchInput {
   keywordTerms?: string[]; // 검색어에서 뽑은 분류어(야장·노포 등). 태그뿐 아니라 한줄평/리뷰 글에서도 매칭.
   includeUnverified?: boolean; // true면 미인증 글도 노출(갓 올라온 맛집)
   skip?: number; // 오프셋 페이지네이션(더보기) — 생략 시 0. weekly 정렬에는 적용 안 함.
+  viewerId?: string | null; // 보는 사람 — 유료 잠금 글 접근 판정(구매자/소유자/관리자는 봄)
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, keywordTerms, includeUnverified, skip } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, keywordTerms, includeUnverified, skip, viewerId } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
@@ -601,16 +603,10 @@ export async function searchPosts(input: SearchInput) {
   // 비활성화한 사용자와 프리뷰 시드 데모 계정의 글은 숨김
   where.user = { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null };
 
-  // 유료/무료 분리: 유료 지도에 '잠긴'(맛보기 아님) 글은 무료 화면(홈·검색·피드)에서 제외
-  const lockedItems = await prisma.collectionItem.findMany({
-    where: { isPreview: false, postId: { not: null }, collection: { isPaid: true } },
-    select: { postId: true },
-  });
-  const lockedIds = lockedItems.map((l) => l.postId).filter((x): x is string => !!x);
-  where.id = {
-    not: { startsWith: DEMO_POST_ID_PREFIX },
-    ...(lockedIds.length > 0 ? { notIn: lockedIds } : {}),
-  };
+  where.id = { not: { startsWith: DEMO_POST_ID_PREFIX } };
+  // 유료 잠금 글 제외 — 중앙 정책(구매자/소유자/관리자는 봄). DB 서브쿼리로 처리.
+  const existingAnd = Array.isArray(where.AND) ? (where.AND as unknown[]) : where.AND ? [where.AND] : [];
+  where.AND = [...existingAnd, await visiblePostWhere(viewerId ?? null)];
 
   const orderBy =
     sort === "saves"

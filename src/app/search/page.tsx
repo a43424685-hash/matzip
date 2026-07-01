@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { SlidersHorizontal, SearchX, Coins, Trophy, MapPin, ChevronRight } from "lucide-react";
+import { redirect } from "next/navigation";
+import { SlidersHorizontal, SearchX, Coins, Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { searchCollections } from "@/server/collection/CollectionService";
 import { geocodeKeyword } from "@/lib/kakaoGeocode";
@@ -81,6 +82,13 @@ export default async function SearchPage({
   locationQuery = locationQuery.replace(/맛집|식당|추천|근처/g, " ").replace(/\s+/g, " ").trim();
   const effectiveCategoryIds = Array.from(new Set([...categoryIds, ...derivedCatIds]));
 
+  // 검색 완전 지도화: 위치가 있는 키워드 검색은 지도로 (지도 중심 이동 + 화면 안 맛집).
+  // 음식 종류(파스타 등)는 cat 으로 넘겨 지도에서도 필터 유지.
+  if (locationQuery) {
+    const catParam = effectiveCategoryIds[0];
+    redirect(`/nearby?q=${encodeURIComponent(locationQuery)}${catParam ? `&cat=${catParam}` : ""}`);
+  }
+
   // 위치 부분이 있으면 그것만 지오코딩(없으면 분류만으로 검색)
   const coords = locationQuery ? await geocodeKeyword(locationQuery) : null;
   const posts = await searchPosts({
@@ -92,6 +100,7 @@ export default async function SearchPage({
     q: locationQuery,
     coords,
     excludeUserIds: blocked,
+    viewerId: user?.id ?? null,
   });
   const { likedPosts, savedRestaurants } = await getViewerReactions(
     user?.id ?? null,
@@ -115,17 +124,6 @@ export default async function SearchPage({
       <BackHomeHeader title="검색" />
       <p className="mb-4 text-[13px] text-ink-muted">지역과 상황으로 가고 싶은 맛집을 찾아보세요.</p>
 
-      {q && (
-        <a
-          href={`/nearby?q=${encodeURIComponent(q)}`}
-          className="mb-4 flex items-center justify-between rounded-2xl border border-forest/20 bg-forest-soft/30 p-4 active:scale-[0.99]"
-        >
-          <span className="flex items-center gap-2 text-sm font-bold text-ink">
-            <MapPin size={17} className="text-forest" /> ‘{q}’ 지도로 보기
-          </span>
-          <ChevronRight size={17} className="text-forest" />
-        </a>
-      )}
 
       <form method="get" className="space-y-4">
         {/* 가게 이름 키워드 검색 — 최근 검색어 + 자동완성 */}

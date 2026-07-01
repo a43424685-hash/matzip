@@ -10,6 +10,8 @@ import FollowButton from "@/components/FollowButton";
 import OfficialBadge from "@/components/OfficialBadge";
 import ProfileGrid from "@/components/ProfileGrid";
 import { getProfileGrid } from "@/server/profile/ProfileGridService";
+import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
+import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -32,20 +34,14 @@ export default async function UserProfilePage({
   });
   if (!user || user.deactivatedAt) notFound();
 
-  // 유료 지도에 잠긴(맛보기 아님) 글은 공개 프로필 목록에서 제외
-  const lockedRows = await prisma.collectionItem.findMany({
-    where: { isPreview: false, postId: { not: null }, collection: { userId, isPaid: true } },
-    select: { postId: true },
-  });
-  const lockedIds = lockedRows.map((r) => r.postId).filter((x): x is string => !!x);
-  const baseWhere = {
-    userId,
-    visibility: "public" as const,
-    ...(lockedIds.length ? { id: { notIn: lockedIds } } : {}),
-  };
-
   const viewerId = await getSessionUserId();
   const isOwnProfile = viewerId === user.id;
+  // 유료 잠금 글 제외 — 중앙 정책(소유자/구매자/관리자는 봄)
+  const baseWhere: Prisma.RestaurantPostWhereInput = {
+    userId,
+    visibility: "public",
+    AND: [await visiblePostWhere(viewerId)],
+  };
 
   const [followCounts, initialFollowing, rank, regionRanks, postCount, verifiedCount, maps] = await Promise.all([
     getFollowCounts(user.id),

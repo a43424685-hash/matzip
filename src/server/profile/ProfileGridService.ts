@@ -4,6 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
 
 export type ProfileGridTab = "posts" | "verified";
 
@@ -27,17 +28,10 @@ export async function getProfileGrid(
   const isOwner = viewerId === targetUserId;
 
   const where: Prisma.RestaurantPostWhereInput = { userId: targetUserId };
-  if (!isOwner) {
-    where.visibility = "public";
-    // 유료 지도에 잠긴(맛보기 아님) 글 제외
-    const locked = await prisma.collectionItem.findMany({
-      where: { isPreview: false, postId: { not: null }, collection: { userId: targetUserId, isPaid: true } },
-      select: { postId: true },
-    });
-    const lockedIds = locked.map((r) => r.postId).filter((x): x is string => !!x);
-    if (lockedIds.length) where.id = { notIn: lockedIds };
-  }
+  if (!isOwner) where.visibility = "public"; // 남이 보면 공개 글만
   if (tab === "verified") where.locationVerified = true;
+  // 유료 잠금 글 제외 — 중앙 정책(소유자/구매자/관리자는 봄). 서브쿼리로 처리.
+  where.AND = [await visiblePostWhere(viewerId)];
 
   const rows = await prisma.restaurantPost.findMany({
     where,

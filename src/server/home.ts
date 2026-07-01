@@ -138,9 +138,9 @@ export async function getMySavedPreview(viewerId: string, limit: number): Promis
 export async function getHomeData(viewerId?: string | null) {
   const blockedIds = await getBlockedIds(viewerId ?? null);
   const [weekly, recent, saved, topUsers, categories, myPostCount, paidMaps] = await Promise.all([
-    searchPosts({ sort: "weekly", limit: 8, excludeUserIds: blockedIds }),
+    searchPosts({ sort: "weekly", limit: 8, excludeUserIds: blockedIds, viewerId }),
     // 갓 올라온 맛집 — 미인증 포함, 최신순
-    searchPosts({ sort: "latest", limit: 8, excludeUserIds: blockedIds, includeUnverified: true }),
+    searchPosts({ sort: "latest", limit: 8, excludeUserIds: blockedIds, includeUnverified: true, viewerId }),
     viewerId ? getMySavedPreview(viewerId, 10) : Promise.resolve([] as PostCard[]),
     getOverallUserRankingCached(5),
     getActiveCategories(),

@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     limit: PAGE_SIZE,
     skip,
     excludeUserIds,
+    viewerId: user?.id ?? null,
     includeUnverified: sort === "latest",
   });
 

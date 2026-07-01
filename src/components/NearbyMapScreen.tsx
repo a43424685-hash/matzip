@@ -80,9 +80,11 @@ export default function NearbyMapScreen() {
   const [notFound, setNotFound] = useState(false);
   const [moved, setMoved] = useState(false);
   const searchParams = useSearchParams();
+  const catFilterRef = useRef<string | null>(null); // 검색에서 넘어온 음식 종류 필터(cat)
 
-  // 검색에서 넘어온 경우(/nearby?q=…) → 자동으로 그 위치로 지도 이동 (검색=지도 중심 이동)
+  // 검색에서 넘어온 경우(/nearby?q=…&cat=…) → 자동으로 그 위치로 지도 이동 + 음식 필터 유지
   useEffect(() => {
+    catFilterRef.current = searchParams.get("cat")?.trim() || null;
     const initialQ = searchParams.get("q")?.trim();
     if (initialQ) {
       setQ(initialQ);
@@ -235,7 +237,8 @@ export default function NearbyMapScreen() {
           r = radiusForLevel(map?.getLevel?.() ?? 5);
         }
       }
-      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}&radius=${Math.round(r)}`);
+      const catQ = catFilterRef.current ? `&categoryId=${encodeURIComponent(catFilterRef.current)}` : "";
+      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}&radius=${Math.round(r)}${catQ}`);
       const data = (await res.json()) as { ok?: boolean; items?: NearbyItem[] };
       setItems(res.ok && data.ok ? data.items ?? [] : []);
     } finally {
@@ -268,6 +271,7 @@ export default function NearbyMapScreen() {
 
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();
+    catFilterRef.current = null; // 검색창에서 직접 검색하면 이전 음식 필터는 해제
     await geocodeAndMove(q.trim());
   }
 

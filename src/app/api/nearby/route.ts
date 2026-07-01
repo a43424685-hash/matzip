@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const lat = Number(url.searchParams.get("lat"));
   const lng = Number(url.searchParams.get("lng"));
+  const categoryId = url.searchParams.get("categoryId") || null; // 음식 종류 필터(검색에서 넘어옴)
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return NextResponse.json({ ok: false, error: "위치 정보가 필요합니다." }, { status: 400 });
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
       visibility: "public", // "나만 보관" 글은 주변 지도에서 제외
       user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
+      ...(categoryId ? { categories: { some: { categoryId } } } : {}),
       id: { not: { startsWith: DEMO_POST_ID_PREFIX } },
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],

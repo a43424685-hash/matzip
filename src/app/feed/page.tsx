@@ -52,6 +52,7 @@ export default async function FeedListPage({
     limit: PAGE_SIZE,
     skip: 0,
     excludeUserIds,
+    viewerId: user?.id ?? null,
     includeUnverified: sort === "latest",
   });
 
