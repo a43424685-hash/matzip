@@ -51,10 +51,33 @@ export async function hiddenPostIds(viewerId: string | null): Promise<string[]> 
   return [...lockedPostIds].filter((id) => !accessible.has(id));
 }
 
-/** 목록/검색용 where 조각 — 잠긴 글 제외(내가 볼 수 있는 건 유지). */
+/**
+ * 목록/검색용 where 조각 — 잠긴 글 제외(내가 볼 수 있는 건 유지).
+ * 성능: 전체 잠긴 글을 읽어 거대한 notIn 을 만들지 않고, DB 관계 서브쿼리로 밀어넣는다.
+ * (잠긴 글 수가 수천 개여도 인덱스로 처리 → 앱 메모리·IN 리스트 폭증 없음)
+ */
 export async function visiblePostWhere(viewerId: string | null): Promise<Prisma.RestaurantPostWhereInput> {
-  const hidden = await hiddenPostIds(viewerId);
-  return hidden.length ? { id: { notIn: hidden } } : {};
+  if (viewerId) {
+    const me = await prisma.user.findUnique({ where: { id: viewerId }, select: { isAdmin: true } });
+    if (me?.isAdmin) return {}; // 관리자는 전체
+  }
+  const lockedItem: Prisma.CollectionItemWhereInput = { isPreview: false, collection: { isPaid: true } };
+  const or: Prisma.RestaurantPostWhereInput[] = [
+    { collectionItems: { none: lockedItem } }, // 잠기지 않은 글
+  ];
+  if (viewerId) {
+    or.push({ userId: viewerId }); // 내 글
+    or.push({
+      // 내가 구매한 유료 지도에 든 잠긴 글
+      collectionItems: {
+        some: {
+          isPreview: false,
+          collection: { isPaid: true, purchases: { some: { buyerId: viewerId, status: "paid" } } },
+        },
+      },
+    });
+  }
+  return { OR: or };
 }
 
 /** 상세/공유/OG 게이트 — 이 뷰어가 이 글을 볼 수 있나. */
@@ -86,8 +109,6 @@ export async function canViewPost(viewerId: string | null, postId: string): Prom
 export async function visibleRestaurantPostFilter(
   viewerId: string | null
 ): Promise<Prisma.RestaurantPostListRelationFilter> {
-  const hidden = await hiddenPostIds(viewerId);
-  const some: Prisma.RestaurantPostWhereInput = { visibility: "public" };
-  if (hidden.length) some.id = { notIn: hidden };
-  return { some };
+  const cond = await visiblePostWhere(viewerId);
+  return { some: { visibility: "public", ...cond } };
 }

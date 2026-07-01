@@ -7,7 +7,7 @@ import {
   toPostCard,
 } from "@/server/restaurant/RestaurantService";
 import { getBlockedIds } from "@/server/block/BlockService";
-import { hiddenPostIds } from "@/server/visibility/PaidVisibility";
+import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +45,8 @@ export async function GET(request: Request) {
 
   const user = await getCurrentUser();
   const blockedIds = await getBlockedIds(user?.id ?? null);
-  // 유료 잠금 글 제외 — 중앙 정책(구매자/소유자/관리자는 자기 것 보임)
-  const lockedIds = await hiddenPostIds(user?.id ?? null);
+  // 유료 잠금 글 제외 — 중앙 정책(구매자/소유자/관리자는 자기 것 보임). DB 서브쿼리로 처리.
+  const visibleCond = await visiblePostWhere(user?.id ?? null);
   const posts = await prisma.restaurantPost.findMany({
     where: {
       restaurant: {
@@ -54,13 +54,11 @@ export async function GET(request: Request) {
         longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
       },
       OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
+      AND: [visibleCond],
       visibility: "public", // "나만 보관" 글은 주변 지도에서 제외
       user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
-      id: {
-        not: { startsWith: DEMO_POST_ID_PREFIX },
-        ...(lockedIds.length > 0 ? { notIn: lockedIds } : {}),
-      },
+      id: { not: { startsWith: DEMO_POST_ID_PREFIX } },
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
     take: 200,

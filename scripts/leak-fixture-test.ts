@@ -4,7 +4,12 @@
  *   npx tsx scripts/leak-fixture-test.ts
  */
 import { prisma } from "../src/lib/db";
-import { canViewPost, hiddenPostIds, visibleRestaurantPostFilter } from "../src/server/visibility/PaidVisibility";
+import {
+  canViewPost,
+  hiddenPostIds,
+  visiblePostWhere,
+  visibleRestaurantPostFilter,
+} from "../src/server/visibility/PaidVisibility";
 
 const TAG = "LEAKTEST_" + Math.floor(Math.random() * 1e6);
 let pass = 0,
@@ -102,7 +107,19 @@ async function main() {
   });
   assert((await canViewPost(buyer, lockedPost.id)) === true, "구매자: canViewPost = true");
 
-  console.log("\n② 자동완성 누수 (잠긴 글만 있는 가게 이름)");
+  console.log("\n② 목록 where (visiblePostWhere, 서브쿼리 최적화 경로)");
+  const listAnon = await prisma.restaurantPost.findFirst({
+    where: { AND: [await visiblePostWhere(null)], id: lockedPost.id },
+    select: { id: true },
+  });
+  assert(listAnon === null, "비로그인 목록: 잠긴 글 제외됨");
+  const listBuyer = await prisma.restaurantPost.findFirst({
+    where: { AND: [await visiblePostWhere(buyer)], id: lockedPost.id },
+    select: { id: true },
+  });
+  assert(listBuyer !== null, "구매자 목록: 잠긴 글 보임");
+
+  console.log("\n③ 자동완성 누수 (잠긴 글만 있는 가게 이름)");
   const filterAnon = await visibleRestaurantPostFilter(null);
   const hitBefore = await prisma.restaurant.findFirst({ where: { name: `${TAG}_가게`, posts: filterAnon }, select: { id: true } });
   assert(hitBefore === null, "비로그인 자동완성: 잠긴 글만 있는 가게는 안 뜸");
