@@ -69,7 +69,8 @@ export async function saveBankAccountAction(_prev: BankState, formData: FormData
       accountHolder: parsed.data.accountHolder,
     },
   });
-  redirect("/me/earnings");
+  // 저장 후 내정보로 (뒤로가기 눌러도 계좌폼이 다시 뜨지 않게)
+  redirect("/me");
 }
 
 export type ProfileState = { ok?: boolean; error?: string } | undefined;

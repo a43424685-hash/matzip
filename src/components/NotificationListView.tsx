@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, MessageCircle, CornerDownRight, MapPinned } from "lucide-react";
+import { Heart, MessageCircle, CornerDownRight, MapPinned, UserPlus } from "lucide-react";
 import type { NotificationRow } from "@/server/notification/NotificationService";
 import OfficialBadge from "@/components/OfficialBadge";
 
@@ -7,12 +7,14 @@ const LABEL: Record<string, string> = {
   like: "회원님의 글을 좋아해요",
   comment: "회원님의 글에 댓글을 남겼어요",
   reply: "회원님의 댓글에 답글을 남겼어요",
+  follow: "회원님을 팔로우했어요",
 };
 
 function iconFor(type: string) {
   if (type === "like") return <Heart size={16} className="text-coral" />;
   if (type === "reply") return <CornerDownRight size={16} className="text-forest" />;
   if (type === "map_update") return <MapPinned size={16} className="text-forest" />;
+  if (type === "follow") return <UserPlus size={16} className="text-forest" />;
   return <MessageCircle size={16} className="text-forest" />;
 }
 
@@ -69,9 +71,13 @@ export default function NotificationListView({ rows }: { rows: NotificationRow[]
           ? n.collectionId
             ? `/collections/${n.collectionId}`
             : null
-          : n.postId
-            ? `/restaurants/${n.postId}`
-            : null;
+          : n.type === "follow"
+            ? n.actorUserId
+              ? `/u/${n.actorUserId}`
+              : null
+            : n.postId
+              ? `/restaurants/${n.postId}`
+              : null;
         return <li key={n.id}>{href ? <Link href={href}>{body}</Link> : body}</li>;
       })}
     </ul>

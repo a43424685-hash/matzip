@@ -60,6 +60,8 @@ export async function createSession(userId: string): Promise<void> {
     maxAge: MAX_AGE,
     secure: process.env.NODE_ENV === "production",
   });
+  // 마지막 로그인 시각 기록 (휴면·이상탐지 지표). 실패해도 로그인은 진행.
+  await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } }).catch(() => {});
 }
 
 export async function destroySession(): Promise<void> {
@@ -101,8 +103,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       nicknameConfirmedAt: true,
       legalName: true,
       isAdmin: true,
+      suspendedAt: true,
     },
   });
+  // 운영자에게 정지당한 계정은 이용 차단 → 안내 화면으로.
+  if (user && user.suspendedAt) {
+    redirect("/suspended");
+  }
   if (user && !user.nicknameConfirmedAt) {
     redirect("/onboarding/nickname");
   }

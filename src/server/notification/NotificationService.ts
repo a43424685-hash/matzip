@@ -11,11 +11,12 @@ const PUSH_MSG: Record<NotificationType, string> = {
   like: "회원님의 글을 좋아해요",
   comment: "회원님의 글에 새 댓글이 달렸어요",
   reply: "회원님의 댓글에 새 답글이 달렸어요",
+  follow: "회원님을 팔로우하기 시작했어요",
 };
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-export type NotificationType = "like" | "comment" | "reply";
+export type NotificationType = "like" | "comment" | "reply" | "follow";
 
 export async function createNotification(
   db: Db,
@@ -64,10 +65,16 @@ export async function createNotification(
   });
 
   // 웹 푸시도 함께(켜둔 사람만 발송됨, 비밀키 없으면 자동 패스)
+  const pushUrl =
+    input.type === "follow"
+      ? `/u/${input.actorUserId}`
+      : input.postId
+        ? `/restaurants/${input.postId}`
+        : "/notifications";
   void sendWebPush(input.userId, {
     title: "먹고핀",
     body: PUSH_MSG[input.type],
-    url: input.postId ? `/restaurants/${input.postId}` : "/notifications",
+    url: pushUrl,
   }).catch(() => {});
 }
 
@@ -94,6 +101,7 @@ export interface NotificationRow {
   type: string;
   read: boolean;
   createdAt: string;
+  actorUserId: string | null;
   actorNickname: string | null;
   actorIsOfficial: boolean;
   postId: string | null;
@@ -144,6 +152,7 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
     type: r.type,
     read: r.read,
     createdAt: r.createdAt.toISOString(),
+    actorUserId: r.actorUserId,
     actorNickname: r.actor?.nickname ?? null,
     actorIsOfficial: r.actor?.isAdmin ?? false,
     postId: r.postId,

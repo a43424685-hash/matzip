@@ -34,6 +34,10 @@ model User {
   bankName      String?
   accountNumber String?
   accountHolder String?
+  // 운영자 제재 — 본인 휴면(deactivatedAt)과 별개. 정지되면 로그인/이용 차단.
+  suspendedAt     DateTime?
+  suspendedReason String?
+  lastLoginAt     DateTime? // 마지막 로그인 시각 (휴면·이상탐지 지표)
   totalXp      Int      @default(0)
   totalLevel   Int      @default(1)
   createdAt    DateTime @default(now())
@@ -63,8 +67,29 @@ model User {
   pushSubscriptions PushSubscription[]
   following     Follow[]          @relation("Follower")  // 내가 팔로우한 사람들
   followers     Follow[]          @relation("Following") // 나를 팔로우한 사람들
+  auditLogs     AuditLog[]        @relation("AuditAdmin") // 이 사람이 운영자로서 남긴 조치 로그
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 감사 로그 — 운영자 조치(정지/해제/메모/열람 등) 기록. 누가·언제·뭘·왜.
+// 수정/삭제 없이 append-only 로만 사용한다.
+// ─────────────────────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String // 조치한 운영자
+  action     String // suspend | unsuspend | memo | view_account | ...
+  targetType String // user | withdrawal | post | ...
+  targetId   String
+  reason     String? // 제재/조치 사유 (제재는 필수)
+  createdAt  DateTime @default(now())
+
+  admin User @relation("AuditAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([adminId, createdAt])
+  @@map("audit_logs")
 }
 
 // 팔로우 — follower 가 following 을 팔로우 (단방향)

@@ -11,15 +11,18 @@ import {
   Plus,
   Check,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { getHomeData, type PaidMapCard } from "@/server/home";
 import { unreadCount } from "@/server/notification/NotificationService";
-import type { PostCard } from "@/server/restaurant/RestaurantService";
+import { toPostCard, postCardSelect, type PostCard } from "@/server/restaurant/RestaurantService";
 import type { UserRankRow } from "@/server/ranking/RankingService";
 import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
 import NearbyHomeSection from "@/components/NearbyHomeSection";
+import HomeFeedToggle from "@/components/HomeFeedToggle";
 import Coachmark from "@/components/Coachmark";
 import WelcomeOnboarding from "@/components/WelcomeOnboarding";
 
@@ -35,10 +38,40 @@ function formatPostDate(value: Date | string) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const user = await getCurrentUser();
+  const sp = await searchParams;
+  const cookieTab = (await cookies()).get("home_tab")?.value;
+  // 팔로잉 탭은 로그인 사용자만. 쿼리 우선, 없으면 마지막 선택(쿠키).
+  const tab: "recommend" | "following" =
+    user && (sp.tab === "following" || (sp.tab !== "recommend" && cookieTab === "following"))
+      ? "following"
+      : "recommend";
+  const showFollowing = tab === "following";
+
   const { weekly, recent, saved, topUsers, categories, myPostCount, paidMaps } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
+
+  // 팔로잉 피드 — 내가 팔로우한 사람들의 공개 글 (최신순)
+  let followingPosts: PostCard[] = [];
+  if (user && showFollowing) {
+    const follows = await prisma.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } });
+    const ids = follows.map((f) => f.followingId);
+    followingPosts = ids.length
+      ? (
+          await prisma.restaurantPost.findMany({
+            where: { userId: { in: ids }, visibility: "public" },
+            orderBy: { createdAt: "desc" },
+            take: 30,
+            select: postCardSelect,
+          })
+        ).map(toPostCard)
+      : [];
+  }
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
   const navCats = NAV_CATS.map((n) => ({ name: SHORT[n] ?? n, id: idByName.get(n) })).filter(
@@ -96,8 +129,13 @@ export default async function HomePage() {
             <>먹고 핀 꽂고, 나만의 맛집 지도를 키워요 📍</>
           )}
         </p>
+        {user && <HomeFeedToggle active={tab} />}
       </header>
 
+      {showFollowing ? (
+        <FollowingFeed posts={followingPosts} />
+      ) : (
+        <>
       <CategoryIconGrid categories={navCats} />
 
       {/* 섹션 1. 이번 주 인기 맛집 */}
@@ -196,6 +234,8 @@ export default async function HomePage() {
           </ol>
         )}
       </div>
+        </>
+      )}
 
       <SiteFooter />
 
@@ -221,6 +261,33 @@ export default async function HomePage() {
 }
 
 // ── 작은 컴포넌트들 (서버 렌더) ──────────────────────────────
+
+// 팔로잉 피드 — 내가 팔로우한 사람들의 최신 글. 비어 있으면 발견으로 유도.
+function FollowingFeed({ posts }: { posts: PostCard[] }) {
+  if (posts.length === 0) {
+    return (
+      <div className="mx-5 mt-6 rounded-2xl bg-stone-50 px-6 py-12 text-center">
+        <p className="text-[15px] font-bold text-ink">아직 팔로잉 피드가 비어 있어요</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
+          마음에 드는 미식가를 팔로우하면
+          <br />
+          그분들의 새 맛집이 여기 모여요.
+        </p>
+        <Link
+          href="/rankings"
+          className="mt-4 inline-flex items-center gap-1 rounded-full bg-forest px-4 py-2 text-[13px] font-bold text-white"
+        >
+          맛잘알 랭킹에서 찾아보기 <ChevronRight size={15} />
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-5 flex flex-wrap justify-center gap-3 px-5">
+      {photoFirst(posts).map((p) => (p.media ? <PhotoCard key={p.id} post={p} /> : <TextPostCard key={p.id} post={p} />))}
+    </div>
+  );
+}
 
 // 사진 있는 글을 앞으로 — 사진 없는 글은 비중을 낮춰 뒤로 민다 (순서는 안정적으로 유지)
 function photoFirst(arr: PostCard[]): PostCard[] {

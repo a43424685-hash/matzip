@@ -73,6 +73,9 @@ export async function getMemberDetail(userId: string) {
       avatarUrl: true,
       isAdmin: true,
       deactivatedAt: true,
+      suspendedAt: true,
+      suspendedReason: true,
+      lastLoginAt: true,
       createdAt: true,
       totalXp: true,
       totalLevel: true,
@@ -80,6 +83,7 @@ export async function getMemberDetail(userId: string) {
       bankName: true,
       accountNumber: true,
       accountHolder: true,
+      authAccounts: { select: { provider: true } }, // 가입 경로 (kakao/apple/email)
       _count: {
         select: {
           posts: true,
@@ -96,7 +100,12 @@ export async function getMemberDetail(userId: string) {
   });
   if (!user) return null;
 
-  const [earnings, recentPosts] = await Promise.all([
+  // 신고 당한 수 — 이 회원의 글/댓글이 신고당한 건수
+  const [myPostIds, myCommentIds] = await Promise.all([
+    prisma.restaurantPost.findMany({ where: { userId }, select: { id: true } }),
+    prisma.comment.findMany({ where: { userId }, select: { id: true } }),
+  ]);
+  const [earnings, recentPosts, verifiedCount, reportsAgainst, purchases, soldMaps] = await Promise.all([
     getSellerEarnings(userId),
     prisma.restaurantPost.findMany({
       where: { userId },
@@ -111,7 +120,28 @@ export async function getMemberDetail(userId: string) {
         restaurant: { select: { name: true } },
       },
     }),
+    prisma.restaurantPost.count({ where: { userId, locationVerified: true } }),
+    prisma.report.count({
+      where: {
+        OR: [
+          { targetType: "post", targetId: { in: myPostIds.map((p) => p.id) } },
+          { targetType: "comment", targetId: { in: myCommentIds.map((c) => c.id) } },
+        ],
+      },
+    }),
+    prisma.mapPurchase.findMany({
+      where: { buyerId: userId },
+      orderBy: { paidAt: "desc" },
+      take: 10,
+      select: { id: true, amountWon: true, status: true, collection: { select: { title: true } } },
+    }),
+    prisma.collection.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, title: true, _count: { select: { purchases: true } } },
+    }),
   ]);
 
-  return { user, earnings, recentPosts };
+  return { user, earnings, recentPosts, verifiedCount, reportsAgainst, purchases, soldMaps };
 }

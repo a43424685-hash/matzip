@@ -87,8 +87,12 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
             <span className="tabular-nums">{user.totalXp.toLocaleString()} XP</span>
           </div>
           <div className="mt-1.5 flex items-center gap-3 text-[13px] text-ink-muted">
-            <span>팔로워 <b className="text-ink tabular-nums">{followCounts.followers}</b></span>
-            <span>팔로잉 <b className="text-ink tabular-nums">{followCounts.following}</b></span>
+            <Link href={`/u/${user.id}/followers`}>
+              팔로워 <b className="text-ink tabular-nums">{followCounts.followers}</b>
+            </Link>
+            <Link href={`/u/${user.id}/following`}>
+              팔로잉 <b className="text-ink tabular-nums">{followCounts.following}</b>
+            </Link>
           </div>
         </div>
         {viewerId && !isOwnProfile && (
