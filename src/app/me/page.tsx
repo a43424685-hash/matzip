@@ -18,12 +18,12 @@ import {
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import OfficialBadge from "@/components/OfficialBadge";
-import CardImage from "@/components/CardImage";
+import ProfileGrid from "@/components/ProfileGrid";
 import { getFollowCounts } from "@/server/follow/FollowService";
 import { getMyOverallRank, getMyRegionRanks } from "@/server/ranking/RankingService";
 import { unreadCount } from "@/server/notification/NotificationService";
 import { calculateLevel } from "@/server/xp/LevelService";
-import { toPostCard, postCardSelect, type PostCard } from "@/server/restaurant/RestaurantService";
+import { getProfileGrid, type GridItem } from "@/server/profile/ProfileGridService";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +62,7 @@ export default async function MePage({
   const topRegion = regionRanks[0];
 
   // 활성 탭 데이터
-  let gridPosts: PostCard[] = [];
+  let gridPosts: GridItem[] = [];
   let maps: { id: string; title: string; priceWon: number | null; itemCount: number }[] = [];
   if (tab === "maps") {
     const rows = await prisma.collection.findMany({
@@ -72,13 +72,7 @@ export default async function MePage({
     });
     maps = rows.map((m) => ({ id: m.id, title: m.title, priceWon: m.priceWon, itemCount: m._count.items }));
   } else {
-    const rows = await prisma.restaurantPost.findMany({
-      where: { userId: user.id, ...(tab === "verified" ? { locationVerified: true } : {}) },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      select: postCardSelect,
-    });
-    gridPosts = rows.map(toPostCard);
+    gridPosts = await getProfileGrid(user.id, user.id, tab, 0);
   }
 
   return (
@@ -248,11 +242,7 @@ export default async function MePage({
           cta
         />
       ) : (
-        <div className="grid grid-cols-3 gap-0.5 p-0.5">
-          {gridPosts.map((p) => (
-            <GridThumb key={p.id} post={p} />
-          ))}
-        </div>
+        <ProfileGrid userId={user.id} tab={tab} initial={gridPosts} />
       )}
 
       {/* 맛집 등록 FAB */}
@@ -334,29 +324,3 @@ function EmptyGrid({ text, cta }: { text: string; cta?: boolean }) {
   );
 }
 
-function GridThumb({ post }: { post: PostCard }) {
-  const isVideo = post.media?.type === "video";
-  const img = post.media?.thumbnailUrl || (isVideo ? null : post.media?.url) || null;
-  return (
-    <Link href={`/restaurants/${post.id}`} className="relative aspect-square overflow-hidden bg-stone-100">
-      {img ? (
-        <CardImage src={img} alt={post.restaurantName} label="" className="h-full w-full object-cover" />
-      ) : (
-        <div className={`flex h-full w-full flex-col justify-end p-2 ${post.isOperatorPick ? "bg-amber-100" : "bg-forest-soft/60"}`}>
-          {post.isOperatorPick && <span className="mb-auto text-[9px] font-extrabold text-amber-600">⭐ PICK</span>}
-          <span className="line-clamp-3 text-[11px] font-bold leading-tight text-ink">{post.restaurantName}</span>
-        </div>
-      )}
-      {post.verification.location && (
-        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-forest/90 text-white">
-          <ShieldCheck size={11} />
-        </span>
-      )}
-      {img && (
-        <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/60 to-transparent px-1.5 pb-1 pt-4 text-[10px] font-semibold text-white">
-          {post.restaurantName}
-        </span>
-      )}
-    </Link>
-  );
-}

@@ -8,7 +8,8 @@ import { getFollowCounts, isFollowing } from "@/server/follow/FollowService";
 import DetailBackButton from "@/components/DetailBackButton";
 import FollowButton from "@/components/FollowButton";
 import OfficialBadge from "@/components/OfficialBadge";
-import CardImage from "@/components/CardImage";
+import ProfileGrid from "@/components/ProfileGrid";
+import { getProfileGrid } from "@/server/profile/ProfileGridService";
 
 export const dynamic = "force-dynamic";
 
@@ -60,22 +61,8 @@ export default async function UserProfilePage({
     }),
   ]);
 
-  // 활성 탭 데이터
-  const gridPosts =
-    tab === "maps"
-      ? []
-      : await prisma.restaurantPost.findMany({
-          where: { ...baseWhere, ...(tab === "verified" ? { locationVerified: true } : {}) },
-          orderBy: { createdAt: "desc" },
-          take: 30,
-          select: {
-            id: true,
-            restaurant: { select: { name: true } },
-            locationVerified: true,
-            isOperatorPick: true,
-            media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true, type: true } },
-          },
-        });
+  // 활성 탭 데이터 (무한 스크롤은 ProfileGrid가 처리)
+  const gridPosts = tab === "maps" ? [] : await getProfileGrid(userId, viewerId, tab, 0);
 
   const topRegion = regionRanks[0];
   const isRanker = rank > 0 && rank <= 30;
@@ -186,33 +173,7 @@ export default async function UserProfilePage({
       ) : gridPosts.length === 0 ? (
         <Empty text={tab === "verified" ? "아직 위치 인증한 맛집이 없어요." : "아직 등록한 맛집이 없어요."} />
       ) : (
-        <div className="grid grid-cols-3 gap-0.5 p-0.5">
-          {gridPosts.map((p) => {
-            const img = p.media[0]?.thumbnailUrl || (p.media[0]?.type === "video" ? null : p.media[0]?.url) || null;
-            return (
-              <Link key={p.id} href={`/restaurants/${p.id}`} className="relative aspect-square overflow-hidden bg-stone-100">
-                {img ? (
-                  <CardImage src={img} alt={p.restaurant.name} label="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className={`flex h-full w-full flex-col justify-end p-2 ${p.isOperatorPick ? "bg-amber-100" : "bg-forest-soft/60"}`}>
-                    {p.isOperatorPick && <span className="mb-auto text-[9px] font-extrabold text-amber-600">⭐ PICK</span>}
-                    <span className="line-clamp-3 text-[11px] font-bold leading-tight text-ink">{p.restaurant.name}</span>
-                  </div>
-                )}
-                {p.locationVerified && (
-                  <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-forest/90 text-white">
-                    <ShieldCheck size={11} />
-                  </span>
-                )}
-                {img && (
-                  <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/60 to-transparent px-1.5 pb-1 pt-4 text-[10px] font-semibold text-white">
-                    {p.restaurant.name}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+        <ProfileGrid userId={userId} tab={tab} initial={gridPosts} />
       )}
     </main>
   );
