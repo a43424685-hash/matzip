@@ -178,6 +178,12 @@ export default async function MePage() {
       {user.isAdmin && (
         <Section title="운영자">
           <Row
+            href="/admin"
+            icon={<ShieldAlert size={18} />}
+            label="관리자 대시보드"
+            sub="회원·정산·환불·신고 관리 (PC 권장)"
+          />
+          <Row
             href="/me/admin/import"
             icon={<Upload size={18} />}
             label="맛집 일괄등록"
@@ -193,13 +199,6 @@ export default async function MePage() {
         <Row href="/me/blocked-users" icon={<ShieldAlert size={18} />} label="차단한 사용자" />
         <Row href="/me/reports" icon={<ShieldAlert size={18} />} label="신고/제재 내역" />
       </Section>
-
-      {/* 운영자 전용 */}
-      {user.isAdmin && (
-        <Section title="운영자">
-          <Row href="/admin" icon={<ShieldAlert size={18} />} label="관리자 콘솔" sub="정산·환불·신고 관리" />
-        </Section>
-      )}
 
       {/* 고객 · 설정 */}
       <Section title="고객 · 설정">
