@@ -10,6 +10,7 @@ import {
   Coins,
   Plus,
   Check,
+  Star,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
@@ -367,32 +368,44 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
   );
 }
 
-// 사진 없는 글 — 큰 이미지 placeholder 대신 작고 깔끔한 텍스트 카드
+// 사진 없는 글 — 큰 이미지 placeholder 대신 작고 깔끔한 텍스트 카드.
+// 운영자 PICK(사진 없음)은 "고장난 빈칸" 대신 앰버 PICK 카드로 표현.
 function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: boolean }) {
+  const isPick = post.isOperatorPick;
   return (
     <Link
       href={`/restaurants/${post.id}`}
       className="flex h-[238px] w-[184px] shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-2"
     >
-      <div className="relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl bg-forest-soft p-3">
+      <div className={`relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl p-3 ${isPick ? "bg-amber-100" : "bg-forest-soft"}`}>
         <div className="absolute inset-0 opacity-60 thumb-empty" />
         <div className="relative z-[1] flex w-fit gap-1">
-          {post.isOfficial && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
-              <Check size={11} strokeWidth={3.2} /> 운영자
+          {isPick ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">
+              <Star size={11} strokeWidth={3} /> 운영자 PICK
             </span>
-          )}
-          {(showVerified || post.verification.location) && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
-              <ShieldCheck size={11} /> 인증
-            </span>
-          )}
-          {!post.isOfficial && !post.verification.location && !showVerified && (
-            <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+          ) : (
+            <>
+              {post.isOfficial && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+                  <Check size={11} strokeWidth={3.2} /> 운영자
+                </span>
+              )}
+              {(showVerified || post.verification.location) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
+                  <ShieldCheck size={11} /> 인증
+                </span>
+              )}
+              {!post.isOfficial && !post.verification.location && !showVerified && (
+                <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+              )}
+            </>
           )}
         </div>
         <div className="relative z-[1] mt-auto">
-          <div className="text-[11px] font-bold text-forest">사진 준비 중</div>
+          <div className={`text-[11px] font-bold ${isPick ? "text-amber-700" : "text-forest"}`}>
+            {isPick ? (post.categories[0] ?? "가보고 싶은 곳") : "사진 준비 중"}
+          </div>
           {post.shortReview && (
             <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-ink-muted">
               {post.shortReview}

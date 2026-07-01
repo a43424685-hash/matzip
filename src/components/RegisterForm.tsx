@@ -71,11 +71,13 @@ export default function RegisterForm({
   categoryGroups,
   mode = "create",
   initial,
+  prefillPlace,
 }: {
   regions: Region[];
   categoryGroups: CatGroup[];
   mode?: "create" | "edit";
   initial?: InitialPost;
+  prefillPlace?: PlaceResult | null;
 }) {
   const isEdit = mode === "edit";
   const router = useRouter();
@@ -267,6 +269,12 @@ export default function RegisterForm({
     setResults(null);
     setQuery("");
   }
+
+  // 운영자 PICK 등에서 "내 맛집으로 등록" 진입 → 장소를 미리 선택된 상태로 시작
+  useEffect(() => {
+    if (prefillPlace && !isEdit) pick(prefillPlace);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 위치 인증 시 받을 XP (등록 자체는 0 — 현장에서 위치 인증해야 아래 기록 XP가 한꺼번에 들어옴)
   // 등록 사진/영상 XP는 위치 인증 성공 시 보류분이 함께 지급된다.

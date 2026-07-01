@@ -72,6 +72,7 @@ export default async function UserProfilePage({
             id: true,
             restaurant: { select: { name: true } },
             locationVerified: true,
+            isOperatorPick: true,
             media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true, type: true } },
           },
         });
@@ -193,7 +194,8 @@ export default async function UserProfilePage({
                 {img ? (
                   <CardImage src={img} alt={p.restaurant.name} label="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full w-full flex-col justify-end bg-forest-soft/60 p-2">
+                  <div className={`flex h-full w-full flex-col justify-end p-2 ${p.isOperatorPick ? "bg-amber-100" : "bg-forest-soft/60"}`}>
+                    {p.isOperatorPick && <span className="mb-auto text-[9px] font-extrabold text-amber-600">⭐ PICK</span>}
                     <span className="line-clamp-3 text-[11px] font-bold leading-tight text-ink">{p.restaurant.name}</span>
                   </div>
                 )}

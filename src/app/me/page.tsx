@@ -342,7 +342,8 @@ function GridThumb({ post }: { post: PostCard }) {
       {img ? (
         <CardImage src={img} alt={post.restaurantName} label="" className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full flex-col justify-end bg-forest-soft/60 p-2">
+        <div className={`flex h-full w-full flex-col justify-end p-2 ${post.isOperatorPick ? "bg-amber-100" : "bg-forest-soft/60"}`}>
+          {post.isOperatorPick && <span className="mb-auto text-[9px] font-extrabold text-amber-600">⭐ PICK</span>}
           <span className="line-clamp-3 text-[11px] font-bold leading-tight text-ink">{post.restaurantName}</span>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Camera, Share2, Check, Pencil, Star, Wallet, Clock, MessageCircle } from "lucide-react";
+import { Camera, Share2, Check, Pencil, Star, Wallet, Clock, MessageCircle, Plus } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
 import PickCoachmark from "@/components/PickCoachmark";
 import Coachmark from "@/components/Coachmark";
@@ -127,6 +127,9 @@ export default async function PostDetailPage({
   const comments = await getComments(postId, user?.id ?? null);
   const firstImage = post.media.find((m) => m.type === "image")?.url ?? null;
   const isAuthor = user?.id === post.userId;
+  const hasCoords = post.restaurant.latitude != null && post.restaurant.longitude != null;
+  // 사진이 없으면 지도를 히어로로 (PICK처럼 사진 없는 장소도 "어디인지"는 보이게)
+  const heroIsMap = post.media.length === 0 && hasCoords;
 
   // 결정 정보
   const priceText = post.priceMemo || priceLabel(post.priceRange) || null;
@@ -162,26 +165,35 @@ export default async function PostDetailPage({
       {post.isOperatorPick && <PickCoachmark postId={postId} />}
       <StickyDetailHeader name={post.restaurant.name} />
 
-      {/* 미디어 + 뒤로가기 + ⋯ */}
-      {post.media.length === 0 ? (
-        <div className="mx-5 mt-4 flex items-center justify-between">
-          <DetailBackButton />
-          {menuItems && <DetailOverflowMenu>{menuItems}</DetailOverflowMenu>}
-        </div>
-      ) : (
+      {/* 히어로 — 사진 있으면 캐러셀, 없으면 지도. 좌표도 없으면 헤더 줄만. */}
+      {post.media.length > 0 ? (
         <DetailMediaCarousel
           media={post.media}
           title={post.restaurant.name}
           topRight={menuItems ? <DetailOverflowMenu floating>{menuItems}</DetailOverflowMenu> : null}
         />
+      ) : heroIsMap ? (
+        <div className="relative">
+          <KakaoMap
+            center={{ lat: post.restaurant.latitude!, lng: post.restaurant.longitude! }}
+            name={post.restaurant.name}
+            height={240}
+          />
+          <DetailBackButton floating />
+          {menuItems && <DetailOverflowMenu floating>{menuItems}</DetailOverflowMenu>}
+        </div>
+      ) : (
+        <div className="mx-5 mt-4 flex items-center justify-between">
+          <DetailBackButton />
+          {menuItems && <DetailOverflowMenu>{menuItems}</DetailOverflowMenu>}
+        </div>
       )}
 
       {post.media.length === 0 && (
-        <div className="mx-5 mt-3 rounded-2xl bg-stone-50 px-4 py-4">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-            <Camera size={16} className="text-forest" /> 아직 대표 사진이 없어요
+        <div className="mx-5 mt-3 rounded-2xl bg-amber-50 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-amber-800">
+            <Camera size={15} /> 아직 사진이 없어요 — 첫 방문자가 채워주세요!
           </p>
-          <p className="mt-1 text-[13px] text-ink-muted">현장에서 사진을 추가하면 더 신뢰도 높은 기록이 됩니다.</p>
         </div>
       )}
 
@@ -252,6 +264,16 @@ export default async function PostDetailPage({
               </div>
             )}
           </div>
+        )}
+
+        {/* 비작성자 — "내 맛집으로 등록" (PICK/남의 글을 내 기록으로. 같은 가게로 연결됨) */}
+        {user && !isAuthor && (
+          <Link
+            href={`/register?add=${post.restaurant.id}`}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-forest text-[15px] font-bold text-white active:scale-[0.99]"
+          >
+            <Plus size={18} strokeWidth={2.5} /> 내 맛집으로 등록
+          </Link>
         )}
 
         {/* 작성자 본인 — 방문 인증 CTA */}
@@ -355,11 +377,13 @@ export default async function PostDetailPage({
                 카카오맵 →
               </a>
             </div>
-            <KakaoMap
-              center={{ lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
-              name={post.restaurant.name}
-              height={160}
-            />
+            {!heroIsMap && (
+              <KakaoMap
+                center={{ lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
+                name={post.restaurant.name}
+                height={160}
+              />
+            )}
             {displayAddress && (
               <div className="mt-2">
                 <CopyAddressButton address={displayAddress} />
