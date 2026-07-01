@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Camera, MapPin, Share2, Check, Pencil, Star } from "lucide-react";
+import { Camera, Share2, Check, Pencil, Star, Wallet, Clock, MessageCircle } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
 import PickCoachmark from "@/components/PickCoachmark";
 import Coachmark from "@/components/Coachmark";
@@ -16,6 +16,7 @@ import BlockButton from "@/components/BlockButton";
 import DeletePostButton from "@/components/DeletePostButton";
 import DetailBackButton from "@/components/DetailBackButton";
 import DetailMediaCarousel from "@/components/DetailMediaCarousel";
+import DetailOverflowMenu from "@/components/DetailOverflowMenu";
 import StickyDetailHeader from "@/components/StickyDetailHeader";
 import { getCurrentUser } from "@/lib/auth";
 import LikeSaveButtons from "@/components/LikeSaveButtons";
@@ -25,6 +26,8 @@ import { getComments } from "@/server/comment/CommentService";
 import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
+
+const MENU_ROW = "flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13.5px] font-medium text-ink hover:bg-stone-50";
 
 function formatPostDate(value: Date) {
   return `${value.getFullYear()}.${String(value.getMonth() + 1).padStart(2, "0")}.${String(value.getDate()).padStart(2, "0")}`;
@@ -88,7 +91,6 @@ export default async function PostDetailPage({
 
   if (!post) notFound();
 
-  // 차단한 사용자의 글은 직접 URL로도 보이지 않게
   if (user) {
     const blocked = await getBlockedIds(user.id);
     if (blocked.includes(post.userId)) notFound();
@@ -111,8 +113,6 @@ export default async function PostDetailPage({
     ? `https://map.kakao.com/link/map/${encodeURIComponent(post.restaurant.name)},${post.restaurant.latitude},${post.restaurant.longitude}`
     : `https://map.kakao.com/?q=${encodeURIComponent(post.restaurant.name + " " + (post.restaurant.address ?? ""))}`;
 
-  // 표시 주소: 저장된 주소가 있으면 그대로 사용(빠름). 없을 때만 좌표로 역지오코딩 후
-  // restaurant.address 에 캐시 → 다음 조회부턴 외부호출 없이 즉시.
   let displayAddress = post.restaurant.address ?? null;
   if (!displayAddress && post.restaurant.latitude != null && post.restaurant.longitude != null) {
     const geo = await reverseGeocode(post.restaurant.latitude, post.restaurant.longitude);
@@ -126,106 +126,136 @@ export default async function PostDetailPage({
 
   const comments = await getComments(postId, user?.id ?? null);
   const firstImage = post.media.find((m) => m.type === "image")?.url ?? null;
+  const isAuthor = user?.id === post.userId;
+
+  // 결정 정보
+  const priceText = post.priceMemo || priceLabel(post.priceRange) || null;
+  const waitingText = waitingLabel(post.waitingLevel) || null;
+  const revisit = post.revisitIntent;
+  const revisitPositive = revisit ? ["must", "nearby"].includes(revisit) : false;
+  const revisitNegative = revisit ? ["not_revisit", "pass"].includes(revisit) : false;
+
+  // 더보기(⋯) 메뉴 항목 — 역할별. 파괴적/저빈도 액션을 본문에서 분리.
+  const menuItems = isAuthor ? (
+    <>
+      <Link href={`/restaurants/${post.id}/edit`} className={MENU_ROW}>
+        <Pencil size={15} /> 수정
+      </Link>
+      <div className="flex px-4 py-2.5">
+        <DeletePostButton postId={post.id} />
+      </div>
+    </>
+  ) : user ? (
+    <>
+      <ReportButton targetType="post" targetId={post.id} className={MENU_ROW} />
+      <BlockButton userId={post.userId} nickname={post.user.nickname} className={MENU_ROW} />
+      {user.isAdmin && (
+        <div className="flex border-t border-stone-100 px-4 py-2.5">
+          <DeletePostButton postId={post.id} adminLabel="운영자 삭제" />
+        </div>
+      )}
+    </>
+  ) : null;
 
   return (
-    <main className="pb-6">
+    <main className="pb-10">
       {post.isOperatorPick && <PickCoachmark postId={postId} />}
       <StickyDetailHeader name={post.restaurant.name} />
-      {/* 미디어 — 뒤로가기 + 장수 표시 + 점 인디케이터 */}
+
+      {/* 미디어 + 뒤로가기 + ⋯ */}
       {post.media.length === 0 ? (
-        <div className="mx-5 mt-4">
+        <div className="mx-5 mt-4 flex items-center justify-between">
           <DetailBackButton />
+          {menuItems && <DetailOverflowMenu>{menuItems}</DetailOverflowMenu>}
         </div>
       ) : (
-        <DetailMediaCarousel media={post.media} title={post.restaurant.name} />
+        <DetailMediaCarousel
+          media={post.media}
+          title={post.restaurant.name}
+          topRight={menuItems ? <DetailOverflowMenu floating>{menuItems}</DetailOverflowMenu> : null}
+        />
       )}
 
       {post.media.length === 0 && (
-        <div className="mx-5 mt-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
+        <div className="mx-5 mt-3 rounded-2xl bg-stone-50 px-4 py-4">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
             <Camera size={16} className="text-forest" /> 아직 대표 사진이 없어요
           </p>
-          <p className="mt-1 text-[13px] text-ink-muted">
-            현장에서 사진을 추가하면 더 신뢰도 높은 기록이 됩니다.
-          </p>
+          <p className="mt-1 text-[13px] text-ink-muted">현장에서 사진을 추가하면 더 신뢰도 높은 기록이 됩니다.</p>
         </div>
       )}
 
-      <div className="space-y-5 px-5 pt-5">
-        {/* 가게 핵심 정보 */}
+      <div className="space-y-6 px-5 pt-5">
+        {/* 제목 · 뱃지 · 한줄평 */}
         <header>
           <div className="flex items-start justify-between gap-2">
-            <h1 className="text-2xl font-extrabold leading-tight text-ink">{post.restaurant.name}</h1>
-            <span className="shrink-0 pt-1 text-sm text-neutral-400">{post.restaurant.primaryRegion.name}</span>
+            <h1 className="text-[23px] font-extrabold leading-tight text-ink">{post.restaurant.name}</h1>
+            <span className="shrink-0 pt-1.5 text-[13px] text-stone-400">{post.restaurant.primaryRegion.name}</span>
           </div>
-          {/* 메타 — 운영자 · 인증 · 등록일 (작게) */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-stone-400">
-            {post.isOperatorPick ? (
-              <>
-                <span className="flex items-center gap-0.5 font-bold text-amber-600">
-                  <Star size={12} strokeWidth={3} /> 운영자 PICK
-                </span>
-                <span>·</span>
-              </>
-            ) : (
-              <>
-                {post.user.isAdmin && (
-                  <>
-                    <span className="flex items-center gap-0.5 font-bold text-[#1d9bf0]">
-                      <Check size={12} strokeWidth={3} /> 운영자
-                    </span>
-                    <span>·</span>
-                  </>
-                )}
-                {post.locationVerified && (
-                  <>
-                    <span className="flex items-center gap-0.5 font-bold text-forest">
-                      <Check size={12} strokeWidth={3} /> 인증
-                    </span>
-                    <span>·</span>
-                  </>
-                )}
-              </>
+          {/* 뱃지 — 절제(채움 색은 PICK만) */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px]">
+            {post.isOperatorPick && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-forest px-2 py-0.5 font-bold text-white">
+                <Star size={11} strokeWidth={3} /> 운영자 PICK
+              </span>
             )}
-            {post.receiptVerified && (
-              <>
-                <span className="font-semibold text-forest">영수증</span>
-                <span>·</span>
-              </>
+            {!post.isOperatorPick && post.locationVerified && (
+              <span className="inline-flex items-center gap-1 font-bold text-forest">
+                <Check size={13} strokeWidth={3} /> 인증
+              </span>
             )}
-            {post.menuVerified && (
-              <>
-                <span className="font-semibold text-forest">메뉴</span>
-                <span>·</span>
-              </>
+            {!post.isOperatorPick && post.user.isAdmin && (
+              <span className="font-semibold text-stone-400">운영자</span>
             )}
-            <span>{formatPostDate(post.createdAt)} 등록</span>
+            {post.receiptVerified && <span className="text-stone-400">영수증</span>}
+            {post.menuVerified && <span className="text-stone-400">메뉴</span>}
           </div>
-          {/* 한줄평 */}
           {post.shortReview && (
-            <p className="mt-3 line-clamp-2 text-base font-semibold text-ink">“{post.shortReview}”</p>
+            <p className="mt-3 text-[17px] font-semibold leading-relaxed text-ink">{post.shortReview}</p>
           )}
         </header>
 
-        {/* 재방문 의사 — 평가 역할 (색강조). 한줄평 바로 밑. */}
-        {post.revisitIntent && (() => {
-          const positive = ["must", "nearby"].includes(post.revisitIntent);
-          const negative = ["not_revisit", "pass"].includes(post.revisitIntent);
-          const cls = positive
-            ? "bg-forest-soft text-forest"
-            : negative
-              ? "bg-coral/10 text-coral-dark"
-              : "bg-stone-100 text-stone-500";
-          return (
-            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-bold ${cls}`}>
-              {positive && "👍 "}
-              {revisitLabel(post.revisitIntent)}
-            </span>
-          );
-        })()}
+        {/* 결정 요약 — 재방문의사 · 가격 · 웨이팅 + 태그 */}
+        {(revisit || priceText || waitingText || post.categories.length > 0) && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px]">
+              {revisit && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[13px] font-bold ${
+                    revisitPositive
+                      ? "bg-forest-soft text-forest"
+                      : revisitNegative
+                        ? "bg-coral/10 text-coral-dark"
+                        : "bg-stone-100 text-stone-500"
+                  }`}
+                >
+                  {revisitPositive && "👍 "}
+                  {revisitLabel(revisit)}
+                </span>
+              )}
+              {priceText && (
+                <span className="flex items-center gap-1 text-ink-muted">
+                  <Wallet size={14} /> {priceText}
+                </span>
+              )}
+              {waitingText && (
+                <span className="flex items-center gap-1 text-ink-muted">
+                  <Clock size={14} /> 웨이팅 {waitingText}
+                </span>
+              )}
+            </div>
+            {post.categories.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {post.categories.map((c) => (
+                  <span key={c.category.name} className="chip-off">{c.category.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* 작성자 본인 — 방문 인증 CTA (미인증이면 크게, 인증 후엔 작게) */}
-        {user?.id === post.userId && (
+        {/* 작성자 본인 — 방문 인증 CTA */}
+        {isAuthor && (
           <div className="relative">
             <Coachmark
               storageKey="mukgopin:coach-verify"
@@ -259,7 +289,7 @@ export default async function PostDetailPage({
               <details className="overflow-hidden rounded-2xl border-2 border-forest" open>
                 <summary className="flex cursor-pointer list-none items-center justify-between bg-forest px-4 py-4 text-base font-extrabold text-white">
                   <span className="flex items-center gap-2">
-                    <MapPin size={20} /> 방문 인증하고 XP 받기
+                    <Check size={20} /> 방문 인증하고 XP 받기
                   </span>
                   <span className="shrink-0 text-xs font-semibold text-white/85">지금 인증</span>
                 </summary>
@@ -280,37 +310,9 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* 가게 정보 — 가격·웨이팅·분위기/상황 태그 (기본 접힘) */}
-        {(post.priceRange || post.priceMemo || post.waitingLevel || post.categories.length > 0) && (
-          <details className="card overflow-hidden">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
-              가게 정보
-              <span className="text-xs font-semibold text-forest">열기</span>
-            </summary>
-            <div className="space-y-3 border-t border-stone-100 p-4">
-              {(post.priceRange || post.priceMemo || post.waitingLevel) && (
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <Meta label="가격대" value={post.priceMemo || priceLabel(post.priceRange) || "-"} />
-                  <Meta label="웨이팅" value={waitingLabel(post.waitingLevel) || "-"} />
-                </div>
-              )}
-              {post.categories.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {post.categories.map((c) => (
-                    <span key={c.category.name} className="chip-off">{c.category.name}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </details>
-        )}
-
-        {/* 주요 액션 — 한 줄 액션바 (저장/좋아요 + 지도/공유/리스트) */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-2xl border border-stone-200 px-3 py-2.5">
-            <span className="text-[12px] tabular-nums text-stone-400">
-              좋아요 {post.likeCount} · 저장 {post.restaurant.saveCount} · 공유 {post.shareCount} · 💬 {post.commentCount}
-            </span>
+        {/* 통합 액션 바 — 좋아요·저장·공유·리스트 + 댓글 수 (테두리 없이 한 줄) */}
+        <div>
+          <div className="flex items-center gap-2 border-y border-stone-100 py-3">
             <LikeSaveButtons
               postId={post.id}
               restaurantId={post.restaurant.id}
@@ -320,11 +322,6 @@ export default async function PostDetailPage({
               initialSaveCount={post.restaurant.saveCount}
               isLoggedIn={!!user}
             />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <a href={mapUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
-              <MapPin size={15} /> 지도
-            </a>
             {post.locationVerified ? (
               <ShareSheet
                 postId={post.id}
@@ -338,44 +335,26 @@ export default async function PostDetailPage({
               </button>
             )}
             <CollectionPicker restaurantId={post.restaurant.id} isLoggedIn={!!user} compact />
+            <a href="#comments" className="ml-auto flex items-center gap-1.5 text-[13px] text-stone-400">
+              <MessageCircle size={16} /> {post.commentCount}
+            </a>
           </div>
           {!post.locationVerified && (
-            <p className="flex items-center justify-center gap-1 text-center text-[11px] text-stone-400">
-              <MapPin size={12} /> 위치 인증을 해야 공유할 수 있어요
+            <p className="mt-2 flex items-center justify-center gap-1 text-center text-[11px] text-stone-400">
+              위치 인증을 해야 공유할 수 있어요
             </p>
           )}
-          <p className="text-[12px] text-stone-400">
-            등록 by <b className="text-ink">{post.user.nickname}</b>
-            {post.user.isAdmin && <OfficialBadge size={13} className="ml-0.5 inline-flex align-middle" />} · Lv.{post.user.totalLevel}
-          </p>
         </div>
 
-        {/* 작성자 관리 (본인만) — 수정 / 삭제 (방문 인증은 상단 CTA로 이동) */}
-        {user?.id === post.userId && (
-          <div className="space-y-2 rounded-2xl border border-stone-200 p-3">
-            <p className="text-[12px] font-bold text-stone-400">내가 등록한 맛집</p>
-            <div className="flex gap-2">
-              <Link href={`/restaurants/${post.id}/edit`} className="btn-outline h-10 flex-1 !text-sm">
-                <Pencil size={15} /> 수정
-              </Link>
-              <DeletePostButton postId={post.id} />
-            </div>
-          </div>
-        )}
-
-        {/* 비작성자 — 차단 / 신고 (+ 운영자 삭제) */}
-        {user && user.id !== post.userId && (
-          <div className="flex items-center justify-end gap-4 text-[13px]">
-            <BlockButton userId={post.userId} nickname={post.user.nickname} />
-            <ReportButton targetType="post" targetId={post.id} />
-            {user.isAdmin && <DeletePostButton postId={post.id} adminLabel="운영자 삭제" />}
-          </div>
-        )}
-
-        {/* 위치 — 지도 + 주소 (액션·관리 아래로) */}
+        {/* 위치 */}
         {post.restaurant.latitude != null && post.restaurant.longitude != null && (
           <section>
-            <p className="mb-1.5 text-[13px] font-bold text-stone-500">위치</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[13px] font-bold text-stone-500">위치</p>
+              <a href={mapUrl} target="_blank" rel="noreferrer" className="text-[13px] font-semibold text-forest">
+                카카오맵 →
+              </a>
+            </div>
             <KakaoMap
               center={{ lat: post.restaurant.latitude, lng: post.restaurant.longitude }}
               name={post.restaurant.name}
@@ -389,7 +368,7 @@ export default async function PostDetailPage({
           </section>
         )}
 
-        {/* 사장님 홍보 영역 — 사용자 리뷰와 명확히 분리, 랭킹/XP 와 무관 */}
+        {/* 사장님 홍보 — 이질 콘텐츠라 카드 유지 */}
         {post.restaurant.promotions.length > 0 && (
           <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <div className="mb-2 inline-block rounded-full bg-amber-400/90 px-2 py-0.5 text-[11px] font-bold text-white">
@@ -407,33 +386,29 @@ export default async function PostDetailPage({
           </section>
         )}
 
-        {/* 댓글 — 기본 접힘 (수 + 모두 보기) */}
-        <details className="card overflow-hidden">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-extrabold text-ink">
+        {/* 댓글 — 접힘, 개수 노출 */}
+        <details id="comments" className="border-t border-stone-100 pt-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-extrabold text-ink">
             댓글 {post.commentCount}개
             <span className="text-xs font-semibold text-forest">{post.commentCount > 0 ? "모두 보기" : "쓰기"}</span>
           </summary>
-          <div className="border-t border-stone-100 p-4">
+          <div className="pt-4">
             <Comments
               postId={post.id}
               initial={comments}
               initialCount={post.commentCount}
               isLoggedIn={!!user}
-              isPostAuthor={user?.id === post.userId}
+              isPostAuthor={isAuthor}
             />
           </div>
         </details>
+
+        {/* 작성자 · 등록일 — 최하단 회색 캡션 */}
+        <p className="border-t border-stone-100 pt-4 text-[12px] text-stone-400">
+          등록 <b className="text-stone-500">{post.user.nickname}</b>
+          {post.user.isAdmin && <OfficialBadge size={12} className="ml-0.5 inline-flex align-middle" />} · Lv.{post.user.totalLevel} · {formatPostDate(post.createdAt)}
+        </p>
       </div>
     </main>
   );
 }
-
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card p-2.5">
-      <div className="text-[11px] text-neutral-400">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold">{value}</div>
-    </div>
-  );
-}
-
