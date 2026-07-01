@@ -6,6 +6,12 @@ import { NextResponse, type NextRequest } from "next/server";
  *  - Origin 헤더 우선, 없으면 Referer 로 보조 확인 → 그 host 가 요청 host 와 같아야 함.
  *  - host 를 직접 비교하므로 preview/production/앱 도메인을 하드코딩할 필요가 없다.
  *  - 외부 웹훅/콜백(브라우저 요청 아님)은 예외.
+ *
+ * ── CSRF 방어 정책 범위 (중요) ──
+ *  1) /api/* 상태변경  → 이 미들웨어가 same-origin 강제.
+ *  2) Server Action    → Next.js 자체 내장 보호에 의존(Server Actions 는 POST 전용 +
+ *     프레임워크가 Origin/Host 를 검증). 이 미들웨어 matcher(/api/:path*) 밖이므로
+ *     별도 방어를 넣지 않는다. 새 상태변경 로직은 이 두 경로 중 하나(=보호되는 경로)로만.
  */
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
