@@ -11,9 +11,11 @@ import CardImage from "@/components/CardImage";
 import DetailBackButton from "@/components/DetailBackButton";
 import DetailOverflowMenu from "@/components/DetailOverflowMenu";
 import BlockButton from "@/components/BlockButton";
+import ReportButton from "@/components/ReportButton";
 import CommunityLikeButton from "@/components/community/CommunityLikeButton";
 import CommunityComments from "@/components/community/CommunityComments";
 import CommunityDeleteButton from "@/components/community/CommunityDeleteButton";
+import CommunityBlindButton from "@/components/community/CommunityBlindButton";
 
 export const dynamic = "force-dynamic";
 
@@ -32,21 +34,33 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
   const comments = await listCommunityComments(id);
   const isAuthor = user?.id === post.userId;
 
-  const menuItems = isAuthor ? (
-    <CommunityDeleteButton postId={post.id} />
-  ) : user ? (
+  const hasMenu = isAuthor || !!user;
+  const menuItems = (
     <>
-      <BlockButton userId={post.userId} nickname={post.user.nickname} className={`${MENU_ROW} text-coral-dark`} />
-      {user.isAdmin && <CommunityDeleteButton postId={post.id} label="운영자 삭제" />}
+      {isAuthor && <CommunityDeleteButton postId={post.id} />}
+      {!isAuthor && user && (
+        <>
+          <ReportButton targetType="community_post" targetId={post.id} className={MENU_ROW} />
+          <BlockButton userId={post.userId} nickname={post.user.nickname} className={`${MENU_ROW} text-coral-dark`} />
+        </>
+      )}
+      {user?.isAdmin && <CommunityBlindButton postId={post.id} blinded={!!post.blindedAt} />}
+      {user?.isAdmin && !isAuthor && <CommunityDeleteButton postId={post.id} label="운영자 삭제" />}
     </>
-  ) : null;
+  );
 
   return (
     <main className="px-5 pb-24 pt-5">
       <header className="mb-4 flex items-center justify-between">
         <DetailBackButton />
-        {menuItems && <DetailOverflowMenu>{menuItems}</DetailOverflowMenu>}
+        {hasMenu && <DetailOverflowMenu>{menuItems}</DetailOverflowMenu>}
       </header>
+
+      {post.blindedAt && (
+        <div className="mb-3 rounded-2xl bg-coral/10 p-3 text-[13px] leading-relaxed text-coral-dark">
+          신고 누적으로 <b>임시 블라인드</b>된 글이에요. 이의가 있으면 고객센터로 문의해주세요. (작성자·운영자만 보여요)
+        </div>
+      )}
 
       <span className="inline-block rounded-md bg-forest-soft px-2 py-0.5 text-[12px] font-bold text-forest">
         {categoryLabel(post.category)}
@@ -74,18 +88,6 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
 
       {/* 본문 */}
       <p className="mt-4 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink">{post.content}</p>
-
-      {/* 영상 */}
-      {post.videoUrl && (
-        <video
-          src={post.videoUrl}
-          poster={post.videoThumbUrl ?? undefined}
-          controls
-          playsInline
-          className="mt-4 w-full rounded-2xl bg-stone-900"
-        />
-      )}
-      {!post.videoUrl && post.imageUrls.length === 0 && null}
 
       {/* 사진 */}
       {post.imageUrls.length > 0 && (

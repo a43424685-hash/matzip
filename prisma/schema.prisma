@@ -88,10 +88,15 @@ model CommunityPost {
   title         String
   content       String
   imageUrls     String[] @default([]) // 첨부 사진 URL들
-  videoUrl      String? // 첨부 영상(선택)
-  videoThumbUrl String? // 영상 포스터
+  videoUrl      String? // (미사용) 영상 — 비용 이슈로 UI 제거
+  videoThumbUrl String? // (미사용)
   likeCount     Int      @default(0)
   commentCount  Int      @default(0)
+  // 신고 임시조치(블라인드) — 정보통신망법 §44의2. 블라인드 중이면 목록/상세에서 숨김.
+  blindedAt     DateTime?
+  blindedReason String?
+  // Q&A 채택 — 질문 작성자가 고른 답변(댓글) id
+  acceptedCommentId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -109,10 +114,15 @@ model CommunityComment {
   communityPostId String
   userId          String
   content         String
-  createdAt       DateTime @default(now())
+  // 답변에 첨부한 등록 맛집(카드). 특정 가게 언급은 자유텍스트가 아니라 이 카드로 유도.
+  restaurantPostId String?
+  isAccepted       Boolean  @default(false) // 채택된 답변
+  blindedAt        DateTime? // 신고 임시조치
+  createdAt        DateTime @default(now())
 
-  post CommunityPost @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
-  user User          @relation("CommunityCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  post       CommunityPost   @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
+  user       User            @relation("CommunityCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  restaurant RestaurantPost? @relation("CommunityCommentRestaurant", fields: [restaurantPostId], references: [id], onDelete: SetNull)
 
   @@index([communityPostId, createdAt])
   @@map("community_comments")
@@ -388,6 +398,7 @@ model RestaurantPost {
   proofAttempts ProofAttempt[]
   comments   Comment[]
   collectionItems CollectionItem[]
+  communityComments CommunityComment[] @relation("CommunityCommentRestaurant") // 커뮤니티 답변에 첨부된 경우
 
   @@index([restaurantId])
   @@index([userId])

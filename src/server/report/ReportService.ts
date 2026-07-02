@@ -35,7 +35,8 @@ export async function createReport(input: {
   detail?: string | null;
 }): Promise<{ ok: boolean; reason?: string }> {
   const { reporterId, targetId } = input;
-  if (input.targetType !== "post" && input.targetType !== "comment") {
+  const ALLOWED = ["post", "comment", "community_post", "community_comment"];
+  if (!ALLOWED.includes(input.targetType)) {
     return { ok: false, reason: "BAD_TARGET" };
   }
   const targetType = input.targetType;
@@ -43,17 +44,19 @@ export async function createReport(input: {
 
   // 대상 존재 + 자기 콘텐츠 신고 방지
   if (targetType === "post") {
-    const p = await prisma.restaurantPost.findUnique({
-      where: { id: targetId },
-      select: { userId: true },
-    });
+    const p = await prisma.restaurantPost.findUnique({ where: { id: targetId }, select: { userId: true } });
+    if (!p) return { ok: false, reason: "NOT_FOUND" };
+    if (p.userId === reporterId) return { ok: false, reason: "SELF" };
+  } else if (targetType === "comment") {
+    const c = await prisma.comment.findUnique({ where: { id: targetId }, select: { userId: true } });
+    if (!c) return { ok: false, reason: "NOT_FOUND" };
+    if (c.userId === reporterId) return { ok: false, reason: "SELF" };
+  } else if (targetType === "community_post") {
+    const p = await prisma.communityPost.findUnique({ where: { id: targetId }, select: { userId: true } });
     if (!p) return { ok: false, reason: "NOT_FOUND" };
     if (p.userId === reporterId) return { ok: false, reason: "SELF" };
   } else {
-    const c = await prisma.comment.findUnique({
-      where: { id: targetId },
-      select: { userId: true },
-    });
+    const c = await prisma.communityComment.findUnique({ where: { id: targetId }, select: { userId: true } });
     if (!c) return { ok: false, reason: "NOT_FOUND" };
     if (c.userId === reporterId) return { ok: false, reason: "SELF" };
   }
@@ -68,13 +71,30 @@ export async function createReport(input: {
         detail: input.detail?.trim().slice(0, 500) || null,
       },
     });
-    return { ok: true };
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { ok: false, reason: "DUPLICATE" }; // 이미 신고함
     }
     throw e;
   }
+
+  // 정보통신망법 §44의2 임시조치 — 서로 다른 사용자 신고 N건 이상이면 자동 블라인드(운영자 검토 전).
+  const BLIND_THRESHOLD = 3;
+  if (targetType === "community_post" || targetType === "community_comment") {
+    const count = await prisma.report.count({ where: { targetType, targetId, status: "open" } });
+    if (count >= BLIND_THRESHOLD) {
+      if (targetType === "community_post") {
+        await prisma.communityPost
+          .update({ where: { id: targetId }, data: { blindedAt: new Date(), blindedReason: "신고 누적 임시조치" } })
+          .catch(() => {});
+      } else {
+        await prisma.communityComment
+          .update({ where: { id: targetId }, data: { blindedAt: new Date() } })
+          .catch(() => {});
+      }
+    }
+  }
+  return { ok: true };
 }
 
 export interface AdminReportRow {

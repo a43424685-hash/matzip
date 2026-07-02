@@ -68,6 +68,7 @@ export async function listCommunityPosts(
   const blocked = await getBlockedIds(viewerId);
   const rows = await prisma.communityPost.findMany({
     where: {
+      blindedAt: null, // 신고 임시조치된 글 숨김
       ...(category && isCommunityCategory(category) ? { category } : {}),
       ...(blocked.length ? { userId: { notIn: blocked } } : {}),
     },
@@ -93,8 +94,8 @@ export async function listCommunityPosts(
     category: r.category,
     title: r.title,
     excerpt: r.content.slice(0, 120),
-    thumb: r.imageUrls[0] ?? r.videoThumbUrl ?? null,
-    hasVideo: !!r.videoUrl,
+    thumb: r.imageUrls[0] ?? null,
+    hasVideo: false,
     likeCount: r.likeCount,
     commentCount: r.commentCount,
     createdAt: r.createdAt,
@@ -115,6 +116,8 @@ export async function getCommunityPost(id: string, viewerId: string | null) {
       videoThumbUrl: true,
       likeCount: true,
       commentCount: true,
+      blindedAt: true,
+      acceptedCommentId: true,
       createdAt: true,
       userId: true,
       user: { select: { id: true, nickname: true, avatarUrl: true, isAdmin: true, totalLevel: true } },
@@ -122,10 +125,17 @@ export async function getCommunityPost(id: string, viewerId: string | null) {
   });
   if (!post) return null;
   // 차단한 작성자의 글은 숨김
+  let viewerIsAdmin = false;
   if (viewerId) {
-    const blocked = await getBlockedIds(viewerId);
+    const [blocked, me] = await Promise.all([
+      getBlockedIds(viewerId),
+      prisma.user.findUnique({ where: { id: viewerId }, select: { isAdmin: true } }),
+    ]);
     if (blocked.includes(post.userId)) return null;
+    viewerIsAdmin = !!me?.isAdmin;
   }
+  // 신고 임시조치(블라인드): 작성자·관리자만 접근(안내 표시), 나머지는 숨김
+  if (post.blindedAt && post.userId !== viewerId && !viewerIsAdmin) return null;
   const liked = viewerId
     ? !!(await prisma.communityLike.findUnique({
         where: { communityPostId_userId: { communityPostId: id, userId: viewerId } },
@@ -157,15 +167,33 @@ export async function toggleCommunityLike(userId: string, postId: string): Promi
 
 export async function listCommunityComments(postId: string) {
   return prisma.communityComment.findMany({
-    where: { communityPostId: postId },
-    orderBy: { createdAt: "asc" },
+    where: { communityPostId: postId, blindedAt: null },
+    orderBy: [{ isAccepted: "desc" }, { createdAt: "asc" }], // 채택 답변 상단
     select: {
       id: true,
       content: true,
+      isAccepted: true,
       createdAt: true,
+      userId: true,
       user: { select: { id: true, nickname: true, avatarUrl: true, isAdmin: true } },
+      restaurant: {
+        select: {
+          id: true,
+          restaurant: { select: { name: true, primaryRegion: { select: { name: true } } } },
+          media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true } },
+        },
+      },
     },
   });
+}
+
+/** 운영자: 커뮤니티 글 블라인드 해제(오탐 복구) / 재블라인드. */
+export async function setCommunityPostBlind(postId: string, blinded: boolean, reason?: string) {
+  await prisma.communityPost.update({
+    where: { id: postId },
+    data: blinded ? { blindedAt: new Date(), blindedReason: reason || "운영자 조치" } : { blindedAt: null, blindedReason: null },
+  });
+  return { ok: true };
 }
 
 export async function addCommunityComment(userId: string, postId: string, content: string) {

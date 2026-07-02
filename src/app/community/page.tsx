@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, Heart, MessageCircle, Video, ImageIcon } from "lucide-react";
+import { Pencil, Heart, MessageCircle } from "lucide-react";
 import { getSessionUserId } from "@/lib/auth";
 import { listCommunityPosts, COMMUNITY_CATEGORIES, categoryLabel } from "@/server/community/CommunityService";
 import OfficialBadge from "@/components/OfficialBadge";
@@ -51,7 +51,6 @@ export default async function CommunityPage({
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-stone-100">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.thumb} alt="" className="h-full w-full object-cover" />
-                    {p.hasVideo && <Video size={14} className="absolute right-1 top-1 text-white drop-shadow" />}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
@@ -66,7 +65,6 @@ export default async function CommunityPage({
                       {p.author.isAdmin && <OfficialBadge size={11} />}
                     </span>
                     <span>· {ago(p.createdAt)}</span>
-                    {!p.thumb && p.hasVideo && <ImageIcon size={11} />}
                     <span className="ml-auto flex items-center gap-2">
                       <span className="flex items-center gap-0.5"><Heart size={11} /> {p.likeCount}</span>
                       <span className="flex items-center gap-0.5"><MessageCircle size={11} /> {p.commentCount}</span>
