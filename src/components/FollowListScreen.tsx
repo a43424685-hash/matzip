@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import type { FollowUserRow } from "@/server/follow/FollowService";
 import FollowButton from "@/components/FollowButton";
+import BackButton from "@/components/BackButton";
 import OfficialBadge from "@/components/OfficialBadge";
 
 /** 팔로워/팔로잉 목록 화면. 맞팔 버튼 포함. /u/[id] 프로필로 뒤로가기. */
@@ -21,13 +21,7 @@ export default function FollowListScreen({
   return (
     <main className="px-5 pb-24 pt-5">
       <header className="relative mb-3 flex h-10 items-center justify-center">
-        <Link
-          href={`/u/${targetUserId}`}
-          aria-label="뒤로"
-          className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full text-ink active:scale-95"
-        >
-          <ArrowLeft size={22} strokeWidth={2.2} />
-        </Link>
+        <BackButton fallback={`/u/${targetUserId}`} className="absolute left-0 text-ink" />
         <h1 className="max-w-[60%] truncate text-lg font-extrabold text-ink">{targetNickname}</h1>
       </header>
 
@@ -73,7 +67,7 @@ export default function FollowListScreen({
                 </div>
               </Link>
               {viewerId && viewerId !== u.id && (
-                <FollowButton targetId={u.id} initialFollowing={u.viewerFollows} />
+                <FollowButton targetId={u.id} initialFollowing={u.viewerFollows} nickname={u.nickname} />
               )}
             </li>
           ))}

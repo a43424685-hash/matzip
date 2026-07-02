@@ -270,8 +270,8 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* 비작성자 — "내 맛집으로 등록" (PICK/남의 글을 내 기록으로. 같은 가게로 연결됨) */}
-        {user && !isAuthor && (
+        {/* "내 맛집으로 등록" — 남의 글이거나 운영자 PICK이면 노출(PICK은 운영자가 작성자라 !isAuthor로는 안 뜸) */}
+        {user && (post.isOperatorPick || !isAuthor) && (
           <Link
             href={`/register?add=${post.restaurant.id}`}
             className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-forest text-[15px] font-bold text-white active:scale-[0.99]"

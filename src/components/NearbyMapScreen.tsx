@@ -175,10 +175,12 @@ export default function NearbyMapScreen() {
     });
   }, [userLoc]);
 
+  // 지도 준비되면(그리고 중심 바뀌면) 그 즉시 그 지역 맛집 로드 — 처음 진입에도 바로 뜨게.
   useEffect(() => {
+    if (!mapReady) return;
     void loadNearby(center);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, mapReady]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {

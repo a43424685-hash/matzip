@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         latitude: { gte: lat - latDelta, lte: lat + latDelta },
         longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
       },
-      OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
+      // 주변 = 통합 검색: 공개 글 모두 노출(인증/미인증). '인증만' 보기는 화면 필터로.
       AND: [visibleCond],
       visibility: "public", // "나만 보관" 글은 주변 지도에서 제외
       user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },

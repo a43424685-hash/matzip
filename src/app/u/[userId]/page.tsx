@@ -123,7 +123,7 @@ export default async function UserProfilePage({
         {/* 팔로우 (풀폭) */}
         {viewerId && !isOwnProfile && (
           <div className="mt-4">
-            <FollowButton targetId={user.id} initialFollowing={initialFollowing} full />
+            <FollowButton targetId={user.id} initialFollowing={initialFollowing} full nickname={user.nickname} />
           </div>
         )}
 
