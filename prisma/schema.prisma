@@ -70,8 +70,65 @@ model User {
   following     Follow[]          @relation("Follower")  // 내가 팔로우한 사람들
   followers     Follow[]          @relation("Following") // 나를 팔로우한 사람들
   auditLogs     AuditLog[]        @relation("AuditAdmin") // 이 사람이 운영자로서 남긴 조치 로그
+  communityPosts    CommunityPost[]    @relation("CommunityAuthor")
+  communityComments CommunityComment[] @relation("CommunityCommentAuthor")
+  communityLikes    CommunityLike[]    @relation("CommunityLikeUser")
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 커뮤니티 게시판 — 맛집 관련 소통. 카테고리: recommend(추천받기)|review(후기·자랑)|free(자유수다)
+// 사진·영상(선택) 첨부. 맛집 등록(RestaurantPost)과 별개.
+// ─────────────────────────────────────────────────────────────
+model CommunityPost {
+  id            String   @id @default(cuid())
+  userId        String
+  category      String // recommend | review | free
+  title         String
+  content       String
+  imageUrls     String[] @default([]) // 첨부 사진 URL들
+  videoUrl      String? // 첨부 영상(선택)
+  videoThumbUrl String? // 영상 포스터
+  likeCount     Int      @default(0)
+  commentCount  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User               @relation("CommunityAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  comments CommunityComment[]
+  likes    CommunityLike[]
+
+  @@index([category, createdAt])
+  @@index([userId])
+  @@map("community_posts")
+}
+
+model CommunityComment {
+  id              String   @id @default(cuid())
+  communityPostId String
+  userId          String
+  content         String
+  createdAt       DateTime @default(now())
+
+  post CommunityPost @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
+  user User          @relation("CommunityCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([communityPostId, createdAt])
+  @@map("community_comments")
+}
+
+model CommunityLike {
+  id              String   @id @default(cuid())
+  communityPostId String
+  userId          String
+  createdAt       DateTime @default(now())
+
+  post CommunityPost @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
+  user User          @relation("CommunityLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityPostId, userId])
+  @@map("community_likes")
 }
 
 // ─────────────────────────────────────────────────────────────
