@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
+import { getPlatform } from "@/lib/nativeAuth";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
 
@@ -79,6 +80,9 @@ export default function NearbyMapScreen() {
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [moved, setMoved] = useState(false);
+  // 외부 지도 버튼: 안드로이드=구글, iOS/웹=애플 (마운트 후 결정)
+  const [isAndroid, setIsAndroid] = useState(false);
+  useEffect(() => setIsAndroid(getPlatform() === "android"), []);
   const searchParams = useSearchParams();
   const catFilterRef = useRef<string | null>(null); // 검색에서 넘어온 음식 종류 필터(cat)
 
@@ -418,13 +422,17 @@ export default function NearbyMapScreen() {
         <LocateFixed size={22} />
       </button>
 
-      {/* Apple 지도(네이티브)로 이 지역 열기 — App Store 가이드라인 4 (카카오 외 옵션 제공) */}
+      {/* 이 지역을 외부 지도로 열기 — 카카오 외 옵션 제공. 안드=구글, iOS/웹=애플 */}
       <a
-        href={`https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`}
+        href={
+          isAndroid
+            ? `https://www.google.com/maps/search/?api=1&query=${center.lat},${center.lng}`
+            : `https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`
+        }
         className="absolute bottom-[calc(30dvh_+_3.5rem)] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95"
-        aria-label="Apple 지도로 보기"
+        aria-label={isAndroid ? "구글 지도로 보기" : "Apple 지도로 보기"}
       >
-        <MapPin size={18} className="text-forest" /> Apple 지도
+        <MapPin size={18} className="text-forest" /> {isAndroid ? "구글 지도" : "Apple 지도"}
       </a>
 
       <section

@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Camera, Share2, Check, Pencil, Star, Wallet, Clock, MessageCircle, Plus, MapPin } from "lucide-react";
+import { Camera, Share2, Check, Pencil, Star, Wallet, Clock, MessageCircle, Plus } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
 import PickCoachmark from "@/components/PickCoachmark";
 import Coachmark from "@/components/Coachmark";
 import { prisma } from "@/lib/db";
 import KakaoMap from "@/components/KakaoMap";
+import MapButtons from "@/components/MapButtons";
 import ShareSheet from "@/components/ShareSheet";
 import CopyAddressButton from "@/components/CopyAddressButton";
 import CollectionPicker from "@/components/CollectionPicker";
@@ -117,10 +118,6 @@ export default async function PostDetailPage({
   const mapUrl = post.restaurant.latitude
     ? `https://map.kakao.com/link/map/${encodeURIComponent(post.restaurant.name)},${post.restaurant.latitude},${post.restaurant.longitude}`
     : `https://map.kakao.com/?q=${encodeURIComponent(post.restaurant.name + " " + (post.restaurant.address ?? ""))}`;
-  // Apple 지도(네이티브) 열기 옵션 — App Store 가이드라인 4 준수
-  const appleMapUrl = post.restaurant.latitude
-    ? `https://maps.apple.com/?ll=${post.restaurant.latitude},${post.restaurant.longitude}&q=${encodeURIComponent(post.restaurant.name)}`
-    : `https://maps.apple.com/?q=${encodeURIComponent(post.restaurant.name + " " + (post.restaurant.address ?? ""))}`;
 
   let displayAddress = post.restaurant.address ?? null;
   if (!displayAddress && post.restaurant.latitude != null && post.restaurant.longitude != null) {
@@ -393,14 +390,13 @@ export default async function PostDetailPage({
                 <CopyAddressButton address={displayAddress} />
               </div>
             )}
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <a href={appleMapUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
-                <MapPin size={15} /> Apple 지도
-              </a>
-              <a href={mapUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
-                <MapPin size={15} /> 카카오 지도
-              </a>
-            </div>
+            <MapButtons
+              lat={post.restaurant.latitude!}
+              lng={post.restaurant.longitude!}
+              name={post.restaurant.name}
+              address={displayAddress}
+              kakaoUrl={mapUrl}
+            />
           </section>
         )}
 
