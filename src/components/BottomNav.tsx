@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Trophy, MapPin, User } from "lucide-react";
+import { Home, MessageSquare, Trophy, MapPin, User } from "lucide-react";
 
 const TABS = [
   { href: "/", label: "홈", Icon: Home },
-  // { href: "/benefits", label: "혜택모음", Icon: BadgePercent }, // 잠시 숨김 (콘텐츠 준비 후 복원)
-  { href: "/search", label: "검색", Icon: Search },
-  { href: "/nearby", label: "주변", Icon: MapPin },
+  { href: "/nearby", label: "주변", Icon: MapPin }, // 검색 흡수(지도+검색)
+  { href: "/community", label: "커뮤니티", Icon: MessageSquare },
   { href: "/rankings", label: "랭킹", Icon: Trophy },
   { href: "/me", label: "내정보", Icon: User },
 ];

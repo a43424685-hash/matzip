@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionAdmin } from "@/lib/auth";
+import { can } from "@/server/admin/permissions";
 import { refundPurchase } from "@/server/payment/PaymentService";
 
 const MESSAGE: Record<string, string> = {
@@ -11,7 +12,8 @@ const MESSAGE: Record<string, string> = {
 
 export async function POST(req: Request) {
   const admin = await getSessionAdmin();
-  if (!admin?.isAdmin) return NextResponse.json({ ok: false, reason: "FORBIDDEN" }, { status: 403 });
+  if (!admin?.isAdmin || !can(admin.role, "refund"))
+    return NextResponse.json({ ok: false, reason: "FORBIDDEN" }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const r = await refundPurchase(String(body.purchaseId ?? ""));
   if (!r.ok) {

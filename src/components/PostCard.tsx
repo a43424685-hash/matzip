@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Play, Check } from "lucide-react";
+import { MapPin, Play, Check, Star } from "lucide-react";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import { priceLabel, tasteRatingLabel } from "@/lib/labels";
 import LikeSaveButtons from "./LikeSaveButtons";
@@ -17,11 +17,13 @@ export default function PostCard({
   liked,
   saved,
   isLoggedIn,
+  authorIsRanker = false,
 }: {
   post: PostCardData;
   liked: boolean;
   saved: boolean;
   isLoggedIn: boolean;
+  authorIsRanker?: boolean;
 }) {
   const tags = post.categories.slice(0, 3);
 
@@ -39,7 +41,7 @@ export default function PostCard({
             <VerificationBadges v={post.verification} compact />
           </div>
         )}
-        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} />
+        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} authorIsRanker={authorIsRanker} />
       </article>
     );
   }
@@ -84,7 +86,7 @@ export default function PostCard({
             <VerificationBadges v={post.verification} compact />
           </div>
         )}
-        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} />
+        <Footer post={post} liked={liked} saved={saved} isLoggedIn={isLoggedIn} authorIsRanker={authorIsRanker} />
       </div>
     </article>
   );
@@ -97,10 +99,16 @@ function Header({ post }: { post: PostCardData }) {
         href={`/restaurants/${post.id}`}
         className="flex min-w-0 items-center gap-1.5 text-base font-bold text-ink"
       >
-        {post.isOfficial && (
-          <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
-            <Check size={10} strokeWidth={3.5} /> 운영자
+        {post.isOperatorPick ? (
+          <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+            <Star size={10} strokeWidth={3} /> 운영자 PICK
           </span>
+        ) : (
+          post.isOfficial && (
+            <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+              <Check size={10} strokeWidth={3.5} /> 운영자
+            </span>
+          )
         )}
         <span className="truncate">{post.restaurantName}</span>
       </Link>
@@ -151,15 +159,18 @@ function Footer({
   liked,
   saved,
   isLoggedIn,
+  authorIsRanker,
 }: {
   post: PostCardData;
   liked: boolean;
   saved: boolean;
   isLoggedIn: boolean;
+  authorIsRanker?: boolean;
 }) {
   return (
     <div className="mt-3.5 flex items-center justify-between">
       <span className="flex items-center gap-1.5 text-xs text-stone-400">
+        {authorIsRanker && <span title="상위 랭커" className="text-base leading-none">👑</span>}
         <span className="badge-lv">Lv.{post.authorLevel}</span>
         {post.authorNickname}
         <span>· {formatPostDate(post.createdAt)} 등록</span>

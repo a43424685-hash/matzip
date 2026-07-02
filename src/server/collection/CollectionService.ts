@@ -7,6 +7,8 @@
 import { prisma } from "@/lib/db";
 import { sendWebPush } from "@/server/push/PushService";
 
+const DEMO_USER_ID_PREFIX = "demo-u";
+
 const mediaPick = { select: { type: true, url: true, thumbnailUrl: true }, orderBy: { sortOrder: "asc" as const }, take: 1 };
 
 export interface CreateCollectionInput {
@@ -315,6 +317,28 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     proof: col.items.filter((i) => i.post?.receiptVerified || i.post?.menuVerified).length,
   };
 
+  // 지도 티저용 핀 — 잠긴 가게는 좌표를 흐려(약 ±300m) 정확 위치를 숨긴다(결정적 오프셋).
+  const seedOf = (s: string) => [...s].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const jitter = (v: number, seed: number) => v + (((seed * 9301 + 49297) % 233280) / 233280 - 0.5) * 0.006;
+  const mapPins = col.items
+    .filter((i) => i.restaurant.latitude != null && i.restaurant.longitude != null)
+    .map((i) => {
+      const lockedItem = locked && !i.isPreview;
+      const seed = seedOf(i.restaurant.id);
+      return {
+        lat: lockedItem ? jitter(i.restaurant.latitude as number, seed) : (i.restaurant.latitude as number),
+        lng: lockedItem ? jitter(i.restaurant.longitude as number, seed + 31) : (i.restaurant.longitude as number),
+        locked: lockedItem,
+      };
+    });
+
+  // 잠긴 맛집 티저 — 사진·카테고리만(이름·위치·후기 비공개)
+  const lockedTeasers = locked
+    ? col.items
+        .filter((i) => !i.isPreview)
+        .map((i) => ({ media: i.post?.media[0] ?? null, categories: i.post?.categories.map((c) => c.category.name) ?? [] }))
+    : [];
+
   return {
     id: col.id,
     title: col.title,
@@ -337,6 +361,8 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     regionName: col.region.name,
     itemCount: col._count.items,
     previewCount: col.items.filter((i) => i.isPreview).length,
+    mapPins,
+    lockedTeasers,
     // 잠금 상태면 '맛보기'로 지정된 가게만 노출(나머지는 숨김 — 이름·위치 유출 방지)
     items: (locked ? col.items.filter((i) => i.isPreview) : col.items).map((i) => ({
       restaurantId: i.restaurant.id,
@@ -425,7 +451,7 @@ export interface SellerEligibility {
   eligible: boolean;
 }
 
-/** 유료 지도 판매 자격 상태 (Lv.20 + 위치 인증 30곳 + 그중 영수증/메뉴 5곳). 운영자는 항상 통과. */
+/** 유료 지도 판매 자격 상태 (Lv.20 + 위치 인증 30곳). 운영자는 항상 통과. */
 export async function getSellerEligibility(userId: string): Promise<SellerEligibility> {
   const [user, verifiedCount, proofCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { totalLevel: true, isAdmin: true } }),
@@ -436,10 +462,9 @@ export async function getSellerEligibility(userId: string): Promise<SellerEligib
   ]);
   const level = user?.totalLevel ?? 1;
   const isAdmin = !!user?.isAdmin;
+  // 판매 자격: 레벨 20 + 위치 인증 30곳 (영수증/메뉴 5곳 조건은 제거 — 화면 간 조건 통일)
   const eligible =
-    !!user &&
-    (isAdmin ||
-      (level >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED && proofCount >= SELL_MIN_PROOF));
+    !!user && (isAdmin || (level >= SELL_MIN_LEVEL && verifiedCount >= SELL_MIN_VERIFIED));
   return { level, verifiedCount, proofCount, isAdmin, eligible };
 }
 
@@ -448,12 +473,21 @@ export async function canSellPaidMaps(userId: string): Promise<boolean> {
   return (await getSellerEligibility(userId)).eligible;
 }
 
-/** 컬렉션을 유료 지도로 전환/해제 (소유자 + 자격 + 가격 990~9900). 유료면 공개로 강제. */
+/**
+ * 컬렉션의 유료 상태 설정.
+ *  - 자산/판매 분리:
+ *    · forSale=false → "비공개 초안 잠금": 자격 없이 누구나 가능. isPaid=true + isPublic=false.
+ *      (담긴 맛집이 검색/지도에서 잠겨 '나만의 자산'으로 쌓임. 레벨20 전에도 모아둘 수 있음)
+ *    · forSale=true  → "실제 판매(공개 리스팅)": 자격 + 내 인증 맛집만 + 맛보기 5곳 + 가격 필요.
+ *      isPaid=true + isPublic=true (마켓/추천에 노출되고 구매 가능).
+ *  - isPaid=false → 무료로 전환(공개 복귀).
+ */
 export async function setPaidMap(
   userId: string,
   collectionId: string,
   isPaid: boolean,
-  priceWon: number | null
+  priceWon: number | null,
+  forSale: boolean = true
 ): Promise<{ ok: boolean; reason?: string }> {
   const col = await prisma.collection.findUnique({
     where: { id: collectionId },
@@ -465,13 +499,28 @@ export async function setPaidMap(
   if (!isPaid) {
     await prisma.collection.update({
       where: { id: collectionId },
-      data: { isPaid: false, priceWon: null },
+      data: { isPaid: false, isPublic: true, priceWon: null },
     });
     return { ok: true };
   }
 
-  if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   if (col._count.items < 1) return { ok: false, reason: "EMPTY" };
+
+  // ── 비공개 초안 잠금 (자격 불필요) ──
+  if (!forSale) {
+    const draftPrice =
+      priceWon != null && priceWon >= PAID_MAP_MIN_WON && priceWon <= PAID_MAP_MAX_WON
+        ? Math.round(priceWon)
+        : null;
+    await prisma.collection.update({
+      where: { id: collectionId },
+      data: { isPaid: true, isPublic: false, priceWon: draftPrice },
+    });
+    return { ok: true };
+  }
+
+  // ── 실제 판매(공개 리스팅) ── 자격 + 인증 + 맛보기 + 가격 필요
+  if (!(await canSellPaidMaps(userId))) return { ok: false, reason: "NOT_ELIGIBLE" };
   // 유료 지도는 '내가 인증한 맛집'만 담을 수 있다 — 미인증 항목이 하나라도 있으면 거부
   const items = await prisma.collectionItem.findMany({ where: { collectionId }, select: { restaurantId: true } });
   const restIds = items.map((i) => i.restaurantId);
@@ -484,7 +533,7 @@ export async function setPaidMap(
   if (restIds.some((id) => !verifiedSet.has(id))) return { ok: false, reason: "NEED_VERIFIED" };
   // 맛보기(무료 공개) 가게를 정확히 PAID_MAP_PREVIEW_COUNT(5)곳 지정해야 유료 오픈 가능 (최소=최대)
   const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
-  if (previewCount !== PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
+  if (previewCount < PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
   const price = Math.round(priceWon ?? 0);
   if (price < PAID_MAP_MIN_WON || price > PAID_MAP_MAX_WON) return { ok: false, reason: "BAD_PRICE" };
 
@@ -550,4 +599,90 @@ export async function setItemNote(
     })
     .catch(() => {});
   return { ok: true };
+}
+
+export interface CollectionSearchResult {
+  id: string;
+  title: string;
+  regionName: string;
+  isPaid: boolean;
+  priceWon: number | null;
+  itemCount: number;
+  ownerId: string;
+  ownerNickname: string;
+  ownerLevel: number;
+  ownerIsAdmin: boolean;
+  thumbnailUrl: string | null;
+}
+
+/** 검색(지역+상황+키워드)에 맞는 공개 큐레이션 지도 — 크리에이터 신뢰(레벨/경험치)순. */
+export async function searchCollections(input: {
+  coords?: { lat: number; lng: number } | null;
+  regionId?: string | null;
+  categoryIds?: string[];
+  excludeUserIds?: string[];
+  radiusKm?: number;
+}): Promise<CollectionSearchResult[]> {
+  const { coords, regionId, categoryIds = [], excludeUserIds = [], radiusKm = 2 } = input;
+  // 위치(좌표) = 지오코딩 결과 주변 반경(바운딩 박스) 내 맛집을 가진 지도. 상황 = 카테고리.
+  const dLat = radiusKm / 111;
+  const dLng = coords ? radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180)) : 0;
+  const cols = await prisma.collection.findMany({
+    where: {
+      isPublic: true,
+      ...(regionId ? { regionId } : {}),
+      ...(excludeUserIds.length ? { userId: { notIn: excludeUserIds } } : {}),
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
+      AND: [
+        ...(coords
+          ? [
+              {
+                items: {
+                  some: {
+                    restaurant: {
+                      latitude: { gte: coords.lat - dLat, lte: coords.lat + dLat },
+                      longitude: { gte: coords.lng - dLng, lte: coords.lng + dLng },
+                    },
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(categoryIds.length
+          ? [{ items: { some: { post: { categories: { some: { categoryId: { in: categoryIds } } } } } } }]
+          : []),
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      isPaid: true,
+      priceWon: true,
+      region: { select: { name: true } },
+      user: { select: { id: true, nickname: true, totalLevel: true, totalXp: true, isAdmin: true } },
+      _count: { select: { items: true } },
+      items: {
+        take: 1,
+        orderBy: { sortOrder: "asc" },
+        select: { post: { select: { media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true } } } } },
+      },
+    },
+    take: 40,
+  });
+
+  // 신뢰순 = 크리에이터 랭킹 순서(레벨→경험치). fallback: 고랭커 없어도 매칭된 지도 다 노출.
+  cols.sort((a, b) => b.user.totalLevel - a.user.totalLevel || b.user.totalXp - a.user.totalXp);
+  return cols.slice(0, 12).map((c) => ({
+    id: c.id,
+    title: c.title,
+    regionName: c.region.name,
+    isPaid: c.isPaid,
+    priceWon: c.priceWon,
+    itemCount: c._count.items,
+    ownerId: c.user.id,
+    ownerNickname: c.user.nickname,
+    ownerLevel: c.user.totalLevel,
+    ownerIsAdmin: c.user.isAdmin,
+    thumbnailUrl: c.items[0]?.post?.media[0]?.thumbnailUrl ?? c.items[0]?.post?.media[0]?.url ?? null,
+  }));
 }

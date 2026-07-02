@@ -14,9 +14,11 @@ type MediaItem = {
 export default function DetailMediaCarousel({
   media,
   title,
+  topRight,
 }: {
   media: MediaItem[];
   title: string;
+  topRight?: React.ReactNode;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -33,11 +35,7 @@ export default function DetailMediaCarousel({
     <section className="relative bg-stone-900 mt-[calc(env(safe-area-inset-top)_*_-1)]">
       <DetailBackButton floating />
 
-      {media.length > 1 && (
-        <div className="absolute right-3 top-[calc(env(safe-area-inset-top)_+_0.75rem)] z-10 rounded-full bg-black/50 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
-          {active + 1} / {media.length}
-        </div>
-      )}
+      {topRight}
 
       <div
         ref={scrollerRef}

@@ -27,7 +27,10 @@ export default function StickyDetailHeader({ name }: { name: string }) {
     >
       <div className="flex items-center gap-2 px-3 py-2.5">
         <button
-          onClick={() => router.back()}
+          onClick={() => {
+            if (window.history.length > 1) router.back();
+            else router.push("/");
+          }}
           aria-label="뒤로"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink active:scale-95"
         >

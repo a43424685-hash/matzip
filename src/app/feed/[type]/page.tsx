@@ -40,6 +40,7 @@ export default async function FeedPage({
       regionId,
       includeUnverified: cfg.includeUnverified,
       excludeUserIds: blocked,
+      viewerId: user?.id ?? null,
       limit: 60,
     }),
   ]);

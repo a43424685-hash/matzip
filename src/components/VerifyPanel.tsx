@@ -59,8 +59,8 @@ async function fileToResizedDataUrl(file: File, maxDim = 1024, quality = 0.6): P
 
 type PhotoKind = "receipt" | "menu";
 
+// 영수증 인증 제거 — 메뉴판만 (개인정보 노출 위험·마찰 줄임)
 const PHOTO_ROWS: { kind: PhotoKind; label: string; Icon: LucideIcon; xp: number; hint: string }[] = [
-  { kind: "receipt", label: "영수증", Icon: Receipt, xp: 100, hint: "가게명·날짜가 보이게 영수증을 찍어주세요" },
   { kind: "menu", label: "메뉴판", Icon: BookOpen, xp: 40, hint: "메뉴판이 보이게 찍어주세요" },
 ];
 
@@ -353,7 +353,7 @@ export default function VerifyPanel({
       )}
 
       <p className="mt-2 text-[11px] text-stone-400">
-        영수증은 가게명·날짜를 AI가 확인해요. 메뉴판은 위치 인증 후 현장 카메라로만 첨부합니다.
+        메뉴판은 위치 인증 후 현장 카메라로만 첨부할 수 있어요.
       </p>
       {msg && <p className="mt-1.5 text-[13px] font-medium text-forest">{msg}</p>}
     </section>

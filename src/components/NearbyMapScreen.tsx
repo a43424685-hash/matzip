@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
 
 type LatLng = { lat: number; lng: number };
 type SheetState = "collapsed" | "default" | "expanded";
-type FilterMode = "saved" | "verified";
+type FilterMode = "all" | "saved" | "verified";
 
 type NearbyItem = {
   post: PostCardData;
@@ -29,6 +30,25 @@ function formatDistance(m: number) {
   return `${(m / 1000).toFixed(m < 10000 ? 1 : 0)}km`;
 }
 
+// 카카오 지도 줌 레벨(작을수록 확대) → 검색 반경(m). 확대하면 좁게, 축소하면 넓게.
+function radiusForLevel(level: number): number {
+  const table: Record<number, number> = {
+    1: 400, 2: 700, 3: 1200, 4: 2000, 5: 3000, 6: 5000, 7: 8000, 8: 13000,
+  };
+  return table[level] ?? (level >= 9 ? 20000 : 3000);
+}
+
+// 지도에 "보이는 영역 전체"를 덮는 반경(중심→모서리 거리, m). 보이는 맛집이 빠지지 않게.
+function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 function sheetClass(state: SheetState) {
   if (state === "collapsed") return "h-[14dvh]";
   if (state === "expanded") return "h-[calc(100dvh-98px)]";
@@ -40,6 +60,7 @@ export default function NearbyMapScreen() {
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<any[]>([]);
   const userMarkerRef = useRef<any>(null);
+  const autoSearchTimer = useRef<number | undefined>(undefined);
   const watchIdRef = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
 
@@ -49,10 +70,28 @@ export default function NearbyMapScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetState>("default");
-  // 기본은 '인증 맛집' — 첫 사용자(저장 0)도 바로 주변 맛집을 보게 한다.
-  const [mode, setMode] = useState<FilterMode>("verified");
+  // 기본은 '전체' — 인증 맛집 + 운영자 PICK(추천) 모두 보여 콘텐츠를 꽉 채운다.
+  const [mode, setMode] = useState<FilterMode>("all");
   const [category, setCategory] = useState("전체");
   const [loading, setLoading] = useState(false);
+  // 검색(지오코딩→지도 이동) + "이 지역 다시 검색"
+  const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [moved, setMoved] = useState(false);
+  const searchParams = useSearchParams();
+  const catFilterRef = useRef<string | null>(null); // 검색에서 넘어온 음식 종류 필터(cat)
+
+  // 검색에서 넘어온 경우(/nearby?q=…&cat=…) → 자동으로 그 위치로 지도 이동 + 음식 필터 유지
+  useEffect(() => {
+    catFilterRef.current = searchParams.get("cat")?.trim() || null;
+    const initialQ = searchParams.get("q")?.trim();
+    if (initialQ) {
+      setQ(initialQ);
+      void geocodeAndMove(initialQ);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(LAST_LOCATION_KEY);
@@ -83,7 +122,29 @@ export default function NearbyMapScreen() {
           level: 5,
         });
         mapRef.current = map;
+        // 지도를 옮기거나 줌하면 그 지역을 "자동으로" 다시 검색한다 (멈춘 뒤 0.45초)
+        const onMapMove = () => {
+          if (autoSearchTimer.current) window.clearTimeout(autoSearchTimer.current);
+          autoSearchTimer.current = window.setTimeout(() => {
+            const c = map.getCenter();
+            setMoved(false);
+            // pan(중심이동)이든 zoom(확대/축소)이든 항상 직접 재검색.
+            // 예전엔 setCenter로 처리해서, 줌은 중심이 안 바뀌어 재검색이 아예 안 됐음(버그).
+            void loadNearby({ lat: c.getLat(), lng: c.getLng() });
+          }, 400);
+        };
+        kakao.maps.event.addListener(map, "dragend", onMapMove);
+        kakao.maps.event.addListener(map, "zoom_changed", onMapMove);
         setMapReady(true);
+        // 재진입(다시 들어옴) 시 컨테이너 크기가 늦게 잡혀 지도/마커가 안 그려지는 것 방지
+        window.setTimeout(() => {
+          if (!cancelled && mapRef.current) {
+            mapRef.current.relayout();
+            mapRef.current.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+            // 레이아웃(크기) 잡힌 뒤 정확한 화면 범위로 초기 로드 — 처음부터 핀이 뜨게
+            void loadNearby({ lat: center.lat, lng: center.lng });
+          }
+        }, 250);
       })
       .catch((e: Error) => {
         if (!cancelled) setMapError(e.message === "NO_KEY" ? "지도 키가 필요해요." : "지도를 불러오지 못했어요.");
@@ -116,10 +177,12 @@ export default function NearbyMapScreen() {
     });
   }, [userLoc]);
 
+  // 지도 준비되면(그리고 중심 바뀌면) 그 즉시 그 지역 맛집 로드 — 처음 진입에도 바로 뜨게.
   useEffect(() => {
+    if (!mapReady) return;
     void loadNearby(center);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, mapReady]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -140,7 +203,10 @@ export default function NearbyMapScreen() {
 
     filteredItems.slice(0, 30).forEach((item) => {
       const pos = new kakao.maps.LatLng(item.latitude, item.longitude);
-      const label = item.saved ? "저장" : "인증";
+      const pick = item.post.isOperatorPick;
+      const label = item.saved ? "저장" : pick ? "★PICK" : item.post.verification.location ? "인증" : "맛집";
+      const bg = item.saved ? "#1f4d3f" : pick ? "#f59e0b" : "#ffffff";
+      const fg = item.saved || pick ? "#ffffff" : "#1f2b25";
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         yAnchor: 1.15,
@@ -148,8 +214,8 @@ export default function NearbyMapScreen() {
           <a href="/restaurants/${item.post.id}" style="
             display:inline-flex;align-items:center;gap:4px;
             padding:6px 10px;border:1px solid rgba(31,61,43,.18);
-            border-radius:999px;background:${item.saved ? "#1f4d3f" : "#ffffff"};
-            color:${item.saved ? "#ffffff" : "#1f2b25"};
+            border-radius:999px;background:${bg};
+            color:${fg};
             font-size:12px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.16);
             white-space:nowrap;text-decoration:none;">
             ${label} · ${formatDistance(item.distanceMeters)}
@@ -160,15 +226,70 @@ export default function NearbyMapScreen() {
     });
   }, [filteredItems, mapReady]);
 
-  async function loadNearby(pos: LatLng) {
+  async function loadNearby(pos: LatLng, radius?: number) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}`);
+      const map = mapRef.current;
+      let r = radius;
+      if (r == null) {
+        const bounds = map?.getBounds?.();
+        if (bounds) {
+          // 지도에 보이는 영역(중심→북동 모서리) 전체를 덮는 반경 + 여유 10%
+          const ne = bounds.getNorthEast();
+          r = Math.min(haversineMeters(pos.lat, pos.lng, ne.getLat(), ne.getLng()) * 1.1, 30000);
+        } else {
+          r = radiusForLevel(map?.getLevel?.() ?? 5);
+        }
+      }
+      const catQ = catFilterRef.current ? `&categoryId=${encodeURIComponent(catFilterRef.current)}` : "";
+      const res = await fetch(`/api/nearby?lat=${pos.lat}&lng=${pos.lng}&radius=${Math.round(r)}${catQ}`);
       const data = (await res.json()) as { ok?: boolean; items?: NearbyItem[] };
       setItems(res.ok && data.ok ? data.items ?? [] : []);
     } finally {
       setLoading(false);
     }
+  }
+
+  // 검색어 → 좌표(지오코딩) → 지도 이동 후 그 지역 맛집 로드
+  // 검색어 → 지도 중심 이동 (setCenter 가 지도 이동 + 그 지역 재검색을 트리거)
+  async function geocodeAndMove(query: string) {
+    // "맛집/식당/추천/근처" 같은 군더더기 제거 → 위치 정밀도↑ (예: "수유역 5번출구 맛집" → "수유역 5번출구")
+    const cleaned = query.replace(/맛집|식당|추천|근처/g, " ").replace(/\s+/g, " ").trim() || query.trim();
+    if (!cleaned) return;
+    setSearching(true);
+    setNotFound(false);
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(cleaned)}`);
+      const data = (await res.json()) as { ok?: boolean; lat?: number; lng?: number };
+      if (data.ok && Number.isFinite(data.lat) && Number.isFinite(data.lng)) {
+        setMoved(false);
+        // 검색한 지점으로 가깝게 줌인 (동 전체 말고 그 자리) — level 3 ≈ 반경 1km대
+        mapRef.current?.setLevel?.(3);
+        setCenter({ lat: data.lat as number, lng: data.lng as number });
+      } else {
+        setNotFound(true);
+      }
+    } catch {
+      setNotFound(true);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function runSearch(e: React.FormEvent) {
+    e.preventDefault();
+    catFilterRef.current = null; // 검색창에서 직접 검색하면 이전 음식 필터는 해제
+    await geocodeAndMove(q.trim());
+  }
+
+  // "이 지역 다시 검색" — 현재 지도 중심/줌 기준으로 다시 로드 (줌만 바뀐 경우도 강제 갱신)
+  function researchHere() {
+    const c = mapRef.current?.getCenter?.();
+    if (!c) return;
+    const pos = { lat: c.getLat(), lng: c.getLng() };
+    setCenter(pos);
+    void loadNearby(pos);
+    setMoved(false);
   }
 
   function applyUserLocation(next: LatLng) {
@@ -224,7 +345,12 @@ export default function NearbyMapScreen() {
   }
 
   const savedCount = items.filter((item) => item.saved).length;
-  const headerText = mode === "saved" ? `내 주변 저장 맛집 ${savedCount}곳` : `주변 인증 맛집 ${filteredItems.length}곳`;
+  const headerText =
+    mode === "saved"
+      ? `내 주변 저장 맛집 ${savedCount}곳`
+      : mode === "verified"
+        ? `주변 인증 맛집 ${filteredItems.length}곳`
+        : `주변 맛집 ${filteredItems.length}곳`;
 
   return (
     <main className="relative h-[calc(100dvh-76px)] overflow-hidden bg-stone-100">
@@ -240,11 +366,23 @@ export default function NearbyMapScreen() {
           <Link href="/" aria-label="홈으로" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink">
             <ArrowLeft size={25} />
           </Link>
-          <Link href="/search" className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-full bg-stone-100 px-4 text-[15px] font-semibold text-stone-400">
-            <Search size={19} className="text-forest" />
-            지역·상호명 검색
-          </Link>
+          <form onSubmit={runSearch} className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-full bg-stone-100 px-4">
+            <Search size={19} className="shrink-0 text-forest" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="지역·상호명 검색 (예: 수유역, 강릉)"
+              className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-ink outline-none placeholder:text-stone-400"
+              enterKeyHint="search"
+            />
+            {searching && <span className="shrink-0 text-xs text-stone-400">검색중</span>}
+          </form>
         </div>
+        {notFound && (
+          <p className="mt-1.5 px-5 text-[12px] text-coral-dark">
+            ‘{q.trim()}’ 위치를 못 찾았어요. 동/역/지역명으로 다시 검색해보세요.
+          </p>
+        )}
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">
           {CATEGORY_LABELS.map((label) => (
             <button
@@ -260,6 +398,16 @@ export default function NearbyMapScreen() {
           ))}
         </div>
       </div>
+
+      {moved && (
+        <button
+          type="button"
+          onClick={researchHere}
+          className="absolute left-1/2 top-[128px] z-20 -translate-x-1/2 rounded-full bg-forest px-4 py-2.5 text-sm font-bold text-white shadow-lg active:scale-95"
+        >
+          이 지역 다시 검색
+        </button>
+      )}
 
       <button
         type="button"
@@ -313,12 +461,12 @@ export default function NearbyMapScreen() {
         <div className="mt-3 flex gap-2 px-5">
           <button
             type="button"
-            onClick={() => setMode("saved")}
+            onClick={() => setMode("all")}
             className={`h-9 rounded-full px-3 text-[13px] font-bold ${
-              mode === "saved" ? "bg-forest text-white" : "bg-stone-100 text-ink"
+              mode === "all" ? "bg-forest text-white" : "bg-stone-100 text-ink"
             }`}
           >
-            저장한 맛집
+            전체
           </button>
           <button
             type="button"
@@ -328,6 +476,15 @@ export default function NearbyMapScreen() {
             }`}
           >
             인증 맛집
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("saved")}
+            className={`h-9 rounded-full px-3 text-[13px] font-bold ${
+              mode === "saved" ? "bg-forest text-white" : "bg-stone-100 text-ink"
+            }`}
+          >
+            저장한 맛집
           </button>
         </div>
 
@@ -397,7 +554,11 @@ function NearbyCard({ item }: { item: NearbyItem }) {
       </div>
       <div className="min-w-0 flex-1 py-1">
         <div className="flex items-center gap-1 text-[12px] font-bold text-forest">
-          {item.post.isOfficial ? (
+          {item.post.isOperatorPick ? (
+            <span className="flex items-center gap-1 text-amber-600">
+              <Star size={13} /> 운영자 PICK
+            </span>
+          ) : item.post.isOfficial ? (
             <span className="flex items-center gap-1 text-amber-600">
               <ShieldCheck size={13} /> 운영자
             </span>

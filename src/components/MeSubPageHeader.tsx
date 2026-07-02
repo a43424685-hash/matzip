@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-/** 내 정보 하위 페이지 공통 헤더 — 뒤로가기는 항상 /me, 제목은 가운데. */
-export default function MeSubPageHeader({ title }: { title: string }) {
+/**
+ * 내 정보 하위 페이지 공통 헤더.
+ * 뒤로가기 = 논리적 상위(기본 내정보 /me)로 고정. 히스토리 기반(router.back)을 쓰지 않아
+ * 리다이렉트 함정·엉뚱한 페이지로 튀는 문제를 원천 차단한다.
+ */
+export default function MeSubPageHeader({ title, backHref = "/me" }: { title: string; backHref?: string }) {
   return (
     <header className="relative mb-5 flex h-10 items-center justify-center">
       <Link
-        href="/me"
-        aria-label="내 정보로"
+        href={backHref}
+        aria-label="뒤로"
         className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full text-ink active:scale-95"
       >
         <ArrowLeft size={22} strokeWidth={2.2} />

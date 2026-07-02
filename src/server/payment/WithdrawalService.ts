@@ -50,12 +50,17 @@ export async function getSellerBalance(sellerId: string): Promise<SellerBalance>
 }
 
 export async function requestWithdrawal(
-  sellerId: string,
-  bank: { bankName: string; accountNumber: string; accountHolder: string }
+  sellerId: string
 ): Promise<{ ok: boolean; reason?: string }> {
-  const bankName = bank.bankName?.trim();
-  const accountNumber = bank.accountNumber?.trim();
-  const accountHolder = bank.accountHolder?.trim();
+  // 계좌는 클라이언트가 아니라 서버에 등록된 값을 스냅샷한다(위·변조 방지).
+  // accountNumber 는 암호문 그대로 복사 저장 — 운영자 정산 화면에서 복호화해 사용.
+  const user = await prisma.user.findUnique({
+    where: { id: sellerId },
+    select: { bankName: true, accountNumber: true, accountHolder: true },
+  });
+  const bankName = user?.bankName?.trim();
+  const accountNumber = user?.accountNumber?.trim();
+  const accountHolder = user?.accountHolder?.trim();
   if (!bankName || !accountNumber || !accountHolder) return { ok: false, reason: "BANK_REQUIRED" };
 
   const bal = await getSellerBalance(sellerId);

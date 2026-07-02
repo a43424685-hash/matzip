@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { Coins } from "lucide-react";
+import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getSellerEarnings } from "@/server/payment/PaymentService";
 import { getSellerBalance, listMyWithdrawals, MIN_WITHDRAW_WON } from "@/server/payment/WithdrawalService";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
 import WithdrawForm from "@/components/WithdrawForm";
+import { decryptField, maskAccountNumber } from "@/lib/fieldCrypto";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +25,23 @@ export default async function EarningsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [e, balance, withdrawals] = await Promise.all([
+  const [e, balance, withdrawals, acc] = await Promise.all([
     getSellerEarnings(user.id),
     getSellerBalance(user.id),
     listMyWithdrawals(user.id),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { bankName: true, accountNumber: true, accountHolder: true },
+    }),
   ]);
+  const account =
+    acc?.bankName && acc.accountNumber && acc.accountHolder
+      ? {
+          bankName: acc.bankName,
+          accountNumber: maskAccountNumber(decryptField(acc.accountNumber)), // 마스킹 표시
+          accountHolder: acc.accountHolder,
+        }
+      : null;
 
   return (
     <main className="px-5 pb-24 pt-5">
@@ -50,6 +64,7 @@ export default async function EarningsPage() {
         minWon={MIN_WITHDRAW_WON}
         canWithdraw={balance.canWithdraw}
         hasPending={balance.hasPending}
+        account={account}
       />
 
       {/* 출금 내역 */}
@@ -120,7 +135,7 @@ export default async function EarningsPage() {
       )}
 
       <p className="mt-4 px-1 text-[12px] leading-relaxed text-stone-400">
-        ※ 판매액에서 결제·운영 수수료 30%가 차감된 금액이 정산돼요. 실제 정산 지급 기능은 준비 중이에요.
+        ※ 판매액에서 결제·운영 수수료 30%가 차감된 금액이 정산돼요. 출금을 신청하면 운영자가 확인 후 등록하신 계좌로 입금해드려요.
       </p>
     </main>
   );

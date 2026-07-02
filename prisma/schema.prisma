@@ -23,11 +23,23 @@ model User {
   emailVerifiedAt DateTime?
   nicknameConfirmedAt DateTime?
   avatarUrl    String?
-  isAdmin      Boolean  @default(false) // 운영자 — 신고 처리/콘텐츠 삭제 권한
+  isAdmin      Boolean  @default(false) // 운영자 — 어드민 접근 게이트(직원 여부)
+  // 세부 권한 역할(RBAC): superadmin | settlement | support | none. isAdmin 안에서 액션별 권한을 나눔.
+  role         String   @default("none")
   nicknameUpdatedAt DateTime? // 닉네임 마지막 변경 시각 (30일 1회 제한)
   deactivatedAt DateTime? // 비활성화(쉬어가기) — 글/프로필 숨김, 재로그인 시 자동 복구
   notifyLike    Boolean  @default(true) // 좋아요 알림 받기
   notifyComment Boolean  @default(true) // 댓글/답글 알림 받기
+  // 실명 — 비공개(정산/본인확인용). 한 번 설정하면 수정 불가. 화면엔 닉네임만 노출.
+  legalName    String?
+  // 정산 계좌 — 출금 전 등록 필수. 예금주명(accountHolder)은 legalName과 일치해야 등록 가능.
+  bankName      String?
+  accountNumber String?
+  accountHolder String?
+  // 운영자 제재 — 본인 휴면(deactivatedAt)과 별개. 정지되면 로그인/이용 차단.
+  suspendedAt     DateTime?
+  suspendedReason String?
+  lastLoginAt     DateTime? // 마지막 로그인 시각 (휴면·이상탐지 지표)
   totalXp      Int      @default(0)
   totalLevel   Int      @default(1)
   createdAt    DateTime @default(now())
@@ -55,8 +67,119 @@ model User {
   xpActions   XpEvent[]        @relation("XpActor")
   collections Collection[]
   pushSubscriptions PushSubscription[]
+  following     Follow[]          @relation("Follower")  // 내가 팔로우한 사람들
+  followers     Follow[]          @relation("Following") // 나를 팔로우한 사람들
+  auditLogs     AuditLog[]        @relation("AuditAdmin") // 이 사람이 운영자로서 남긴 조치 로그
+  communityPosts    CommunityPost[]    @relation("CommunityAuthor")
+  communityComments CommunityComment[] @relation("CommunityCommentAuthor")
+  communityLikes    CommunityLike[]    @relation("CommunityLikeUser")
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 커뮤니티 게시판 — 맛집 관련 소통. 카테고리: recommend(추천받기)|review(후기·자랑)|free(자유수다)
+// 사진·영상(선택) 첨부. 맛집 등록(RestaurantPost)과 별개.
+// ─────────────────────────────────────────────────────────────
+model CommunityPost {
+  id            String   @id @default(cuid())
+  userId        String
+  category      String // recommend | review | free
+  title         String
+  content       String
+  imageUrls     String[] @default([]) // 첨부 사진 URL들
+  videoUrl      String? // (미사용) 영상 — 비용 이슈로 UI 제거
+  videoThumbUrl String? // (미사용)
+  likeCount     Int      @default(0)
+  commentCount  Int      @default(0)
+  // 신고 임시조치(블라인드) — 정보통신망법 §44의2. 블라인드 중이면 목록/상세에서 숨김.
+  blindedAt     DateTime?
+  blindedReason String?
+  // Q&A 채택 — 질문 작성자가 고른 답변(댓글) id
+  acceptedCommentId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User               @relation("CommunityAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  comments CommunityComment[]
+  likes    CommunityLike[]
+
+  @@index([category, createdAt])
+  @@index([userId])
+  @@map("community_posts")
+}
+
+model CommunityComment {
+  id              String   @id @default(cuid())
+  communityPostId String
+  userId          String
+  content         String
+  // 답변에 첨부한 맛집(카드). 카카오 검색 결과 스냅샷 — 우리 앱 미등록이어도 첨부 가능.
+  restaurantPostId String? // (구) 등록 글 직접 링크 — 미사용
+  attachName       String? // 카카오 가게명
+  attachAddress    String?
+  attachKakaoId    String? // 카카오 장소 ID(등록 여부·링크 판별)
+  attachLat        Float?
+  attachLng        Float?
+  isAccepted       Boolean  @default(false) // 채택된 답변
+  blindedAt        DateTime? // 신고 임시조치
+  createdAt        DateTime @default(now())
+
+  post       CommunityPost   @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
+  user       User            @relation("CommunityCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  restaurant RestaurantPost? @relation("CommunityCommentRestaurant", fields: [restaurantPostId], references: [id], onDelete: SetNull)
+
+  @@index([communityPostId, createdAt])
+  @@map("community_comments")
+}
+
+model CommunityLike {
+  id              String   @id @default(cuid())
+  communityPostId String
+  userId          String
+  createdAt       DateTime @default(now())
+
+  post CommunityPost @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
+  user User          @relation("CommunityLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityPostId, userId])
+  @@map("community_likes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 감사 로그 — 운영자 조치(정지/해제/메모/열람 등) 기록. 누가·언제·뭘·왜.
+// 수정/삭제 없이 append-only 로만 사용한다.
+// ─────────────────────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String // 조치한 운영자
+  action     String // suspend | unsuspend | memo | view_account | ...
+  targetType String // user | withdrawal | post | ...
+  targetId   String
+  reason     String? // 제재/조치 사유 (제재는 필수)
+  result     String? // 결과: ok | denied | error (감사 추적)
+  createdAt  DateTime @default(now())
+
+  admin User @relation("AuditAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([adminId, createdAt])
+  @@map("audit_logs")
+}
+
+// 팔로우 — follower 가 following 을 팔로우 (단방향)
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   // 팔로우 하는 사람
+  followingId String   // 팔로우 당하는 사람
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -71,6 +194,7 @@ model Notification {
   postId       String?
   commentId    String?
   collectionId String? // map_update 알림이 가리키는 지도(컬렉션)
+  communityPostId String? // 커뮤니티 알림이 가리키는 글
   read         Boolean  @default(false)
   createdAt    DateTime @default(now())
 
@@ -239,6 +363,9 @@ model RestaurantPost {
   priceMemo    String? // 20만원 이상 등 직접 입력 가격 메모
   // waitingLevel: none | short | long | (null)
   waitingLevel String?
+  // visibility: public(검색·지도·홈피드·프로필 노출) | private(나만 보관 — 공개 발견 화면에서 숨김, 본인만 봄)
+  // 레벨20 전에도 비공개로 자산을 쌓을 수 있게 하는 기준 필드.
+  visibility   String   @default("public")
   likeCount    Int      @default(0)
   saveCount    Int      @default(0)
   shareCount   Int      @default(0)
@@ -247,6 +374,9 @@ model RestaurantPost {
   videoViewCount  Int   @default(0)
 
   // ── 방문 인증 (음식점 자체가 아니라 "이 유저의 해당 맛집 기록"에 귀속) ──
+  // 운영자 PICK: 운영자가 "가보고 싶어" 큐레이션한 곳(실제 방문·인증 아님). 후기 유도용.
+  // → 인증(locationVerified)과 구분: PICK은 인증 뱃지 없이 "운영자 PICK"으로 표시.
+  isOperatorPick             Boolean   @default(false)
   // 뱃지 3종: 위치 / 영수증 / 메뉴판 (음식·현장 사진 인증은 폐지 — 등록 사진으로 대체)
   locationVerified           Boolean   @default(false)
   receiptVerified            Boolean   @default(false)
@@ -274,6 +404,7 @@ model RestaurantPost {
   proofAttempts ProofAttempt[]
   comments   Comment[]
   collectionItems CollectionItem[]
+  communityComments CommunityComment[] @relation("CommunityCommentRestaurant") // 커뮤니티 답변에 첨부된 경우
 
   @@index([restaurantId])
   @@index([userId])

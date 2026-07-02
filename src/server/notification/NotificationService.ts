@@ -11,11 +11,14 @@ const PUSH_MSG: Record<NotificationType, string> = {
   like: "회원님의 글을 좋아해요",
   comment: "회원님의 글에 새 댓글이 달렸어요",
   reply: "회원님의 댓글에 새 답글이 달렸어요",
+  follow: "회원님을 팔로우하기 시작했어요",
+  community_comment: "회원님의 커뮤니티 글에 댓글이 달렸어요",
+  community_accepted: "회원님의 답변이 채택됐어요 🎉",
 };
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-export type NotificationType = "like" | "comment" | "reply";
+export type NotificationType = "like" | "comment" | "reply" | "follow" | "community_comment" | "community_accepted";
 
 export async function createNotification(
   db: Db,
@@ -25,6 +28,7 @@ export async function createNotification(
     type: NotificationType;
     postId?: string | null;
     commentId?: string | null;
+    communityPostId?: string | null;
   }
 ): Promise<void> {
   if (input.userId === input.actorUserId) return; // 자기 행동은 알림 없음
@@ -36,7 +40,7 @@ export async function createNotification(
   });
   if (!pref) return;
   if (input.type === "like" && !pref.notifyLike) return;
-  if ((input.type === "comment" || input.type === "reply") && !pref.notifyComment) return;
+  if ((input.type === "comment" || input.type === "reply" || input.type === "community_comment") && !pref.notifyComment) return;
 
   // 좋아요 알림 멱등: 같은 사람이 같은 글을 재좋아요(취소→다시) 해도 알림은 1개만.
   // (댓글/답글은 각각 별개 이벤트라 매번 생성)
@@ -60,14 +64,23 @@ export async function createNotification(
       type: input.type,
       postId: input.postId ?? null,
       commentId: input.commentId ?? null,
+      communityPostId: input.communityPostId ?? null,
     },
   });
 
   // 웹 푸시도 함께(켜둔 사람만 발송됨, 비밀키 없으면 자동 패스)
+  const pushUrl =
+    input.type === "follow"
+      ? `/u/${input.actorUserId}`
+      : input.communityPostId
+        ? `/community/${input.communityPostId}`
+        : input.postId
+          ? `/restaurants/${input.postId}`
+          : "/notifications";
   void sendWebPush(input.userId, {
     title: "먹고핀",
     body: PUSH_MSG[input.type],
-    url: input.postId ? `/restaurants/${input.postId}` : "/notifications",
+    url: pushUrl,
   }).catch(() => {});
 }
 
@@ -94,12 +107,15 @@ export interface NotificationRow {
   type: string;
   read: boolean;
   createdAt: string;
+  actorUserId: string | null;
   actorNickname: string | null;
   actorIsOfficial: boolean;
   postId: string | null;
   restaurantName: string | null;
   collectionId: string | null;
   collectionTitle: string | null;
+  communityPostId: string | null;
+  communityTitle: string | null;
 }
 
 export async function listNotifications(userId: string, limit = 50): Promise<NotificationRow[]> {
@@ -115,6 +131,7 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
       createdAt: true,
       postId: true,
       collectionId: true,
+      communityPostId: true,
       actorUserId: true,
       actor: { select: { nickname: true, isAdmin: true } },
     },
@@ -139,16 +156,26 @@ export async function listNotifications(userId: string, limit = 50): Promise<Not
       : [];
   const titleById = new Map(cols.map((c) => [c.id, c.title]));
 
+  const cpIds = rows.map((r) => r.communityPostId).filter((id): id is string => !!id);
+  const cps =
+    cpIds.length > 0
+      ? await prisma.communityPost.findMany({ where: { id: { in: cpIds } }, select: { id: true, title: true } })
+      : [];
+  const cpTitleById = new Map(cps.map((c) => [c.id, c.title]));
+
   return rows.map((r) => ({
     id: r.id,
     type: r.type,
     read: r.read,
     createdAt: r.createdAt.toISOString(),
+    actorUserId: r.actorUserId,
     actorNickname: r.actor?.nickname ?? null,
     actorIsOfficial: r.actor?.isAdmin ?? false,
     postId: r.postId,
     restaurantName: r.postId ? nameById.get(r.postId) ?? null : null,
     collectionId: r.collectionId,
     collectionTitle: r.collectionId ? titleById.get(r.collectionId) ?? null : null,
+    communityPostId: r.communityPostId,
+    communityTitle: r.communityPostId ? cpTitleById.get(r.communityPostId) ?? null : null,
   }));
 }

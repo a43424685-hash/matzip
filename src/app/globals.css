@@ -9,10 +9,13 @@
 /* 오버스크롤(고무줄) 영역도 흰색 → 위로 당겼을 때 회색 빈 공간 안 보이게 */
 html {
   background-color: #fff;
+  /* 스크롤 앵커링 끄기 — 페이지 진입 후 위쪽 콘텐츠가 늦게 로드돼도 화면이 아래로 안 밀리게 */
+  overflow-anchor: none;
 }
 
 body {
   @apply bg-stone-50 text-ink antialiased;
+  overflow-anchor: none;
 }
 
 /* 모바일 우선: 본문은 가운데 정렬된 폰 너비 컬럼 */

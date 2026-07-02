@@ -52,11 +52,10 @@ export default async function PaidMapPage() {
   ]);
   const levelPct = Math.min(100, Math.round((user.totalLevel / LEVEL_GOAL) * 100));
   const verifyPct = Math.min(100, Math.round((verifiedCount / VERIFY_GOAL) * 100));
-  const proofPct = Math.min(100, Math.round((proofCount / PROOF_GOAL) * 100));
   // 운영자는 조건 없이 항상 열림 (유료 지도 오픈/운영용)
+  // 자격 = 레벨 20 + 위치 인증 30곳 (영수증/메뉴 조건 제거 — 다른 화면과 통일)
   const unlocked =
-    user.isAdmin ||
-    (user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL && proofCount >= PROOF_GOAL);
+    user.isAdmin || (user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL);
   const paidMaps = myCollections.filter((c) => c.isPaid);
 
   return (
@@ -77,9 +76,8 @@ export default async function PaidMapPage() {
           <div className="mt-4 space-y-3.5">
             <Progress label="레벨" now={`Lv.${user.totalLevel}`} goal={`Lv.${LEVEL_GOAL}`} pct={levelPct} />
             <Progress label="위치 인증 맛집" now={`${verifiedCount}`} goal={`${VERIFY_GOAL}곳`} pct={verifyPct} />
-            <Progress label="영수증·메뉴 인증" now={`${proofCount}`} goal={`${PROOF_GOAL}곳`} pct={proofPct} />
           </div>
-          <p className="mt-2 text-[11px] text-stone-400">※ 위치 인증 30곳 중 5곳 이상은 영수증 또는 메뉴 인증을 포함해야 해요.</p>
+          <p className="mt-2 text-[11px] text-stone-400">※ 레벨 20 + 위치 인증 맛집 30곳을 채우면 유료 지도를 열 수 있어요.</p>
         </section>
       )}
 

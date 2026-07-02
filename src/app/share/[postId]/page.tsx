@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canViewPost } from "@/server/visibility/PaidVisibility";
 import ShareExport from "@/components/share/ShareExport";
 import ShareCard from "@/components/share/ShareCard";
 
@@ -30,6 +31,9 @@ export default async function SharePage({
   ]);
 
   if (!post) notFound();
+
+  // 유료 잠금 글은 소유자/구매자/관리자만 공유 페이지 접근
+  if (!(await canViewPost(user?.id ?? null, post.id))) notFound();
 
   // 위치 인증(방문 인증)된 글만 공유 가능
   if (!post.locationVerified) {

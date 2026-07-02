@@ -17,7 +17,7 @@ export default function ReportButton({
   targetId,
   className = "flex items-center gap-1 text-stone-400",
 }: {
-  targetType: "post" | "comment";
+  targetType: "post" | "comment" | "community_post" | "community_comment";
   targetId: string;
   className?: string;
 }) {

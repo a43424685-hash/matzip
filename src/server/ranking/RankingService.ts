@@ -13,7 +13,8 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { REACTION_WEIGHT } from "../xp/xpRules";
 
-export const TOP_N = 50;
+export const TOP_N = 100;
+const DEMO_USER_ID_PREFIX = "demo-u";
 
 function daysAgo(n: number): Date {
   const d = new Date();
@@ -42,6 +43,7 @@ export interface UserRankRow {
   level: number;
   xp: number;
   recent30dXp: number;
+  verifiedCount: number; // 위치 인증한 맛집 수 (신뢰 신호)
 }
 
 export interface RestaurantRankRow {
@@ -81,7 +83,7 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
   // 동점 tie-break(30일 활동)가 50위 경계를 넘나들 수 있어 버퍼를 두고 가져온다
   // 운영자(admin)는 랭킹에서 제외 (Lv.200 고정·의미 없음)
   const candidates = await prisma.user.findMany({
-    where: { isAdmin: false, deactivatedAt: null },
+    where: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, isAdmin: false, deactivatedAt: null },
     orderBy: [{ totalLevel: "desc" }, { totalXp: "desc" }, { createdAt: "asc" }],
     take: limit + 20,
     select: { id: true, nickname: true, avatarUrl: true, totalLevel: true, totalXp: true },
@@ -99,6 +101,17 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
     )
     .slice(0, limit);
 
+  // 각 랭커의 "인증 맛집 수" — 순위 옆 신뢰 신호
+  const ids = sorted.map((u) => u.id);
+  const counts = ids.length
+    ? await prisma.restaurantPost.groupBy({
+        by: ["userId"],
+        where: { userId: { in: ids }, locationVerified: true },
+        _count: { _all: true },
+      })
+    : [];
+  const verifiedMap = new Map(counts.map((c) => [c.userId, c._count._all]));
+
   return sorted.map((u, i) => ({
     rank: i + 1,
     userId: u.id,
@@ -107,11 +120,13 @@ export async function getOverallUserRanking(limit = TOP_N): Promise<UserRankRow[
     level: u.totalLevel,
     xp: u.totalXp,
     recent30dXp: u.recent30dXp,
+    verifiedCount: verifiedMap.get(u.id) ?? 0,
   }));
 }
 
 /** 내 전체 순위 (TOP 50 밖이어도 계산). 동점은 레벨/XP 기준 근사. */
 export async function getMyOverallRank(userId: string): Promise<number> {
+  if (userId.startsWith(DEMO_USER_ID_PREFIX)) return 0;
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: { totalLevel: true, totalXp: true, isAdmin: true },
@@ -119,6 +134,7 @@ export async function getMyOverallRank(userId: string): Promise<number> {
   if (!me || me.isAdmin) return 0; // 운영자는 랭킹 비대상
   const ahead = await prisma.user.count({
     where: {
+      id: { not: { startsWith: DEMO_USER_ID_PREFIX } },
       isAdmin: false,
       OR: [
         { totalLevel: { gt: me.totalLevel } },
@@ -129,8 +145,78 @@ export async function getMyOverallRank(userId: string): Promise<number> {
   return ahead + 1;
 }
 
+/** 상위 랭커 userId 집합 (앱 전체 왕관 표시용). 기본 상위 30명. */
+export async function getTopRankerIds(limit = 30): Promise<Set<string>> {
+  const rows = await getOverallUserRankingCached();
+  return new Set(rows.slice(0, limit).map((r) => r.userId));
+}
+
+/** 내가 활동한 모든 지역의 순위 (높은 순). 대표 지역 = 가장 높은 순위. */
+export async function getMyRegionRanks(userId: string): Promise<{ regionName: string; rank: number }[]> {
+  if (userId.startsWith(DEMO_USER_ID_PREFIX)) return [];
+  const stats = await prisma.userRegionStat.findMany({
+    where: { userId },
+    select: { regionId: true, region: { select: { name: true } } },
+  });
+  const ranks = await Promise.all(
+    stats.map(async (s) => ({ regionName: s.region.name, rank: await getMyRegionRank(userId, s.regionId) }))
+  );
+  return ranks.filter((r) => r.rank > 0).sort((a, b) => a.rank - b.rank);
+}
+
+export interface RankNeighbor {
+  rank: number;
+  nickname: string;
+  level: number;
+}
+
+/** 내 전체 순위 + 바로 위/아래 이웃 (100위 밖일 때 내 위치 가늠용). */
+export async function getOverallRankNeighbors(
+  userId: string
+): Promise<{ myRank: number; above: RankNeighbor | null; below: RankNeighbor | null } | null> {
+  if (userId.startsWith(DEMO_USER_ID_PREFIX)) return null;
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { totalLevel: true, totalXp: true, isAdmin: true },
+  });
+  if (!me || me.isAdmin) return null;
+
+  const ahead = await prisma.user.count({
+    where: {
+      id: { not: { startsWith: DEMO_USER_ID_PREFIX } },
+      isAdmin: false,
+      deactivatedAt: null,
+      OR: [
+        { totalLevel: { gt: me.totalLevel } },
+        { totalLevel: me.totalLevel, totalXp: { gt: me.totalXp } },
+      ],
+    },
+  });
+  const myRank = ahead + 1;
+
+  const skip = Math.max(0, myRank - 2);
+  const window = await prisma.user.findMany({
+    where: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, isAdmin: false, deactivatedAt: null },
+    orderBy: [{ totalLevel: "desc" }, { totalXp: "desc" }, { createdAt: "asc" }],
+    skip,
+    take: 3,
+    select: { id: true, nickname: true, totalLevel: true },
+  });
+
+  const meIdx = window.findIndex((u) => u.id === userId);
+  const aboveU = meIdx > 0 ? window[meIdx - 1] : null;
+  const belowU = meIdx >= 0 && meIdx < window.length - 1 ? window[meIdx + 1] : null;
+
+  return {
+    myRank,
+    above: aboveU ? { rank: myRank - 1, nickname: aboveU.nickname, level: aboveU.totalLevel } : null,
+    below: belowU ? { rank: myRank + 1, nickname: belowU.nickname, level: belowU.totalLevel } : null,
+  };
+}
+
 /** 내 특정 지역 순위 (없으면 0). */
 export async function getMyRegionRank(userId: string, regionId: string): Promise<number> {
+  if (userId.startsWith(DEMO_USER_ID_PREFIX)) return 0;
   const me = await prisma.userRegionStat.findUnique({
     where: { userId_regionId: { userId, regionId } },
     select: { regionLevel: true, regionXp: true, user: { select: { isAdmin: true } } },
@@ -139,7 +225,7 @@ export async function getMyRegionRank(userId: string, regionId: string): Promise
   const ahead = await prisma.userRegionStat.count({
     where: {
       regionId,
-      user: { isAdmin: false },
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, isAdmin: false },
       OR: [
         { regionLevel: { gt: me.regionLevel } },
         { regionLevel: me.regionLevel, regionXp: { gt: me.regionXp } },
@@ -157,7 +243,10 @@ export async function getRegionUserRanking(
   limit = TOP_N
 ): Promise<UserRankRow[]> {
   const candidates = await prisma.userRegionStat.findMany({
-    where: { regionId, user: { isAdmin: false, deactivatedAt: null } },
+    where: {
+      regionId,
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, isAdmin: false, deactivatedAt: null },
+    },
     orderBy: [{ regionLevel: "desc" }, { regionXp: "desc" }, { createdAt: "asc" }],
     take: limit + 20,
     select: {
@@ -183,6 +272,17 @@ export async function getRegionUserRanking(
     )
     .slice(0, limit);
 
+  // 이 지역에서 인증한 맛집 수 (신뢰 신호)
+  const ids = sorted.map((s) => s.userId);
+  const counts = ids.length
+    ? await prisma.restaurantPost.groupBy({
+        by: ["userId"],
+        where: { userId: { in: ids }, locationVerified: true, restaurant: { is: { primaryRegionId: regionId } } },
+        _count: { _all: true },
+      })
+    : [];
+  const verifiedMap = new Map(counts.map((c) => [c.userId, c._count._all]));
+
   return sorted.map((s, i) => ({
     rank: i + 1,
     userId: s.userId,
@@ -191,6 +291,7 @@ export async function getRegionUserRanking(
     level: s.regionLevel,
     xp: s.regionXp,
     recent30dXp: s.recent30dXp,
+    verifiedCount: verifiedMap.get(s.userId) ?? 0,
   }));
 }
 
@@ -323,7 +424,7 @@ export async function refreshRankingCache(): Promise<void> {
 // 시간 기반으로 자동 재계산(revalidate), 배치(cron)에서 revalidateTag("rankings")로 즉시 갱신.
 // 함수 인자(regionId 등)는 캐시 키에 자동 포함된다.
 // ─────────────────────────────────────────────────────────────
-const RANKING_REVALIDATE = 600; // 10분
+const RANKING_REVALIDATE = 300; // 5분
 
 export const getOverallUserRankingCached = unstable_cache(
   (limit: number = TOP_N) => getOverallUserRanking(limit),

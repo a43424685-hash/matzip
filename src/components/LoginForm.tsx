@@ -82,6 +82,9 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
             className="input"
             placeholder="••••••"
           />
+          <p className="mt-1.5 text-[12px] text-stone-400">
+            비밀번호를 잊으셨다면 아래 <b className="text-ink-muted">카카오로 시작하기</b>로 로그인하거나, 고객문의로 알려주세요.
+          </p>
         </div>
         {message && <p className="text-sm text-red-500">{message}</p>}
         {error === "kakao_not_configured" && (

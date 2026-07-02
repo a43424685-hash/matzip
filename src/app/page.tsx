@@ -10,16 +10,20 @@ import {
   Coins,
   Plus,
   Check,
+  Star,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
-import { getHomeData } from "@/server/home";
+import { prisma } from "@/lib/db";
+import { getHomeData, type PaidMapCard } from "@/server/home";
 import { unreadCount } from "@/server/notification/NotificationService";
-import type { PostCard } from "@/server/restaurant/RestaurantService";
+import { toPostCard, postCardSelect, type PostCard } from "@/server/restaurant/RestaurantService";
 import type { UserRankRow } from "@/server/ranking/RankingService";
 import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
 import NearbyHomeSection from "@/components/NearbyHomeSection";
+import HomeFeedToggle from "@/components/HomeFeedToggle";
 import Coachmark from "@/components/Coachmark";
 import WelcomeOnboarding from "@/components/WelcomeOnboarding";
 
@@ -35,10 +39,40 @@ function formatPostDate(value: Date | string) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const user = await getCurrentUser();
-  const { weekly, recent, saved, topUsers, categories, myPostCount } = await getHomeData(user?.id);
+  const sp = await searchParams;
+  const cookieTab = (await cookies()).get("home_tab")?.value;
+  // 팔로잉 탭은 로그인 사용자만. 쿼리 우선, 없으면 마지막 선택(쿠키).
+  const tab: "recommend" | "following" =
+    user && (sp.tab === "following" || (sp.tab !== "recommend" && cookieTab === "following"))
+      ? "following"
+      : "recommend";
+  const showFollowing = tab === "following";
+
+  const { weekly, recent, saved, topUsers, categories, myPostCount, paidMaps } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
+
+  // 팔로잉 피드 — 내가 팔로우한 사람들의 공개 글 (최신순)
+  let followingPosts: PostCard[] = [];
+  if (user && showFollowing) {
+    const follows = await prisma.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } });
+    const ids = follows.map((f) => f.followingId);
+    followingPosts = ids.length
+      ? (
+          await prisma.restaurantPost.findMany({
+            where: { userId: { in: ids }, visibility: "public" },
+            orderBy: { createdAt: "desc" },
+            take: 30,
+            select: postCardSelect,
+          })
+        ).map(toPostCard)
+      : [];
+  }
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
   const navCats = NAV_CATS.map((n) => ({ name: SHORT[n] ?? n, id: idByName.get(n) })).filter(
@@ -80,9 +114,9 @@ export default async function HomePage() {
                 )}
               </Link>
             ) : (
-              <span className="text-stone-500">
+              <Link href="/login" className="text-stone-500" aria-label="알림 — 로그인이 필요해요">
                 <Bell size={22} strokeWidth={1.9} />
-              </span>
+              </Link>
             )}
           </div>
         </div>
@@ -96,12 +130,17 @@ export default async function HomePage() {
             <>먹고 핀 꽂고, 나만의 맛집 지도를 키워요 📍</>
           )}
         </p>
+        {user && <HomeFeedToggle active={tab} />}
       </header>
 
+      {showFollowing ? (
+        <FollowingFeed posts={followingPosts} />
+      ) : (
+        <>
       <CategoryIconGrid categories={navCats} />
 
       {/* 섹션 1. 이번 주 인기 맛집 */}
-      <SectionHead title="이번 주 인기 맛집" sub="사람들이 많이 저장한 곳" href="/feed/weekly" />
+      <SectionHead title="이번 주 인기 맛집" sub="사람들이 많이 저장한 곳" href="/feed?sort=weekly" />
       {weekly.length === 0 ? (
         <Empty>아직 이번 주 반응이 없어요.</Empty>
       ) : (
@@ -135,7 +174,7 @@ export default async function HomePage() {
       <NearbyHomeSection />
 
       {/* 섹션 3. 갓 올라온 맛집 (미인증 포함, 최신순) */}
-      <SectionHead title="갓 올라온 맛집" sub="방금 등록된 따끈한 맛집" href="/feed/recent" />
+      <SectionHead title="갓 올라온 맛집" sub="방금 등록된 따끈한 맛집" href="/feed?sort=latest" />
       {recent.length === 0 ? (
         <Empty>아직 등록된 맛집이 없어요. 첫 맛집을 올려보세요!</Empty>
       ) : (
@@ -147,21 +186,34 @@ export default async function HomePage() {
       )}
 
       {/* 섹션 4-2. 유료 맛집 지도 — 둘러보고 구매 (누구나 Lv.1부터 구매 가능) */}
-      <div className="px-5 pt-9">
-        <h2 className="section-title flex items-center gap-1.5">
-          <Coins size={17} className="text-forest" /> 유료 맛집 지도
-        </h2>
-        <p className="mt-1 text-[13px] text-ink-muted">검증된 로컬이 직접 만든 진짜 맛집 지도를 둘러보세요</p>
+      <div className="flex items-end justify-between px-5 pb-3 pt-9">
+        <div>
+          <h2 className="section-title flex items-center gap-1.5">
+            <Coins size={17} className="text-forest" /> 유료 맛집 지도
+          </h2>
+          <p className="mt-1 text-[13px] text-ink-muted">검증된 로컬이 직접 만든 진짜 맛집 지도</p>
+        </div>
+        <Link href="/store" className="flex items-center text-[13px] font-semibold text-forest">
+          전체 <ChevronRight size={15} />
+        </Link>
+      </div>
+      {paidMaps.length === 0 ? (
         <Link
           href="/store"
-          className="mt-3 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 active:scale-[0.99]"
+          className="mx-5 flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 active:scale-[0.99]"
         >
           <span className="flex items-center gap-2 text-sm font-bold text-ink">
             <Coins size={18} className="text-forest" /> 지도 둘러보고 구매하기
           </span>
           <ChevronRight size={18} className="text-stone-300" />
         </Link>
-      </div>
+      ) : (
+        <div className="no-scrollbar flex items-start gap-3 overflow-x-auto px-5 pb-1">
+          {paidMaps.map((m) => (
+            <PaidMapCardItem key={m.id} map={m} />
+          ))}
+        </div>
+      )}
 
       {/* 섹션 5. 맛잘알 랭킹 */}
       <div className="px-5 pt-9">
@@ -183,6 +235,8 @@ export default async function HomePage() {
           </ol>
         )}
       </div>
+        </>
+      )}
 
       <SiteFooter />
 
@@ -195,9 +249,9 @@ export default async function HomePage() {
         arrow="down"
       />
 
-      {/* 맛집 등록 FAB (홈에서만) */}
+      {/* 맛집 등록 FAB (홈에서만) — 비로그인은 로그인으로 */}
       <Link
-        href="/register"
+        href={user ? "/register" : "/login"}
         aria-label="맛집 등록"
         className="fixed bottom-[88px] right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-forest text-white shadow-[0_8px_24px_rgba(31,77,63,.4)] active:scale-95"
       >
@@ -208,6 +262,33 @@ export default async function HomePage() {
 }
 
 // ── 작은 컴포넌트들 (서버 렌더) ──────────────────────────────
+
+// 팔로잉 피드 — 내가 팔로우한 사람들의 최신 글. 비어 있으면 발견으로 유도.
+function FollowingFeed({ posts }: { posts: PostCard[] }) {
+  if (posts.length === 0) {
+    return (
+      <div className="mx-5 mt-6 rounded-2xl bg-stone-50 px-6 py-12 text-center">
+        <p className="text-[15px] font-bold text-ink">아직 팔로잉 피드가 비어 있어요</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
+          마음에 드는 미식가를 팔로우하면
+          <br />
+          그분들의 새 맛집이 여기 모여요.
+        </p>
+        <Link
+          href="/rankings"
+          className="mt-4 inline-flex items-center gap-1 rounded-full bg-forest px-4 py-2 text-[13px] font-bold text-white"
+        >
+          맛잘알 랭킹에서 찾아보기 <ChevronRight size={15} />
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-5 flex flex-wrap justify-center gap-3 px-5">
+      {photoFirst(posts).map((p) => (p.media ? <PhotoCard key={p.id} post={p} /> : <TextPostCard key={p.id} post={p} />))}
+    </div>
+  );
+}
 
 // 사진 있는 글을 앞으로 — 사진 없는 글은 비중을 낮춰 뒤로 민다 (순서는 안정적으로 유지)
 function photoFirst(arr: PostCard[]): PostCard[] {
@@ -222,7 +303,7 @@ function SectionHead({ title, sub, href }: { title: string; sub: string; href: s
         <p className="mt-1 text-[13px] text-ink-muted">{sub}</p>
       </div>
       <Link href={href} className="flex items-center text-[13px] font-semibold text-forest">
-        더보기 <ChevronRight size={15} />
+        전체보기 <ChevronRight size={15} />
       </Link>
     </div>
   );
@@ -268,7 +349,7 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
             </span>
           )}
           {!post.isOfficial && !post.verification.location && !showVerified && (
-            <span className="rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+            <span className="rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
           )}
         </div>
       </div>
@@ -287,32 +368,44 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
   );
 }
 
-// 사진 없는 글 — 큰 이미지 placeholder 대신 작고 깔끔한 텍스트 카드
+// 사진 없는 글 — 큰 이미지 placeholder 대신 작고 깔끔한 텍스트 카드.
+// 운영자 PICK(사진 없음)은 "고장난 빈칸" 대신 앰버 PICK 카드로 표현.
 function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: boolean }) {
+  const isPick = post.isOperatorPick;
   return (
     <Link
       href={`/restaurants/${post.id}`}
       className="flex h-[238px] w-[184px] shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-2"
     >
-      <div className="relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl bg-forest-soft p-3">
+      <div className={`relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl p-3 ${isPick ? "bg-amber-100" : "bg-forest-soft"}`}>
         <div className="absolute inset-0 opacity-60 thumb-empty" />
         <div className="relative z-[1] flex w-fit gap-1">
-          {post.isOfficial && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
-              <Check size={11} strokeWidth={3.2} /> 운영자
+          {isPick ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">
+              <Star size={11} strokeWidth={3} /> 운영자 PICK
             </span>
-          )}
-          {(showVerified || post.verification.location) && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
-              <ShieldCheck size={11} /> 인증
-            </span>
-          )}
-          {!post.isOfficial && !post.verification.location && !showVerified && (
-            <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+          ) : (
+            <>
+              {post.isOfficial && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+                  <Check size={11} strokeWidth={3.2} /> 운영자
+                </span>
+              )}
+              {(showVerified || post.verification.location) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
+                  <ShieldCheck size={11} /> 인증
+                </span>
+              )}
+              {!post.isOfficial && !post.verification.location && !showVerified && (
+                <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
+              )}
+            </>
           )}
         </div>
         <div className="relative z-[1] mt-auto">
-          <div className="text-[11px] font-bold text-forest">사진 준비 전</div>
+          <div className={`text-[11px] font-bold ${isPick ? "text-amber-700" : "text-forest"}`}>
+            {isPick ? (post.categories[0] ?? "가보고 싶은 곳") : "사진 준비 중"}
+          </div>
           {post.shortReview && (
             <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-ink-muted">
               {post.shortReview}
@@ -337,6 +430,30 @@ function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: b
   );
 }
 
+// 유료 맛집 지도 카드 (홈 가로 스크롤)
+function PaidMapCardItem({ map }: { map: PaidMapCard }) {
+  return (
+    <Link
+      href={`/collections/${map.id}`}
+      className="flex h-[238px] w-[184px] shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-2"
+    >
+      <div className="relative h-[132px] overflow-hidden rounded-xl bg-stone-100">
+        {map.coverUrl ? (
+          <CardImage src={map.coverUrl} alt={map.title} label="사진 준비 중" className="h-full w-full object-cover" />
+        ) : (
+          <div className="thumb-empty h-full w-full" />
+        )}
+        <span className="absolute right-2 top-2 rounded-full bg-forest px-2 py-0.5 text-[11px] font-extrabold text-white">
+          {map.priceWon.toLocaleString()}원
+        </span>
+      </div>
+      <div className="mt-2 line-clamp-2 min-h-[40px] text-sm font-bold leading-tight text-ink">{map.title}</div>
+      <div className="truncate text-[12px] text-stone-400">{map.regionName} · 맛집 {map.itemCount}곳</div>
+      <div className="mt-auto truncate text-[11px] font-semibold text-forest">{map.authorNickname}</div>
+    </Link>
+  );
+}
+
 function RankRow({ u }: { u: UserRankRow }) {
   return (
     <li className="flex items-center gap-3 bg-white px-3.5 py-3">
@@ -345,7 +462,9 @@ function RankRow({ u }: { u: UserRankRow }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-bold text-ink">{u.nickname}</div>
-        <div className="text-[11px] tabular-nums text-stone-400">{u.xp.toLocaleString()} XP</div>
+        <div className="text-[11px] tabular-nums text-stone-400">
+          {u.xp.toLocaleString()} XP{u.verifiedCount > 0 && ` · 인증 ${u.verifiedCount}곳`}
+        </div>
       </div>
       <span className="badge-lv">Lv.{u.level}</span>
     </li>

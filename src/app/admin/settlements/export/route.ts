@@ -1,5 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
+import { can } from "@/server/admin/permissions";
 import { listWithdrawals, computePayout } from "@/server/payment/WithdrawalService";
+import { decryptField } from "@/lib/fieldCrypto";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,7 @@ function esc(v: string | number) {
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user?.isAdmin) return new Response("Forbidden", { status: 403 });
+  if (!user?.isAdmin || !can(user.role, "settlement")) return new Response("Forbidden", { status: 403 });
 
   const all = await listWithdrawals();
   const paid = all
@@ -31,7 +33,7 @@ export async function GET() {
       w.accountHolder,
       w.seller.nickname,
       w.bankName,
-      w.accountNumber,
+      decryptField(w.accountNumber),
       w.amountWon,
       withholdingWon,
       payoutWon,

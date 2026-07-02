@@ -1,8 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Share2, MapPin, Lock, Coins, Eye, ShieldCheck } from "lucide-react";
+import { Share2, MapPin, Lock, Coins, Eye, ShieldCheck, Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { getMyOverallRank } from "@/server/ranking/RankingService";
+import MapTeaser from "@/components/MapTeaser";
 import PaymentReturnHandler from "@/components/PaymentReturnHandler";
 import UnlockCelebration from "@/components/UnlockCelebration";
 import {
@@ -43,13 +45,20 @@ export default async function CollectionDetailPage({
 
   const canSell = isOwner ? await canSellPaidMaps(col.ownerId) : false;
   const addableRestaurants = isOwner ? await getMyRestaurantsForPicker(col.ownerId, col.id) : [];
+  const ownerRank = await getMyOverallRank(col.ownerId);
+  const ownerIsRanker = ownerRank > 0 && ownerRank <= 30;
 
   return (
     <main className="pb-10">
       {/* 헤더 */}
-      <header className="bg-forest px-5 pb-6 pt-3 text-white">
-        <BackButton fallback="/" className="-ml-2 mb-1 text-white" />
-        <div className="flex items-center gap-2 text-[13px] text-white/70">
+      <header className="px-5 pb-2 pt-3">
+        <div className="mb-2 flex items-center justify-between">
+          <BackButton fallback="/" className="-ml-2 text-ink" />
+          <Link href={`/collections/${col.id}/share`} aria-label="공유" className="flex h-9 w-9 items-center justify-center rounded-full text-stone-500 active:scale-95">
+            <Share2 size={20} />
+          </Link>
+        </div>
+        <div className="flex items-center gap-2 text-[13px] text-ink-muted">
           {col.regionName && (
             <span className="flex items-center gap-0.5">
               <MapPin size={13} /> {col.regionName}
@@ -66,18 +75,7 @@ export default async function CollectionDetailPage({
             </span>
           )}
         </div>
-        <h1 className="mt-1.5 text-2xl font-black tracking-tight">{col.title}</h1>
-        {col.description && (
-          <p className="mt-2 text-sm text-white/85">{col.description}</p>
-        )}
-        <div className="mt-3 flex items-center gap-2 text-[13px]">
-          <span className="rounded-md bg-coral px-1.5 py-0.5 text-[11px] font-extrabold">
-            Lv.{col.ownerLevel}
-          </span>
-          <span className="font-semibold">{col.ownerNickname}</span>
-          {col.ownerIsAdmin && <OfficialBadge size={15} />}
-          <span className="text-white/60">· 맛집 {col.itemCount}곳</span>
-        </div>
+        <h1 className="mt-1.5 text-xl font-black tracking-tight text-ink">{col.title}</h1>
       </header>
 
       <Suspense fallback={null}>
@@ -86,10 +84,6 @@ export default async function CollectionDetailPage({
       {col.purchased && <UnlockCelebration collectionId={col.id} title={col.title} count={col.itemCount} />}
 
       <div className="px-5 pt-4">
-        <Link href={`/collections/${col.id}/share`} className="btn-primary h-12 w-full !text-base">
-          <Share2 size={18} /> 이 리스트 공유하기
-        </Link>
-
         {/* 가치 배너 — 판매자 신뢰(데이터) + 인증 집계 (유료·열람 가능 시) */}
         {col.isPaid && !col.locked && (
           <div className="mt-4 rounded-2xl border border-forest/20 bg-forest-soft/25 p-4">
@@ -111,24 +105,21 @@ export default async function CollectionDetailPage({
 
         {/* 유료 잠금: 맛보기(무료 공개)만 실제로 보여주고 나머지는 잠금 */}
         {col.locked ? (
-          <div className="mt-5 space-y-4">
-            <div className="card p-5">
-              <div className="flex items-center gap-1.5 text-sm font-extrabold text-ink">
-                <Coins size={16} className="text-forest" /> 유료 맛집 지도
-              </div>
-              <p className="mt-1 text-[13px] text-ink-muted">
-                맛보기 {col.items.length}곳을 먼저 둘러보고, 구매하면 총 {col.itemCount}곳이 모두 열려요.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {col.regionCounts.map((r) => (
-                  <span
-                    key={r.name}
-                    className="rounded-lg bg-forest-soft/40 px-2.5 py-1 text-[13px] font-semibold text-forest"
-                  >
-                    {r.name} {r.count}곳
-                  </span>
-                ))}
-              </div>
+          <div className="mt-2 space-y-4">
+            {/* 지도 티저 — 가치를 한눈에 (제일 위 비주얼) */}
+            {col.mapPins.length > 0 && <MapTeaser pins={col.mapPins} />}
+
+            {/* 크리에이터 — 담백한 한 줄 */}
+            <div className="flex flex-wrap items-center gap-1.5 px-1 text-[13px]">
+              {ownerIsRanker && <span className="leading-none">👑</span>}
+              {ownerRank > 0 && (
+                <span className="flex items-center gap-0.5 rounded bg-amber-100 px-1 py-0.5 text-[11px] font-extrabold text-amber-700">
+                  <Trophy size={10} /> 전체 {ownerRank}위
+                </span>
+              )}
+              <span className="font-bold text-ink">{col.ownerNickname}</span>
+              {col.ownerIsAdmin && <OfficialBadge size={14} />}
+              <span className="text-ink-muted">Lv.{col.ownerLevel} · 인증 {col.ownerVerifiedTotal}곳 · 맛집 {col.itemCount}곳</span>
             </div>
 
             {/* 맛보기 무료 공개 가게 (실제 노출) */}
@@ -172,25 +163,34 @@ export default async function CollectionDetailPage({
               </div>
             )}
 
-            {/* 잠긴 나머지 */}
-            {col.itemCount - col.items.length > 0 && (
-              <div className="relative select-none">
-                <div className="space-y-3 blur-[6px]">
-                  {Array.from({ length: Math.min(col.itemCount - col.items.length, 3) }).map((_, i) => (
-                    <div key={i} className="card flex items-center gap-3 p-3">
-                      <div className="h-14 w-14 shrink-0 rounded-xl bg-stone-200" />
-                      <div className="min-w-0 flex-1">
-                        <div className="h-3.5 w-2/3 rounded bg-stone-200" />
-                        <div className="mt-2 h-2.5 w-1/3 rounded bg-stone-100" />
+            {/* 잠긴 맛집 티저 — 흐릿한 실제 사진 + 잠금 개수(호기심) */}
+            {col.lockedTeasers.length > 0 && (
+              <div>
+                <p className="mb-2 flex items-center gap-1 text-sm font-extrabold text-ink">
+                  <Lock size={14} className="text-ink-muted" /> 잠긴 맛집 {col.lockedTeasers.length}곳
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {col.lockedTeasers.slice(0, 9).map((t, i) => (
+                    <div key={i} className="relative aspect-square overflow-hidden rounded-xl bg-stone-200">
+                      {t.media?.url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={t.media.thumbnailUrl ?? t.media.url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full scale-110 object-cover blur-[5px]"
+                        />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <Lock size={16} className="text-white/90" />
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex items-center gap-1.5 rounded-full bg-ink/80 px-3 py-1.5 text-[13px] font-bold text-white">
-                    <Lock size={14} /> 나머지 {col.itemCount - col.items.length}곳 구매 후 공개
-                  </span>
-                </div>
+                {col.lockedTeasers.length > 9 && (
+                  <p className="mt-2 text-center text-[12px] font-semibold text-ink-muted">+{col.lockedTeasers.length - 9}곳 더 구매 시 공개</p>
+                )}
               </div>
             )}
 

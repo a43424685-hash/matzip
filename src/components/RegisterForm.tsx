@@ -33,6 +33,8 @@ interface PlaceResult {
   longitude: number;
   regionName: string | null;
   kakaoPlaceId: string | null;
+  categoryName?: string | null;
+  foodCategory?: string | null;
   alreadyRegistered?: boolean;
 }
 
@@ -40,12 +42,6 @@ interface UploadedImage {
   url: string;
   thumbnailUrl: string;
 }
-
-// 추천 태그 우선 노출 순서
-const CAT_PRIORITY = [
-  "야장", "노포", "가성비", "데이트", "비 오는 날", "혼밥", "분위기",
-  "부모님 모시기 좋음", "가족", "겨울 국물", "신상", "회식",
-];
 
 export interface InitialPost {
   postId: string;
@@ -75,11 +71,13 @@ export default function RegisterForm({
   categoryGroups,
   mode = "create",
   initial,
+  prefillPlace,
 }: {
   regions: Region[];
   categoryGroups: CatGroup[];
   mode?: "create" | "edit";
   initial?: InitialPost;
+  prefillPlace?: PlaceResult | null;
 }) {
   const isEdit = mode === "edit";
   const router = useRouter();
@@ -193,6 +191,16 @@ export default function RegisterForm({
   const [atmosphereTags, setAtmosphereTags] = useState<Set<string>>(new Set(initial?.atmosphereTags ?? []));
   const [revisitIntent, setRevisitIntent] = useState(initial?.revisitIntent ?? "");
   const [waitingLevel, setWaitingLevel] = useState(initial?.waitingLevel ?? "");
+  // 공개 범위: 등록 시 반드시 직접 선택 (기본값 없음 → 안 고르면 등록 불가)
+  const [visibility, setVisibility] = useState<"public" | "private" | null>(null);
+  // 단계별 등록(create 모드만). 0:가게 1:카테고리 2:사진·한줄평 3:공개여부
+  const TOTAL_STEPS = 4;
+  const [step, setStep] = useState(0);
+  // 음식/어떤가게/인증 그룹 분리 (날씨·계절·가격 태그는 등록에서 제외)
+  const foodGroup = categoryGroups.find((g) => g.type === "food")?.items ?? [];
+  const situationGroup = categoryGroups.find((g) => g.type === "situation")?.items ?? [];
+  const credentialGroup = categoryGroups.find((g) => g.type === "credential")?.items ?? [];
+  const stepShown = (n: number) => (isEdit ? "" : step === n ? "" : "hidden");
   // 장소 검색 / 좌표
   const [name, setName] = useState(initial?.name ?? "");
   const [regionId, setRegionId] = useState(initial?.regionId ?? "");
@@ -204,6 +212,9 @@ export default function RegisterForm({
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<PlaceResult | null>(null); // 선택된 카카오 장소
   const [manualMode, setManualMode] = useState(false); // 직접 입력(예외 흐름)
+  const placeChosen = !!(name.trim() && regionId);
+  // 단계 진행 가능 여부
+  const canNext = step === 0 ? placeChosen : step === 1 ? selected.size >= 1 : true;
 
   async function searchPlace() {
     if (!query.trim()) return;
@@ -226,6 +237,13 @@ export default function RegisterForm({
     setKakaoPlaceId(p.kakaoPlaceId ?? "");
     // 주소 → 17개 시도 자동 매핑 (실패하면 사용자가 직접 선택)
     setRegionId(p.regionName ? regions.find((x) => x.name === p.regionName)?.id ?? "" : "");
+    // 음식 종류 자동 선택 (카카오 분류 기반) — 틀리면 사용자가 칩에서 바꿀 수 있음
+    if (p.foodCategory) {
+      const foodId = categoryGroups
+        .find((g) => g.type === "food")
+        ?.items.find((c) => c.name === p.foodCategory)?.id;
+      if (foodId) setSelected((prev) => new Set(prev).add(foodId));
+    }
     setPicked(p);
     setManualMode(false);
     setResults(null);
@@ -252,19 +270,11 @@ export default function RegisterForm({
     setQuery("");
   }
 
-  // 추천 태그(상황+계절, 우선순위 정렬) 상위 12개
-  const recommendedTags = useMemo(() => {
-    const pool = categoryGroups
-      .filter((g) => g.type === "situation" || g.type === "season")
-      .flatMap((g) => g.items);
-    return [...pool]
-      .sort((a, b) => {
-        const ia = CAT_PRIORITY.indexOf(a.name);
-        const ib = CAT_PRIORITY.indexOf(b.name);
-        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
-      })
-      .slice(0, 12);
-  }, [categoryGroups]);
+  // 운영자 PICK 등에서 "내 맛집으로 등록" 진입 → 장소를 미리 선택된 상태로 시작
+  useEffect(() => {
+    if (prefillPlace && !isEdit) pick(prefillPlace);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 위치 인증 시 받을 XP (등록 자체는 0 — 현장에서 위치 인증해야 아래 기록 XP가 한꺼번에 들어옴)
   // 등록 사진/영상 XP는 위치 인증 성공 시 보류분이 함께 지급된다.
@@ -273,7 +283,8 @@ export default function RegisterForm({
     if (images.length > 0) xp += XP_AMOUNT.photo_added;
     if (videoUrl) xp += XP_AMOUNT.video_added;
     if (shortReview.trim()) xp += XP_AMOUNT.short_review;
-    if (selected.size >= 3) xp += XP_AMOUNT.categories;
+    // 카테고리 XP는 "개수 채우기"가 아니라 1개만 정확히 골라도 지급 (헛태그 방지)
+    if (selected.size >= 1) xp += XP_AMOUNT.categories;
     if (priceRange) xp += XP_AMOUNT.price;
     if (waitingLevel) xp += XP_AMOUNT.waiting;
     if (revisitIntent) xp += XP_AMOUNT.revisit;
@@ -321,8 +332,20 @@ export default function RegisterForm({
         <input key={id} type="hidden" name="atmosphereTags" value={id} />
       ))}
 
-      {/* 필수: 가게 — 카카오 장소 검색이 기본, 직접 입력은 예외 */}
-      <div className="space-y-4">
+      {!isEdit && (
+        <div className="mb-1 flex items-center gap-1.5">
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <span
+              key={i}
+              className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-forest" : "bg-stone-200"}`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* STEP 0: 가게 선택 — 카카오 장소 검색이 기본, 직접 입력은 예외 */}
+      <div className={`space-y-4 ${stepShown(0)}`}>
+        {!isEdit && <p className="text-lg font-extrabold text-ink">1 / 4 · 가게 선택</p>}
         {/* (A) 장소 검색 흐름 — 기본값 (수정 모드에선 가게 변경 불가) */}
         {!isEdit && !picked && !manualMode && (
           <div className="rounded-2xl bg-stone-50 p-4">
@@ -518,40 +541,47 @@ export default function RegisterForm({
         <input type="hidden" name="kakaoPlaceId" value={kakaoPlaceId} />
       </div>
 
-      {/* 필수: 카테고리 — 추천 태그 먼저 */}
-      <div>
-        <label className="label">
-          어떤 곳인가요? * <span className="font-normal text-stone-400">3개 이상이면 +30 XP</span>
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {recommendedTags.map((c) => (
-            <Chip key={c.id} id={c.id} name={c.name} />
-          ))}
-        </div>
-
-        <details className="mt-3 rounded-2xl border border-stone-200">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-ink-muted">
-            전체 카테고리 보기
-            <ChevronDown size={16} />
-          </summary>
-          <div className="space-y-4 px-4 pb-4">
-            {categoryGroups.map((g) => (
-              <div key={g.type}>
-                <p className="mb-2 text-xs font-semibold text-stone-400">{g.label}</p>
-                <div className="flex flex-wrap gap-2">
-                  {g.items.map((c) => (
-                    <Chip key={c.id} id={c.id} name={c.name} />
-                  ))}
-                </div>
-              </div>
+      {/* STEP 1: 카테고리 (음식 → 어떤 가게 → 인증). 날씨·계절·가격 태그는 등록에서 제외 */}
+      <div className={`space-y-5 ${stepShown(1)}`}>
+        {!isEdit && <p className="text-lg font-extrabold text-ink">2 / 4 · 어떤 곳인가요</p>}
+        <div>
+          <label className="label">
+            무슨 음식이에요? <span className="font-normal text-stone-400">가게를 고르면 자동 선택돼요 (바꿀 수 있어요)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {foodGroup.map((c) => (
+              <Chip key={c.id} id={c.id} name={c.name} />
             ))}
           </div>
-        </details>
-        <p className="mt-2 text-[13px] text-forest">{selected.size}개 선택됨</p>
+        </div>
+        <div>
+          <label className="label">
+            어떤 가게예요? <span className="font-normal text-stone-400">해당되는 것만</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {situationGroup.map((c) => (
+              <Chip key={c.id} id={c.id} name={c.name} />
+            ))}
+          </div>
+        </div>
+        {credentialGroup.length > 0 && (
+          <div>
+            <label className="label">
+              인증 <span className="font-normal text-stone-400">있으면 선택</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {credentialGroup.map((c) => (
+                <Chip key={c.id} id={c.id} name={c.name} />
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="text-[13px] text-forest">{selected.size}개 선택됨</p>
       </div>
 
-      {/* 권장: 사진/영상 + 한줄평 */}
-      <div className="space-y-4">
+      {/* STEP 2: 사진/영상 + 한줄평 */}
+      <div className={`space-y-4 ${stepShown(2)}`}>
+        {!isEdit && <p className="text-lg font-extrabold text-ink">3 / 4 · 사진과 한줄평</p>}
         <div className="rounded-2xl bg-stone-50 p-4">
           <p className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted">
             <Camera size={15} /> 맛집 사진·영상 (선택)
@@ -707,8 +737,8 @@ export default function RegisterForm({
         </div>
       </div>
 
-      {/* 선택: 더 자세히 (XP 추가) */}
-      <details className="rounded-2xl border border-stone-200">
+      {/* STEP 2(이어서): 더 자세히 (XP 추가) */}
+      <details className={`rounded-2xl border border-stone-200 ${stepShown(2)}`}>
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-ink">
           <span className="flex items-center gap-1.5">
             <Sparkles size={15} className="text-coral" /> 더 채우고 XP 더 받기
@@ -716,14 +746,6 @@ export default function RegisterForm({
           <ChevronDown size={16} />
         </summary>
         <div className="space-y-4 px-4 pb-4">
-          <div>
-            <label className="label">분위기 <span className="font-normal text-stone-400">여러 개 선택 가능</span></label>
-            <MultiChoice
-              selected={atmosphereTags}
-              onToggle={(v) => toggleValue(setAtmosphereTags, v)}
-              options={ATMOSPHERE_TAGS}
-            />
-          </div>
           <SelectField name="priceRange" label="가격대" hint="+10 XP" options={PRICE_RANGES} value={priceRange} onChange={setPriceRange} />
           {priceRange === "over_200k" && (
             <div>
@@ -742,11 +764,48 @@ export default function RegisterForm({
         </div>
       </details>
 
+      {/* STEP 3: 공개 범위 선택 (등록 시에만) */}
+      {!isEdit && (
+        <div className={stepShown(3)}>
+          <p className="mb-2 text-lg font-extrabold text-ink">4 / 4 · 공개 여부</p>
+          <label className="label">이 맛집, 어떻게 할까요?</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibility("public")}
+              className={`rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+                visibility === "public" ? "border-forest bg-forest-soft/40" : "border-stone-200 bg-white"
+              }`}
+            >
+              <span className="block text-sm font-bold text-ink">모두에게 공개</span>
+              <span className="mt-0.5 block text-[12px] text-ink-muted">검색·지도에 떠요</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("private")}
+              className={`rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+                visibility === "private" ? "border-forest bg-forest-soft/40" : "border-stone-200 bg-white"
+              }`}
+            >
+              <span className="block text-sm font-bold text-ink">나만 보관</span>
+              <span className="mt-0.5 block text-[12px] text-ink-muted">남에게 안 보임</span>
+            </button>
+          </div>
+          <p className="mt-1.5 text-[12px] text-stone-400">
+            나중에 팔 생각이 있는 아끼는 맛집이라면 ‘나만 보관’을 추천해요.
+          </p>
+          {!visibility && (
+            <p className="mt-1 text-[12px] font-semibold text-coral-dark">공개 여부를 선택해야 등록할 수 있어요.</p>
+          )}
+          <input type="hidden" name="visibility" value={visibility ?? ""} />
+        </div>
+      )}
+
       {state?.error && <p className="text-sm text-coral-dark">{state.error}</p>}
 
-      {/* 하단 고정: 실시간 예상 XP + 등록 */}
+      {/* 하단 고정: 단계 이동 / 등록 */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-stone-200 bg-white px-5 pb-4 pt-3">
-        {!isEdit && (
+        {!isEdit && step === TOTAL_STEPS - 1 && (
           <>
             <div className="mb-0.5 flex items-center justify-between">
               <span className="text-sm text-ink-muted">위치 인증하면 받을 XP</span>
@@ -757,23 +816,50 @@ export default function RegisterForm({
             </p>
           </>
         )}
-        <button
-          type="submit"
-          disabled={pending || !name.trim() || !regionId}
-          className="btn-primary h-12 w-full !text-base"
-        >
-          {isEdit
-            ? pending
-              ? "수정 중…"
-              : "수정 완료"
-            : pending
-              ? "등록 중…"
-              : !name.trim()
-                ? "가게를 먼저 선택하세요"
-                : !regionId
-                  ? "지역을 선택하세요"
-                  : "맛집 등록하기"}
-        </button>
+
+        {isEdit ? (
+          <button
+            type="submit"
+            disabled={pending || !name.trim() || !regionId}
+            className="btn-primary h-12 w-full !text-base"
+          >
+            {pending ? "수정 중…" : "수정 완료"}
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={() => setStep((s) => Math.max(0, s - 1))}
+                className="h-12 flex-1 rounded-xl border border-stone-200 bg-white text-base font-semibold text-ink active:scale-[0.99]"
+              >
+                이전
+              </button>
+            )}
+            {step < TOTAL_STEPS - 1 ? (
+              <button
+                type="button"
+                onClick={() => canNext && setStep((s) => s + 1)}
+                disabled={!canNext}
+                className="btn-primary h-12 flex-[2] !text-base"
+              >
+                {step === 0 && !placeChosen
+                  ? "가게를 먼저 선택하세요"
+                  : step === 1 && selected.size < 1
+                    ? "카테고리를 골라주세요"
+                    : "다음"}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={pending || !name.trim() || !regionId || !visibility}
+                className="btn-primary h-12 flex-[2] !text-base"
+              >
+                {pending ? "등록 중…" : !visibility ? "공개 여부를 선택하세요" : "맛집 등록하기"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </form>
   );

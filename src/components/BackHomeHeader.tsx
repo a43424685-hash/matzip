@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 export default function BackHomeHeader({ title }: { title: string }) {
   return (
-    <header className="mb-5 flex items-center gap-3">
+    <header className="sticky top-0 z-20 -mx-5 mb-4 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-5 py-3 backdrop-blur">
       <Link
         href="/"
         aria-label="홈으로"

@@ -38,3 +38,30 @@ export async function confirmNicknameAction(
 
   redirect("/");
 }
+
+const legalNameSchema = z
+  .string()
+  .trim()
+  .min(2, "실명을 정확히 입력해주세요.")
+  .max(20, "이름이 너무 길어요.")
+  .regex(/^[가-힣a-zA-Z·\s]+$/, "한글 또는 영문 이름만 입력해주세요.");
+
+export type LegalNameState = { error?: string } | undefined;
+
+/** 실명 확정 — 한 번 설정하면 수정 불가(이미 있으면 그대로 통과). */
+export async function confirmLegalNameAction(
+  _prev: LegalNameState,
+  formData: FormData
+): Promise<LegalNameState> {
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/login");
+
+  const parsed = legalNameSchema.safeParse(formData.get("legalName"));
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+
+  const existing = await prisma.user.findUnique({ where: { id: userId }, select: { legalName: true } });
+  if (!existing?.legalName) {
+    await prisma.user.update({ where: { id: userId }, data: { legalName: parsed.data } });
+  }
+  redirect("/");
+}

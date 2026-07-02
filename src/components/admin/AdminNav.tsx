@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
+  { href: "/admin/members", label: "회원" },
   { href: "/admin/settlements", label: "정산" },
   { href: "/admin/refunds", label: "환불" },
   { href: "/admin/reports", label: "신고·문의" },

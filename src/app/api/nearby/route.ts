@@ -7,10 +7,13 @@ import {
   toPostCard,
 } from "@/server/restaurant/RestaurantService";
 import { getBlockedIds } from "@/server/block/BlockService";
+import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
 
 export const dynamic = "force-dynamic";
 
 const R = 6371000;
+const DEMO_POST_ID_PREFIX = "demo-p";
+const DEMO_USER_ID_PREFIX = "demo-u";
 
 function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number) {
   const dLat = ((bLat - aLat) * Math.PI) / 180;
@@ -27,6 +30,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const lat = Number(url.searchParams.get("lat"));
   const lng = Number(url.searchParams.get("lng"));
+  const categoryId = url.searchParams.get("categoryId") || null; // 음식 종류 필터(검색에서 넘어옴)
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return NextResponse.json({ ok: false, error: "위치 정보가 필요합니다." }, { status: 400 });
@@ -42,15 +46,21 @@ export async function GET(request: Request) {
 
   const user = await getCurrentUser();
   const blockedIds = await getBlockedIds(user?.id ?? null);
+  // 유료 잠금 글 제외 — 중앙 정책(구매자/소유자/관리자는 자기 것 보임). DB 서브쿼리로 처리.
+  const visibleCond = await visiblePostWhere(user?.id ?? null);
   const posts = await prisma.restaurantPost.findMany({
     where: {
       restaurant: {
         latitude: { gte: lat - latDelta, lte: lat + latDelta },
         longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
       },
-      OR: [{ locationVerified: true }, { user: { isAdmin: true } }],
-      user: { deactivatedAt: null },
+      // 주변 = 통합 검색: 공개 글 모두 노출(인증/미인증). '인증만' 보기는 화면 필터로.
+      AND: [visibleCond],
+      visibility: "public", // "나만 보관" 글은 주변 지도에서 제외
+      user: { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null },
       ...(blockedIds.length > 0 ? { userId: { notIn: blockedIds } } : {}),
+      ...(categoryId ? { categories: { some: { categoryId } } } : {}),
+      id: { not: { startsWith: DEMO_POST_ID_PREFIX } },
     },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
     take: 200,
@@ -60,6 +70,7 @@ export async function GET(request: Request) {
         select: {
           id: true,
           name: true,
+          saveCount: true,
           latitude: true,
           longitude: true,
           primaryRegion: { select: { id: true, name: true } },

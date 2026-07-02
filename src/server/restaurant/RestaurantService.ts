@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
 import {
   awardXp,
   likeFromActorAllowed,
@@ -42,6 +43,7 @@ export interface CreatePostInput {
   priceRange?: string | null;
   priceMemo?: string | null;
   waitingLevel?: "none" | "short" | "long" | null;
+  visibility?: "public" | "private" | string | null; // 기본 public. "private"이면 나만 보관.
   categoryIds: string[];
   media: MediaInput[];
 }
@@ -131,6 +133,7 @@ export async function createRestaurantPost(
         priceRange: input.priceRange ?? null,
         priceMemo: input.priceMemo?.trim() || null,
         waitingLevel: input.waitingLevel ?? null,
+        visibility: input.visibility === "private" ? "private" : "public",
       },
       select: { id: true },
     });
@@ -196,6 +199,7 @@ export interface UpdatePostInput {
   priceRange?: string | null;
   priceMemo?: string | null;
   waitingLevel?: "none" | "short" | "long" | null;
+  visibility?: "public" | "private" | string | null; // 기본 public. "private"이면 나만 보관.
   categoryIds: string[];
   media: MediaInput[];
 }
@@ -518,6 +522,8 @@ export async function recordShare(
 // 검색
 // ─────────────────────────────────────────────────────────────
 export type SortKey = "latest" | "saves" | "likes" | "weekly" | "name";
+const DEMO_POST_ID_PREFIX = "demo-p";
+const DEMO_USER_ID_PREFIX = "demo-u";
 
 export interface SearchInput {
   regionId?: string | null;
@@ -527,31 +533,80 @@ export interface SearchInput {
   limit?: number;
   excludeUserIds?: string[]; // 차단한 사용자 글 제외
   q?: string | null; // 가게 이름 키워드 검색
+  coords?: { lat: number; lng: number } | null; // 위치 검색(지오코딩 결과) — 있으면 반경 우선
+  radiusKm?: number;
+  keywordTerms?: string[]; // 검색어에서 뽑은 분류어(야장·노포 등). 태그뿐 아니라 한줄평/리뷰 글에서도 매칭.
   includeUnverified?: boolean; // true면 미인증 글도 노출(갓 올라온 맛집)
+  skip?: number; // 오프셋 페이지네이션(더보기) — 생략 시 0. weekly 정렬에는 적용 안 함.
+  viewerId?: string | null; // 보는 사람 — 유료 잠금 글 접근 판정(구매자/소유자/관리자는 봄)
 }
 
 export async function searchPosts(input: SearchInput) {
-  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, includeUnverified } = input;
+  const { regionId, categoryIds, priceRange, sort = "latest", limit = 50, excludeUserIds, q, coords, radiusKm = 3, keywordTerms, includeUnverified, skip, viewerId } = input;
 
   const where: Record<string, unknown> = {};
   const restaurantWhere: Record<string, unknown> = {};
   if (regionId) restaurantWhere.primaryRegionId = regionId;
-  if (q && q.trim()) restaurantWhere.name = { contains: q.trim(), mode: "insensitive" };
+  // 위치 검색: "강남" 같은 동네는 (1) 좌표 주변 반경 박스 + (2) 가게 이름/주소에 검색어 포함 을 함께(OR) 잡는다.
+  // → 좌표가 살짝 떨어져 있어도 이름/주소가 맞으면 검색되어 "0곳" 문제를 막는다.
+  const qTrim = q?.trim();
+  const geoBox = coords
+    ? {
+        latitude: { gte: coords.lat - radiusKm / 111, lte: coords.lat + radiusKm / 111 },
+        longitude: {
+          gte: coords.lng - radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180)),
+          lte: coords.lng + radiusKm / (111 * Math.cos((coords.lat * Math.PI) / 180)),
+        },
+      }
+    : null;
+  const textMatch = qTrim
+    ? {
+        OR: [
+          { name: { contains: qTrim, mode: "insensitive" } },
+          { address: { contains: qTrim, mode: "insensitive" } },
+        ],
+      }
+    : null;
+  if (geoBox && textMatch) {
+    restaurantWhere.OR = [geoBox, textMatch];
+  } else if (geoBox) {
+    Object.assign(restaurantWhere, geoBox);
+  } else if (textMatch) {
+    Object.assign(restaurantWhere, textMatch);
+  }
   if (Object.keys(restaurantWhere).length > 0) where.restaurant = restaurantWhere;
   if (priceRange) where.priceRange = priceRange;
-  if (categoryIds && categoryIds.length > 0) {
-    where.categories = { some: { categoryId: { in: categoryIds } } };
+  // 분류 필터: (1) 태그가 달렸거나 (2) 한줄평/리뷰 글에 분류어가 들어있으면 매칭.
+  //   → 옛날에 등록돼 태그가 없는 맛집도 글에 "야장" 등이 있으면 검색에 잡힌다.
+  const catTerms = keywordTerms ?? [];
+  if ((categoryIds && categoryIds.length > 0) || catTerms.length > 0) {
+    const catOr: Record<string, unknown>[] = [];
+    if (categoryIds && categoryIds.length > 0) {
+      catOr.push({ categories: { some: { categoryId: { in: categoryIds } } } });
+    }
+    for (const w of catTerms) {
+      catOr.push({ shortReview: { contains: w, mode: "insensitive" } });
+      catOr.push({ content: { contains: w, mode: "insensitive" } });
+    }
+    where.AND = [{ OR: catOr }];
   }
   if (excludeUserIds && excludeUserIds.length > 0) {
     where.userId = { notIn: excludeUserIds };
   }
+  // 공개 범위: "나만 보관(private)" 글은 검색·홈피드 등 공개 발견 화면에서 제외.
+  where.visibility = "public";
   // 노출 게이트: 위치 인증된 글만. 단 운영자(admin) 글은 미인증이어도 노출(운영자 맛집).
   // includeUnverified면 게이트 없이 전체 노출(갓 올라온 맛집 — 인증 안 돼도 보임).
   if (!includeUnverified) {
     where.OR = [{ locationVerified: true }, { user: { isAdmin: true } }];
   }
-  // 비활성화한 사용자의 글은 숨김
-  where.user = { deactivatedAt: null };
+  // 비활성화한 사용자와 프리뷰 시드 데모 계정의 글은 숨김
+  where.user = { id: { not: { startsWith: DEMO_USER_ID_PREFIX } }, deactivatedAt: null };
+
+  where.id = { not: { startsWith: DEMO_POST_ID_PREFIX } };
+  // 유료 잠금 글 제외 — 중앙 정책(구매자/소유자/관리자는 봄). DB 서브쿼리로 처리.
+  const existingAnd = Array.isArray(where.AND) ? (where.AND as unknown[]) : where.AND ? [where.AND] : [];
+  where.AND = [...existingAnd, await visiblePostWhere(viewerId ?? null)];
 
   const orderBy =
     sort === "saves"
@@ -565,9 +620,24 @@ export async function searchPosts(input: SearchInput) {
   const posts = await prisma.restaurantPost.findMany({
     where,
     orderBy,
+    // weekly는 200개를 모아 7일 가중치로 재정렬하므로 skip 미적용. 그 외 정렬에만 오프셋 적용.
+    ...(sort === "weekly" ? {} : skip ? { skip } : {}),
     take: sort === "weekly" ? 200 : limit,
     select: postCardSelect,
   });
+
+  // 이름/주소가 검색어와 맞으면 맨 위로. 예: "수유시장 호떡" 치면 그 가게가 1등,
+  // 나머지(수유 근처 다른 맛집)는 아래로. 동점이면 기존 정렬(인기순 등) 유지(안정 정렬).
+  if (qTrim) {
+    const ql = qTrim.toLowerCase();
+    const matchScore = (p: (typeof posts)[number]): number => {
+      const name = (p.restaurant?.name ?? "").toLowerCase();
+      if (name === ql) return 3; // 완전 일치
+      if (name.includes(ql)) return 2; // 이름 포함
+      return 0;
+    };
+    posts.sort((a, b) => matchScore(b) - matchScore(a));
+  }
 
   if (sort !== "weekly") return posts.map(toPostCard);
 
@@ -595,7 +665,7 @@ export async function searchPosts(input: SearchInput) {
       score: (lMap.get(p.id) ?? 0) * 1 + (sMap.get(p.id) ?? 0) * 3,
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+    .slice(skip ?? 0, (skip ?? 0) + limit) // 더보기: 재정렬된 200개에서 오프셋만큼 건너뛰어 중복 방지
     .map((x) => x.card);
 }
 
@@ -616,8 +686,9 @@ export const postCardSelect = {
   locationVerified: true,
   receiptVerified: true,
   menuVerified: true,
+  isOperatorPick: true,
   restaurant: {
-    select: { id: true, name: true, primaryRegion: { select: { id: true, name: true } } },
+    select: { id: true, name: true, saveCount: true, primaryRegion: { select: { id: true, name: true } } },
   },
   user: { select: { id: true, nickname: true, totalLevel: true, isAdmin: true } },
   media: { select: { type: true, url: true, thumbnailUrl: true, muted: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
@@ -642,7 +713,8 @@ export function toPostCard(p: NonNullable<PostRow>) {
     priceRange: p.priceRange,
     priceMemo: p.priceMemo,
     likeCount: p.likeCount,
-    saveCount: p.saveCount,
+    // 저장 수는 "가게 단위"가 정답(저장은 user×restaurant 유니크) → 상세/카드 어디서나 같은 숫자
+    saveCount: p.restaurant.saveCount,
     createdAt: p.createdAt,
     restaurantId: p.restaurant.id,
     restaurantName: p.restaurant.name,
@@ -652,6 +724,7 @@ export function toPostCard(p: NonNullable<PostRow>) {
     authorNickname: p.user.nickname,
     authorLevel: p.user.totalLevel,
     isOfficial: p.user.isAdmin, // 운영자 맛집 (피드 노출 허용 + 배지)
+    isOperatorPick: p.isOperatorPick, // 운영자 PICK (가보고 싶어 찜 — 인증 아님, 후기 유도)
     media: p.media[0] ?? null,
     categories: p.categories.map((c) => c.category.name),
     verification: {

@@ -60,6 +60,8 @@ export async function createSession(userId: string): Promise<void> {
     maxAge: MAX_AGE,
     secure: process.env.NODE_ENV === "production",
   });
+  // 마지막 로그인 시각 기록 (휴면·이상탐지 지표). 실패해도 로그인은 진행.
+  await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } }).catch(() => {});
 }
 
 export async function destroySession(): Promise<void> {
@@ -106,7 +108,9 @@ export interface SessionUser {
   totalXp: number;
   totalLevel: number;
   nicknameConfirmedAt: Date | null;
+  legalName: string | null;
   isAdmin: boolean;
+  role: string;
 }
 
 /** 현재 로그인 사용자 (없으면 null) */
@@ -123,21 +127,32 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       totalXp: true,
       totalLevel: true,
       nicknameConfirmedAt: true,
+      legalName: true,
       isAdmin: true,
+      role: true,
+      suspendedAt: true,
     },
   });
+  // 운영자에게 정지당한 계정은 이용 차단 → 안내 화면으로.
+  if (user && user.suspendedAt) {
+    redirect("/suspended");
+  }
   if (user && !user.nicknameConfirmedAt) {
     redirect("/onboarding/nickname");
+  }
+  // 닉네임 다음 단계 — 실명 미입력이면 실명 입력 화면으로 (기존 가입자 포함)
+  if (user && user.nicknameConfirmedAt && !user.legalName) {
+    redirect("/onboarding/realname");
   }
   return user;
 }
 
-/** API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부만 */
-export async function getSessionAdmin(): Promise<{ id: string; isAdmin: boolean } | null> {
+/** API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부 + 역할(RBAC) */
+export async function getSessionAdmin(): Promise<{ id: string; isAdmin: boolean; role: string } | null> {
   const userId = await getSessionUserId();
   if (!userId) return null;
   return prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, isAdmin: true },
+    select: { id: true, isAdmin: true, role: true },
   });
 }

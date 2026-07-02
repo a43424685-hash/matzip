@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import AdminNav from "@/components/admin/AdminNav";
+import AdminBackButton from "@/components/admin/AdminBackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -13,16 +14,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-dvh bg-stone-50">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white px-5 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/admin" className="text-lg font-black text-forest">
-            먹고핀 관리자
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <AdminBackButton />
+            <Link href="/admin" className="text-lg font-black text-forest">
+              먹고핀 관리자
+            </Link>
+          </div>
           <Link href="/" className="text-[13px] font-semibold text-stone-400">
             앱으로 →
           </Link>
         </div>
         <AdminNav />
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-5 md:px-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-5 md:px-6">{children}</main>
     </div>
   );
 }

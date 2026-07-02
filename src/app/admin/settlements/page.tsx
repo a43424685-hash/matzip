@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { listWithdrawals, computePayout, WITHHOLDING_RATE } from "@/server/payment/WithdrawalService";
 import AdminWithdrawalActions from "@/components/admin/AdminWithdrawalActions";
+import { decryptField } from "@/lib/fieldCrypto";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ export default async function SettlementsPage() {
                       <div className="text-sm font-bold text-ink">{w.accountHolder} <span className="font-normal text-stone-400">({w.seller.nickname})</span></div>
                       <div className="text-[12px] text-stone-400">{w.seller.email}</div>
                       <div className="mt-1 text-[13px] font-semibold text-ink">
-                        {w.bankName} {w.accountNumber}
+                        {w.bankName} {decryptField(w.accountNumber)}
                       </div>
                     </div>
                     <AdminWithdrawalActions id={w.id} />
@@ -127,7 +128,7 @@ export default async function SettlementsPage() {
                               <div className="font-bold text-ink">{w.accountHolder}</div>
                               <div className="text-[11px] text-stone-400">{w.seller.email}</div>
                             </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-stone-600">{w.bankName} {w.accountNumber}</td>
+                            <td className="whitespace-nowrap px-3 py-2 text-stone-600">{w.bankName} {decryptField(w.accountNumber)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-ink">{won(w.amountWon)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right text-coral-dark">-{won(withholdingWon)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right font-extrabold text-forest">{won(payoutWon)}</td>

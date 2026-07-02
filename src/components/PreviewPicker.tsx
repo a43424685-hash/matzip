@@ -25,12 +25,10 @@ export default function PreviewPicker({
   );
   const [busy, setBusy] = useState(false);
   const count = Object.values(state).filter(Boolean).length;
-  const done = count === need;
+  const done = count >= need; // 최소 need곳 — 그 이상은 자유롭게 더 공개 가능
 
   async function toggle(rid: string) {
     const next = !state[rid];
-    // 최대 need(5)곳까지만 — 이미 5곳이면 추가 선택 막음
-    if (next && count >= need) return;
     setState((s) => ({ ...s, [rid]: next }));
     setBusy(true);
     const r = await fetch("/api/collections/preview", {
@@ -52,14 +50,14 @@ export default function PreviewPicker({
         </span>
       </h2>
       <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">
-        구매 전 손님에게 보여줄 가게를 <b className="text-ink">정확히 {need}곳</b> 골라주세요(최대 {need}곳). 나머지는 구매 후 공개돼요.
+        구매 전 손님에게 보여줄 가게를 <b className="text-ink">{need}곳 이상</b> 골라주세요. 나머지는 구매 후 공개돼요.
         {!done && <span className="font-semibold text-coral-dark"> (지금 {need - count}곳 더 필요)</span>}
-        {done && <span className="font-semibold text-forest"> (다 골랐어요)</span>}
+        {done && <span className="font-semibold text-forest"> (충분해요 — 더 공개해도 돼요)</span>}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {items.map((i) => {
           const on = !!state[i.restaurantId];
-          const disabled = busy || (!on && count >= need); // 5곳 다 차면 추가 비활성
+          const disabled = busy; // 상한 없음 — 최소 need곳만 채우면 되고 더 공개해도 됨
           return (
             <button
               key={i.restaurantId}
