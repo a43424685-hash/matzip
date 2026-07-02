@@ -141,6 +141,8 @@ export default function NearbyMapScreen() {
           if (!cancelled && mapRef.current) {
             mapRef.current.relayout();
             mapRef.current.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+            // 레이아웃(크기) 잡힌 뒤 정확한 화면 범위로 초기 로드 — 처음부터 핀이 뜨게
+            void loadNearby({ lat: center.lat, lng: center.lng });
           }
         }, 250);
       })
@@ -202,7 +204,7 @@ export default function NearbyMapScreen() {
     filteredItems.slice(0, 30).forEach((item) => {
       const pos = new kakao.maps.LatLng(item.latitude, item.longitude);
       const pick = item.post.isOperatorPick;
-      const label = item.saved ? "저장" : pick ? "★PICK" : "인증";
+      const label = item.saved ? "저장" : pick ? "★PICK" : item.post.verification.location ? "인증" : "맛집";
       const bg = item.saved ? "#1f4d3f" : pick ? "#f59e0b" : "#ffffff";
       const fg = item.saved || pick ? "#ffffff" : "#1f2b25";
       const overlay = new kakao.maps.CustomOverlay({
@@ -251,15 +253,18 @@ export default function NearbyMapScreen() {
   // 검색어 → 좌표(지오코딩) → 지도 이동 후 그 지역 맛집 로드
   // 검색어 → 지도 중심 이동 (setCenter 가 지도 이동 + 그 지역 재검색을 트리거)
   async function geocodeAndMove(query: string) {
-    const query2 = query.trim();
-    if (!query2) return;
+    // "맛집/식당/추천/근처" 같은 군더더기 제거 → 위치 정밀도↑ (예: "수유역 5번출구 맛집" → "수유역 5번출구")
+    const cleaned = query.replace(/맛집|식당|추천|근처/g, " ").replace(/\s+/g, " ").trim() || query.trim();
+    if (!cleaned) return;
     setSearching(true);
     setNotFound(false);
     try {
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(query2)}`);
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(cleaned)}`);
       const data = (await res.json()) as { ok?: boolean; lat?: number; lng?: number };
       if (data.ok && Number.isFinite(data.lat) && Number.isFinite(data.lng)) {
         setMoved(false);
+        // 검색한 지점으로 가깝게 줌인 (동 전체 말고 그 자리) — level 3 ≈ 반경 1km대
+        mapRef.current?.setLevel?.(3);
         setCenter({ lat: data.lat as number, lng: data.lng as number });
       } else {
         setNotFound(true);

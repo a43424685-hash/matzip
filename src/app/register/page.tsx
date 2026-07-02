@@ -38,6 +38,12 @@ export default async function RegisterPage({
       },
     });
     if (r && r.latitude != null && r.longitude != null) {
+      // 이 가게의 대표 음식 종류를 미리 골라주기 (등록 폼에서 카테고리 자동 선택)
+      const catPost = await prisma.restaurantPost.findFirst({
+        where: { restaurantId: sp.add },
+        select: { categories: { select: { category: { select: { name: true, type: true } } } } },
+      });
+      const foodCategory = catPost?.categories.find((c) => c.category.type === "food")?.category.name ?? null;
       prefillPlace = {
         name: r.name,
         address: r.address ?? "",
@@ -45,6 +51,7 @@ export default async function RegisterPage({
         longitude: r.longitude,
         regionName: r.primaryRegion?.name ?? null,
         kakaoPlaceId: r.kakaoPlaceId ?? null,
+        foodCategory,
       };
     }
   }
