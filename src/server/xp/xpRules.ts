@@ -31,7 +31,9 @@ export type XpSourceType =
   | "region_5_verified" // 같은 지역 인증 5곳
   | "region_10_verified" // 같은 지역 인증 10곳
   | "streak_7d"
-  | "clean_30d";
+  | "clean_30d"
+  // 커뮤니티
+  | "community_answer_accepted"; // Q&A 답변 채택됨 (맛집카드 첨부·자기채택제외·1일상한)
 
 export const XP_AMOUNT: Record<XpSourceType, number> = {
   // 기록(보류 → 위치 인증 시 지급)
@@ -62,6 +64,8 @@ export const XP_AMOUNT: Record<XpSourceType, number> = {
   region_10_verified: 500,
   streak_7d: 500,
   clean_30d: 1000,
+  // 커뮤니티 — 인증(150)보다 작고, 1일 상한과 결합해 커뮤니티만으로 레벨 우회 방지
+  community_answer_accepted: 25,
 };
 
 /**

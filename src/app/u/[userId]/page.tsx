@@ -43,13 +43,14 @@ export default async function UserProfilePage({
     AND: [await visiblePostWhere(viewerId)],
   };
 
-  const [followCounts, initialFollowing, rank, regionRanks, postCount, verifiedCount, maps] = await Promise.all([
+  const [followCounts, initialFollowing, rank, regionRanks, postCount, verifiedCount, acceptedCount, maps] = await Promise.all([
     getFollowCounts(user.id),
     viewerId && !isOwnProfile ? isFollowing(viewerId, user.id) : Promise.resolve(false),
     getMyOverallRank(userId),
     getMyRegionRanks(userId),
     prisma.restaurantPost.count({ where: baseWhere }),
     prisma.restaurantPost.count({ where: { ...baseWhere, locationVerified: true } }),
+    prisma.communityComment.count({ where: { userId, isAccepted: true } }),
     prisma.collection.findMany({
       where: { userId, isPaid: true, isPublic: true },
       orderBy: { createdAt: "desc" },
@@ -116,6 +117,9 @@ export default async function UserProfilePage({
           {rank > 0 && <span>전체 <b className="text-ink">{rank}위</b></span>}
           {topRegion && (
             <span>🏅 {topRegion.regionName} <b className="text-ink">{topRegion.rank}위</b></span>
+          )}
+          {acceptedCount > 0 && (
+            <span>💬 답변 채택 <b className="text-ink">{acceptedCount}</b></span>
           )}
           <span className="tabular-nums">{user.totalXp.toLocaleString()} XP</span>
         </div>

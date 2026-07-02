@@ -110,6 +110,8 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
           postId={post.id}
           initial={comments.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() }))}
           isLoggedIn={!!user}
+          isPostAuthor={isAuthor}
+          viewerId={user?.id ?? null}
         />
       </section>
 

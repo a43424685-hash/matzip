@@ -21,8 +21,16 @@ export default async function CommunityPage({
 }) {
   const sp = await searchParams;
   const cat = sp.cat && COMMUNITY_CATEGORIES.some((c) => c.key === sp.cat) ? sp.cat : null;
+  const sort: "latest" | "hot" = sp.sort === "hot" ? "hot" : "latest";
   const viewerId = await getSessionUserId();
-  const posts = await listCommunityPosts(viewerId, cat);
+  const posts = await listCommunityPosts(viewerId, cat, 0, 20, sort);
+  const qs = (o: { cat?: string | null; sort?: string }) => {
+    const p = new URLSearchParams();
+    if (o.cat) p.set("cat", o.cat);
+    if (o.sort && o.sort !== "latest") p.set("sort", o.sort);
+    const s = p.toString();
+    return s ? `/community?${s}` : "/community";
+  };
 
   return (
     <main className="px-5 pb-24 pt-5">
@@ -31,11 +39,20 @@ export default async function CommunityPage({
       </div>
 
       {/* 카테고리 탭 */}
-      <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
-        <CatChip label="전체" href="/community" active={!cat} />
+      <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto">
+        <CatChip label="전체" href={qs({ sort })} active={!cat} />
         {COMMUNITY_CATEGORIES.map((c) => (
-          <CatChip key={c.key} label={c.label} href={`/community?cat=${c.key}`} active={cat === c.key} />
+          <CatChip key={c.key} label={c.label} href={qs({ cat: c.key, sort })} active={cat === c.key} />
         ))}
+      </div>
+      {/* 정렬 */}
+      <div className="mb-4 flex gap-3 text-[13px]">
+        <Link href={qs({ cat })} className={sort === "latest" ? "font-bold text-ink" : "text-stone-400"}>
+          최신순
+        </Link>
+        <Link href={qs({ cat, sort: "hot" })} className={sort === "hot" ? "font-bold text-ink" : "text-stone-400"}>
+          인기순
+        </Link>
       </div>
 
       {posts.length === 0 ? (

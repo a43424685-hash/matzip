@@ -5,6 +5,7 @@
 import { prisma } from "@/lib/db";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { createNotification } from "@/server/notification/NotificationService";
+import { awardXp } from "@/server/xp/XpService";
 import { COMMUNITY_CATEGORIES, isCommunityCategory, categoryLabel } from "@/lib/community";
 
 // 서버 코드 호환용 재노출
@@ -54,7 +55,8 @@ export async function listCommunityPosts(
   viewerId: string | null,
   category: string | null,
   skip = 0,
-  take = 20
+  take = 20,
+  sort: "latest" | "hot" = "latest"
 ): Promise<CommunityCard[]> {
   const blocked = await getBlockedIds(viewerId);
   const rows = await prisma.communityPost.findMany({
@@ -63,7 +65,10 @@ export async function listCommunityPosts(
       ...(category && isCommunityCategory(category) ? { category } : {}),
       ...(blocked.length ? { userId: { notIn: blocked } } : {}),
     },
-    orderBy: { createdAt: "desc" },
+    orderBy:
+      sort === "hot"
+        ? [{ likeCount: "desc" }, { commentCount: "desc" }, { createdAt: "desc" }]
+        : { createdAt: "desc" },
     skip,
     take,
     select: {
@@ -187,13 +192,24 @@ export async function setCommunityPostBlind(postId: string, blinded: boolean, re
   return { ok: true };
 }
 
-export async function addCommunityComment(userId: string, postId: string, content: string) {
+export async function addCommunityComment(
+  userId: string,
+  postId: string,
+  content: string,
+  restaurantPostId?: string | null
+) {
   const text = content?.trim();
   if (!text) return { ok: false, reason: "EMPTY" };
   const post = await prisma.communityPost.findUnique({ where: { id: postId }, select: { userId: true } });
   if (!post) return { ok: false, reason: "NOT_FOUND" };
+  // 첨부 맛집 유효성(존재하는 등록 글만)
+  let attach: string | null = null;
+  if (restaurantPostId) {
+    const rp = await prisma.restaurantPost.findUnique({ where: { id: restaurantPostId }, select: { id: true } });
+    attach = rp?.id ?? null;
+  }
   await prisma.$transaction([
-    prisma.communityComment.create({ data: { communityPostId: postId, userId, content: text } }),
+    prisma.communityComment.create({ data: { communityPostId: postId, userId, content: text, restaurantPostId: attach } }),
     prisma.communityPost.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } }),
   ]);
   // 글 작성자에게 알림 (본인 댓글 제외)
@@ -211,5 +227,86 @@ export async function deleteCommunityPost(userId: string, postId: string, isAdmi
   if (!post) return { ok: false, reason: "NOT_FOUND" };
   if (post.userId !== userId && !isAdmin) return { ok: false, reason: "FORBIDDEN" };
   await prisma.communityPost.delete({ where: { id: postId } });
+  return { ok: true };
+}
+
+/** 등록된 맛집(공개 글) 이름 검색 — 답변에 카드로 첨부용. */
+export async function searchRegisteredForAttach(q: string, limit = 8) {
+  const query = q.trim();
+  if (query.length < 1) return [];
+  const rows = await prisma.restaurantPost.findMany({
+    where: {
+      visibility: "public",
+      restaurant: { name: { contains: query, mode: "insensitive" } },
+    },
+    orderBy: { saveCount: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      restaurant: { select: { name: true, primaryRegion: { select: { name: true } } } },
+      media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true } },
+    },
+  });
+  // 같은 가게 중복 제거(대표 1개)
+  const seen = new Set<string>();
+  const out: { postId: string; name: string; region: string; thumb: string | null }[] = [];
+  for (const r of rows) {
+    if (seen.has(r.restaurant.name)) continue;
+    seen.add(r.restaurant.name);
+    out.push({
+      postId: r.id,
+      name: r.restaurant.name,
+      region: r.restaurant.primaryRegion.name,
+      thumb: r.media[0]?.thumbnailUrl ?? r.media[0]?.url ?? null,
+    });
+  }
+  return out;
+}
+
+/** Q&A 답변 채택 — 질문 작성자만. XP는 방어책과 함께(자기채택 제외·카드첨부 게이트·1일 상한·멱등). */
+export async function acceptCommunityAnswer(questionAuthorId: string, postId: string, commentId: string) {
+  const post = await prisma.communityPost.findUnique({
+    where: { id: postId },
+    select: { userId: true, acceptedCommentId: true },
+  });
+  if (!post) return { ok: false, reason: "NOT_FOUND" };
+  if (post.userId !== questionAuthorId) return { ok: false, reason: "FORBIDDEN" };
+  const comment = await prisma.communityComment.findUnique({
+    where: { id: commentId },
+    select: { userId: true, communityPostId: true, restaurantPostId: true },
+  });
+  if (!comment || comment.communityPostId !== postId) return { ok: false, reason: "NOT_FOUND" };
+
+  const ops = [];
+  if (post.acceptedCommentId && post.acceptedCommentId !== commentId) {
+    ops.push(prisma.communityComment.update({ where: { id: post.acceptedCommentId }, data: { isAccepted: false } }));
+  }
+  ops.push(prisma.communityComment.update({ where: { id: commentId }, data: { isAccepted: true } }));
+  ops.push(prisma.communityPost.update({ where: { id: postId }, data: { acceptedCommentId: commentId } }));
+  await prisma.$transaction(ops);
+
+  // XP: 자기채택 제외 + 맛집카드 첨부 답변만 + 1일 3건 상한 + dedupeKey 멱등
+  if (comment.userId !== questionAuthorId && comment.restaurantPostId) {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const todayCount = await prisma.xpEvent.count({
+      where: { userId: comment.userId, sourceType: "community_answer_accepted", createdAt: { gte: dayStart } },
+    });
+    if (todayCount < 3) {
+      await awardXp({
+        userId: comment.userId,
+        sourceType: "community_answer_accepted",
+        actorUserId: questionAuthorId,
+        dedupeKey: `community_accept:${commentId}`,
+      });
+    }
+  }
+  // 채택 알림
+  await createNotification(prisma, {
+    userId: comment.userId,
+    actorUserId: questionAuthorId,
+    type: "community_accepted",
+    communityPostId: postId,
+  });
   return { ok: true };
 }

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, X, Loader2 } from "lucide-react";
+import { ImagePlus, X, Loader2, ShieldCheck } from "lucide-react";
 import { uploadImage } from "@/lib/imageUpload";
 import { COMMUNITY_CATEGORIES } from "@/lib/community";
 
@@ -87,14 +87,19 @@ export default function CommunityWriteForm({ initialCategory }: { initialCategor
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={7}
-        placeholder="내용을 입력하세요. 맛집 추천/질문/후기 자유롭게! (특정 가게 저격 ❌)"
+        placeholder="내용을 입력하세요. 맛집 추천/질문/후기 자유롭게!"
         className="input min-h-[160px] resize-none"
       />
-      <p className="-mt-2 text-[12px] leading-relaxed text-stone-400">
-        ※ 상호·주소·전화·간판사진 등으로 특정 가게를 저격하는 글은 삭제·제재될 수 있어요. 특정 가게는{" "}
-        <b className="text-ink-muted">맛집 카드로 첨부</b>하고, 좋고 나쁨 평가는 그 가게의{" "}
-        <b className="text-ink-muted">정직 후기</b>로 남겨주세요.
-      </p>
+      <div className="-mt-1 flex items-start gap-2.5 rounded-xl bg-stone-50 p-3">
+        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-forest" />
+        <div className="text-[12.5px] leading-relaxed">
+          <p className="font-bold text-ink">특정 가게 저격은 금지예요</p>
+          <p className="mt-0.5 text-stone-500">
+            가게 언급은 <b className="text-ink-muted">맛집 카드</b>로, 좋고 나쁨은 그 가게의{" "}
+            <b className="text-ink-muted">정직 후기</b>로 남겨주세요.
+          </p>
+        </div>
+      </div>
 
       {/* 첨부 미리보기 */}
       {images.length > 0 && (
