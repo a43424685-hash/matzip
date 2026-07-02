@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { createNotification } from "@/server/notification/NotificationService";
 import { awardXp } from "@/server/xp/XpService";
+import { containsProfanity } from "@/lib/profanity";
 import { COMMUNITY_CATEGORIES, isCommunityCategory, categoryLabel } from "@/lib/community";
 
 // 서버 코드 호환용 재노출
@@ -35,6 +36,7 @@ export async function createCommunityPost(
   if (!isCommunityCategory(category)) return { ok: false, reason: "BAD_CATEGORY" };
   if (!title || title.length > 100) return { ok: false, reason: "BAD_TITLE" };
   if (!content) return { ok: false, reason: "BAD_CONTENT" };
+  if (containsProfanity(title) || containsProfanity(content)) return { ok: false, reason: "PROFANITY" };
 
   const post = await prisma.communityPost.create({
     data: {
@@ -162,7 +164,7 @@ export async function toggleCommunityLike(userId: string, postId: string): Promi
 }
 
 export async function listCommunityComments(postId: string) {
-  return prisma.communityComment.findMany({
+  const rows = await prisma.communityComment.findMany({
     where: { communityPostId: postId, blindedAt: null },
     orderBy: [{ isAccepted: "desc" }, { createdAt: "asc" }], // 채택 답변 상단
     select: {
@@ -171,16 +173,49 @@ export async function listCommunityComments(postId: string) {
       isAccepted: true,
       createdAt: true,
       userId: true,
+      attachName: true,
+      attachAddress: true,
+      attachKakaoId: true,
+      attachLat: true,
+      attachLng: true,
       user: { select: { id: true, nickname: true, avatarUrl: true, isAdmin: true } },
-      restaurant: {
-        select: {
-          id: true,
-          restaurant: { select: { name: true, primaryRegion: { select: { name: true } } } },
-          media: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true, thumbnailUrl: true } },
-        },
-      },
     },
   });
+
+  // 첨부 가게가 우리 앱에 등록돼 있으면 그 글로 링크 (카카오ID로 매칭)
+  const kakaoIds = rows.map((r) => r.attachKakaoId).filter((x): x is string => !!x);
+  const registeredPostByKakao = new Map<string, string>();
+  if (kakaoIds.length) {
+    const restos = await prisma.restaurant.findMany({
+      where: { kakaoPlaceId: { in: kakaoIds } },
+      select: {
+        kakaoPlaceId: true,
+        posts: { where: { visibility: "public" }, orderBy: { saveCount: "desc" }, take: 1, select: { id: true } },
+      },
+    });
+    for (const r of restos) {
+      if (r.kakaoPlaceId && r.posts[0]) registeredPostByKakao.set(r.kakaoPlaceId, r.posts[0].id);
+    }
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    content: r.content,
+    isAccepted: r.isAccepted,
+    createdAt: r.createdAt,
+    userId: r.userId,
+    user: r.user,
+    attach: r.attachName
+      ? {
+          name: r.attachName,
+          address: r.attachAddress,
+          kakaoPlaceId: r.attachKakaoId,
+          lat: r.attachLat,
+          lng: r.attachLng,
+          registeredPostId: r.attachKakaoId ? registeredPostByKakao.get(r.attachKakaoId) ?? null : null,
+        }
+      : null,
+  }));
 }
 
 /** 운영자: 커뮤니티 글 블라인드 해제(오탐 복구) / 재블라인드. */
@@ -192,24 +227,38 @@ export async function setCommunityPostBlind(postId: string, blinded: boolean, re
   return { ok: true };
 }
 
+export interface AttachPlace {
+  name: string;
+  address?: string | null;
+  kakaoPlaceId?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+}
+
 export async function addCommunityComment(
   userId: string,
   postId: string,
   content: string,
-  restaurantPostId?: string | null
+  place?: AttachPlace | null
 ) {
   const text = content?.trim();
   if (!text) return { ok: false, reason: "EMPTY" };
+  if (containsProfanity(text)) return { ok: false, reason: "PROFANITY" };
   const post = await prisma.communityPost.findUnique({ where: { id: postId }, select: { userId: true } });
   if (!post) return { ok: false, reason: "NOT_FOUND" };
-  // 첨부 맛집 유효성(존재하는 등록 글만)
-  let attach: string | null = null;
-  if (restaurantPostId) {
-    const rp = await prisma.restaurantPost.findUnique({ where: { id: restaurantPostId }, select: { id: true } });
-    attach = rp?.id ?? null;
-  }
   await prisma.$transaction([
-    prisma.communityComment.create({ data: { communityPostId: postId, userId, content: text, restaurantPostId: attach } }),
+    prisma.communityComment.create({
+      data: {
+        communityPostId: postId,
+        userId,
+        content: text,
+        attachName: place?.name?.trim() || null,
+        attachAddress: place?.address?.trim() || null,
+        attachKakaoId: place?.kakaoPlaceId || null,
+        attachLat: place?.lat ?? null,
+        attachLng: place?.lng ?? null,
+      },
+    }),
     prisma.communityPost.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } }),
   ]);
   // 글 작성자에게 알림 (본인 댓글 제외)
@@ -273,9 +322,10 @@ export async function acceptCommunityAnswer(questionAuthorId: string, postId: st
   if (post.userId !== questionAuthorId) return { ok: false, reason: "FORBIDDEN" };
   const comment = await prisma.communityComment.findUnique({
     where: { id: commentId },
-    select: { userId: true, communityPostId: true, restaurantPostId: true },
+    select: { userId: true, communityPostId: true, attachKakaoId: true, attachName: true },
   });
   if (!comment || comment.communityPostId !== postId) return { ok: false, reason: "NOT_FOUND" };
+  const hasAttach = !!(comment.attachKakaoId || comment.attachName);
 
   const ops = [];
   if (post.acceptedCommentId && post.acceptedCommentId !== commentId) {
@@ -286,7 +336,7 @@ export async function acceptCommunityAnswer(questionAuthorId: string, postId: st
   await prisma.$transaction(ops);
 
   // XP: 자기채택 제외 + 맛집카드 첨부 답변만 + 1일 3건 상한 + dedupeKey 멱등
-  if (comment.userId !== questionAuthorId && comment.restaurantPostId) {
+  if (comment.userId !== questionAuthorId && hasAttach) {
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
     const todayCount = await prisma.xpEvent.count({

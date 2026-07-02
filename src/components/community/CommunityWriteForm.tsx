@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ImagePlus, X, Loader2, ShieldCheck } from "lucide-react";
 import { uploadImage } from "@/lib/imageUpload";
 import { COMMUNITY_CATEGORIES } from "@/lib/community";
+import { containsProfanity } from "@/lib/profanity";
 
 export default function CommunityWriteForm({ initialCategory }: { initialCategory?: string }) {
   const router = useRouter();
@@ -39,8 +40,13 @@ export default function CommunityWriteForm({ initialCategory }: { initialCategor
       setErr("제목과 내용을 입력해주세요.");
       return;
     }
-    // 가드레일: 전화번호 등 특정 가게 식별정보 자유텍스트 차단(저격/명예훼손 방지)
     const joined = `${title} ${content}`;
+    // 욕설 차단
+    if (containsProfanity(joined)) {
+      setErr("욕설·비속어는 쓸 수 없어요.");
+      return;
+    }
+    // 가드레일: 전화번호 등 특정 가게 식별정보 자유텍스트 차단(저격/명예훼손 방지)
     if (/(01[0-9]|0\d{1,2})[-\s.]?\d{3,4}[-\s.]?\d{4}/.test(joined)) {
       setErr("전화번호는 올릴 수 없어요. 특정 가게는 '맛집 카드'로 첨부하고, 평가는 그 가게의 정직 후기로 남겨주세요.");
       return;

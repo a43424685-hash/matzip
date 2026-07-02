@@ -114,8 +114,13 @@ model CommunityComment {
   communityPostId String
   userId          String
   content         String
-  // 답변에 첨부한 등록 맛집(카드). 특정 가게 언급은 자유텍스트가 아니라 이 카드로 유도.
-  restaurantPostId String?
+  // 답변에 첨부한 맛집(카드). 카카오 검색 결과 스냅샷 — 우리 앱 미등록이어도 첨부 가능.
+  restaurantPostId String? // (구) 등록 글 직접 링크 — 미사용
+  attachName       String? // 카카오 가게명
+  attachAddress    String?
+  attachKakaoId    String? // 카카오 장소 ID(등록 여부·링크 판별)
+  attachLat        Float?
+  attachLng        Float?
   isAccepted       Boolean  @default(false) // 채택된 답변
   blindedAt        DateTime? // 신고 임시조치
   createdAt        DateTime @default(now())

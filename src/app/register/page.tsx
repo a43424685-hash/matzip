@@ -54,6 +54,21 @@ export default async function RegisterPage({
         foodCategory,
       };
     }
+  } else if (sp.name && sp.lat && sp.lng) {
+    // 커뮤니티 답변의 미등록 맛집 카드 → 카카오 정보로 바로 프리필(등록 유도)
+    const lat = Number(sp.lat);
+    const lng = Number(sp.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      prefillPlace = {
+        name: sp.name,
+        address: sp.address ?? "",
+        latitude: lat,
+        longitude: lng,
+        regionName: sp.region ?? null,
+        kakaoPlaceId: sp.kakaoId ?? null,
+        foodCategory: sp.food ?? null,
+      };
+    }
   }
 
   return (

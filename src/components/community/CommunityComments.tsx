@@ -6,8 +6,11 @@ import Link from "next/link";
 import { MapPin, Check, X, Search } from "lucide-react";
 import OfficialBadge from "@/components/OfficialBadge";
 import ReportButton from "@/components/ReportButton";
+import { containsProfanity } from "@/lib/profanity";
 
-type AttachResult = { postId: string; name: string; region: string; thumb: string | null };
+type AttachResult = { name: string; address: string | null; kakaoPlaceId: string | null; lat: number | null; lng: number | null };
+
+type Attach = AttachResult & { registeredPostId: string | null };
 
 type Comment = {
   id: string;
@@ -16,11 +19,7 @@ type Comment = {
   createdAt: string;
   userId: string;
   user: { id: string; nickname: string; avatarUrl: string | null; isAdmin: boolean };
-  restaurant: {
-    id: string;
-    restaurant: { name: string; primaryRegion: { name: string } };
-    media: { url: string; thumbnailUrl: string | null }[];
-  } | null;
+  attach: Attach | null;
 };
 
 export default function CommunityComments({
@@ -59,19 +58,35 @@ export default function CommunityComments({
       setResults([]);
       return;
     }
-    const r = await fetch(`/api/community/restaurant-search?q=${encodeURIComponent(query)}`);
-    if (r.ok) setResults((await r.json()).results ?? []);
+    // 카카오 전체 검색(등록 안 된 가게도 나옴)
+    const r = await fetch(`/api/places/search?q=${encodeURIComponent(query)}`);
+    if (r.ok) {
+      const data = await r.json();
+      setResults(
+        (data.results ?? []).map((p: { name: string; address: string; kakaoPlaceId: string | null; latitude: number; longitude: number }) => ({
+          name: p.name,
+          address: p.address,
+          kakaoPlaceId: p.kakaoPlaceId,
+          lat: p.latitude,
+          lng: p.longitude,
+        }))
+      );
+    }
   }
 
   async function submit() {
     if (!requireLogin()) return;
     const content = text.trim();
     if (!content || busy) return;
+    if (containsProfanity(content)) {
+      alert("욕설·비속어는 쓸 수 없어요.");
+      return;
+    }
     setBusy(true);
     const r = await fetch(`/api/community/${postId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, restaurantPostId: attach?.postId ?? null }),
+      body: JSON.stringify({ content, place: attach }),
     });
     setBusy(false);
     if (r.ok) {
@@ -125,27 +140,25 @@ export default function CommunityComments({
                   </div>
                   <p className="whitespace-pre-wrap break-words text-[14px] text-ink">{c.content}</p>
 
-                  {/* 첨부된 맛집 카드 */}
-                  {c.restaurant && (
+                  {/* 첨부된 맛집 카드 (등록됐으면 우리 글로, 아니면 등록 유도) */}
+                  {c.attach && (
                     <Link
-                      href={`/restaurants/${c.restaurant.id}`}
+                      href={
+                        c.attach.registeredPostId
+                          ? `/restaurants/${c.attach.registeredPostId}`
+                          : registerHref(c.attach)
+                      }
                       className="mt-1.5 flex items-center gap-2 rounded-xl border border-stone-200 bg-white p-2"
                     >
-                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-stone-100">
-                        {c.restaurant.media[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={c.restaurant.media[0].thumbnailUrl ?? c.restaurant.media[0].url}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <MapPin size={16} className="m-auto mt-2.5 text-forest" />
-                        )}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-forest-soft">
+                        <MapPin size={16} className="text-forest" />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-[13px] font-bold text-ink">{c.restaurant.restaurant.name}</div>
-                        <div className="text-[11px] text-stone-400">{c.restaurant.restaurant.primaryRegion.name} · 맛집 보기</div>
+                        <div className="truncate text-[13px] font-bold text-ink">{c.attach.name}</div>
+                        <div className="truncate text-[11px] text-stone-400">
+                          {c.attach.registeredPostId ? "맛집 보기" : "아직 등록 안 됨 · 등록하기"}
+                          {c.attach.address ? ` · ${c.attach.address}` : ""}
+                        </div>
                       </div>
                     </Link>
                   )}
@@ -224,7 +237,7 @@ export default function CommunityComments({
               ) : (
                 results.map((r) => (
                   <button
-                    key={r.postId}
+                    key={(r.kakaoPlaceId ?? r.name) + (r.address ?? "")}
                     type="button"
                     onClick={() => {
                       setAttach(r);
@@ -234,17 +247,12 @@ export default function CommunityComments({
                     }}
                     className="flex w-full items-center gap-2 rounded-xl p-2 text-left active:bg-stone-50"
                   >
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-stone-100">
-                      {r.thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={r.thumb} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <MapPin size={16} className="m-auto mt-2.5 text-forest" />
-                      )}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-forest-soft">
+                      <MapPin size={16} className="text-forest" />
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-[14px] font-bold text-ink">{r.name}</div>
-                      <div className="text-[12px] text-stone-400">{r.region}</div>
+                      <div className="truncate text-[12px] text-stone-400">{r.address}</div>
                     </div>
                   </button>
                 ))
@@ -258,4 +266,15 @@ export default function CommunityComments({
       )}
     </div>
   );
+}
+
+// 미등록 첨부 가게 → 카카오 정보로 등록 화면 프리필
+function registerHref(a: Attach): string {
+  const p = new URLSearchParams();
+  p.set("name", a.name);
+  if (a.address) p.set("address", a.address);
+  if (a.kakaoPlaceId) p.set("kakaoId", a.kakaoPlaceId);
+  if (a.lat != null) p.set("lat", String(a.lat));
+  if (a.lng != null) p.set("lng", String(a.lng));
+  return `/register?${p.toString()}`;
 }
