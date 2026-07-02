@@ -65,3 +65,43 @@ export async function confirmLegalNameAction(
   }
   redirect("/");
 }
+
+// 닉네임 + 실명을 한 화면에서 한 번에 확정 (가입 온보딩 간소화).
+export type ProfileSetupState = { error?: string } | undefined;
+
+export async function confirmProfileAction(
+  _prev: ProfileSetupState,
+  formData: FormData
+): Promise<ProfileSetupState> {
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/login");
+
+  const nick = nicknameSchema.safeParse(formData.get("nickname"));
+  if (!nick.success) return { error: nick.error.errors[0].message };
+  const legal = legalNameSchema.safeParse(formData.get("legalName"));
+  if (!legal.success) return { error: legal.error.errors[0].message };
+
+  // 실명은 한 번 설정하면 수정 불가 → 이미 있으면 유지
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { legalName: true },
+  });
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        nickname: nick.data,
+        nicknameConfirmedAt: new Date(),
+        ...(existing?.legalName ? {} : { legalName: legal.data }),
+      },
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { error: "이미 사용 중인 닉네임입니다." };
+    }
+    throw e;
+  }
+
+  redirect("/");
+}

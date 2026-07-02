@@ -143,7 +143,7 @@ export async function GET(req: Request) {
   }
   await createSession(user.id);
   if (!user.nicknameConfirmedAt) {
-    return NextResponse.redirect(new URL("/onboarding/nickname", req.url));
+    return NextResponse.redirect(new URL("/onboarding", req.url));
   }
   return NextResponse.redirect(new URL(returnTo, req.url));
 }

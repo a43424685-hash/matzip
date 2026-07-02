@@ -137,12 +137,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (user && user.suspendedAt) {
     redirect("/suspended");
   }
-  if (user && !user.nicknameConfirmedAt) {
-    redirect("/onboarding/nickname");
-  }
-  // 닉네임 다음 단계 — 실명 미입력이면 실명 입력 화면으로 (기존 가입자 포함)
-  if (user && user.nicknameConfirmedAt && !user.legalName) {
-    redirect("/onboarding/realname");
+  // 가입 온보딩 — 닉네임/실명 미완이면 한 화면(/onboarding)에서 한 번에 (기존 가입자 포함)
+  if (user && (!user.nicknameConfirmedAt || !user.legalName)) {
+    redirect("/onboarding");
   }
   return user;
 }

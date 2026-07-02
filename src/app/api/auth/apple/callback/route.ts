@@ -123,7 +123,7 @@ export async function POST(req: Request) {
   }
   await createSession(user.id);
   if (!user.nicknameConfirmedAt) {
-    return NextResponse.redirect(new URL("/onboarding/nickname", req.url), 303);
+    return NextResponse.redirect(new URL("/onboarding", req.url), 303);
   }
   return NextResponse.redirect(new URL(returnTo, req.url), 303);
 }
