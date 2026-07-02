@@ -4,12 +4,21 @@ import { markSplashSeen } from "@/components/AppSplash";
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
+  getPlatform?: () => string;
 }
 
 export function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
   const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
   return !!cap?.isNativePlatform?.();
+}
+
+// 'ios' | 'android' | 'web' — 플랫폼별 로그인 버튼 노출에 사용.
+export function getPlatform(): "ios" | "android" | "web" {
+  if (typeof window === "undefined") return "web";
+  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+  const p = cap?.getPlatform?.();
+  return p === "ios" || p === "android" ? p : "web";
 }
 
 // 카카오 로그인을 인앱 Safari(SFSafariViewController)로 연다.
@@ -66,6 +75,35 @@ export async function nativeKakaoLogin(): Promise<{ ok: boolean; error?: string 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken }),
+    });
+    const data = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (r.ok && data.ok) {
+      markSplashSeen(); // 로그인 후 홈에선 스플래시 안 뜨게 (콜드스타트에서만)
+      window.location.href = "/";
+      return { ok: true };
+    }
+    return { ok: false, error: data.error || "server" };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/cancel/i.test(msg)) return { ok: false, error: "canceled" };
+    return { ok: false, error: msg || "failed" };
+  }
+}
+
+// 구글은 안드로이드 Credential Manager로 idToken 받음 → 서버 검증 → 세션.
+// 앱에 직접 넣은 커스텀 플러그인("GoogleLogin")을 호출.
+export async function nativeGoogleLogin(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { registerPlugin } = await import("@capacitor/core");
+    const GoogleLogin = registerPlugin<{ login: () => Promise<{ idToken: string }> }>("GoogleLogin");
+    const res = await GoogleLogin.login();
+    const idToken = res?.idToken;
+    if (!idToken) return { ok: false, error: "no_token" };
+
+    const r = await fetch("/api/auth/google/native", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
     });
     const data = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     if (r.ok && data.ok) {
