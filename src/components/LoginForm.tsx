@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { isNativeApp, nativeAppleLogin, nativeKakaoLogin } from "@/lib/nativeAuth";
+import { markSplashSeen } from "@/components/AppSplash";
 
 export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?: string; returnTo?: string }) {
   // 오픈 리다이렉트 방지: 내부 절대경로(/foo)만 허용
@@ -34,6 +35,7 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         return;
       }
       // 하드 이동 — 항상 맨 위에서 시작 + 세션 즉시 반영
+      markSplashSeen(); // 로그인 후 홈에선 스플래시 안 뜨게 (콜드스타트에서만)
       window.location.href = returnTo;
       return;
     } catch {
@@ -113,6 +115,7 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
       <a
         href={returnTo && returnTo !== "/" ? `/api/auth/apple?returnTo=${encodeURIComponent(returnTo)}` : "/api/auth/apple"}
         onClick={(e) => {
+          markSplashSeen(); // 로그인 후 홈에선 스플래시 생략
           if (isNativeApp()) {
             e.preventDefault();
             nativeAppleLogin().then((r) => {
@@ -133,6 +136,7 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
       <a
         href={returnTo && returnTo !== "/" ? `/api/auth/kakao?returnTo=${encodeURIComponent(returnTo)}` : "/api/auth/kakao"}
         onClick={(e) => {
+          markSplashSeen(); // 로그인 후 홈에선 스플래시 생략
           if (isNativeApp()) {
             e.preventDefault();
             nativeKakaoLogin().then((r) => {

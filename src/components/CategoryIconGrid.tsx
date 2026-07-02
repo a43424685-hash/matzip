@@ -47,7 +47,10 @@ export default function CategoryIconGrid({ categories }: { categories: CategoryI
         <CategoryPanel items={items} expanded />
       </section>
       {fixed && (
-        <section className="fixed left-1/2 top-0 z-40 w-full max-w-md -translate-x-1/2 bg-white px-5 py-2 shadow-sm">
+        <section
+          className="fixed left-1/2 top-0 z-40 w-full max-w-md -translate-x-1/2 bg-white px-5 pb-2 shadow-sm"
+          style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
+        >
           <CategoryPanel
             items={items}
             expanded={fixedExpanded}

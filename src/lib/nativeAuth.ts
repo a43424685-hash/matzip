@@ -1,5 +1,6 @@
 // 네이티브 앱(Capacitor) 여부 + 소셜 로그인을 Safari View Controller로 여는 헬퍼.
 // 웹에서는 isNativeApp()이 false라 기존 <a href> 흐름을 그대로 쓴다.
+import { markSplashSeen } from "@/components/AppSplash";
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
@@ -38,6 +39,7 @@ export async function nativeAppleLogin(): Promise<{ ok: boolean; error?: string 
     });
     const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     if (res.ok && data.ok) {
+      markSplashSeen(); // 로그인 후 홈에선 스플래시 안 뜨게 (콜드스타트에서만)
       window.location.href = "/";
       return { ok: true };
     }
@@ -67,6 +69,7 @@ export async function nativeKakaoLogin(): Promise<{ ok: boolean; error?: string 
     });
     const data = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     if (r.ok && data.ok) {
+      markSplashSeen(); // 로그인 후 홈에선 스플래시 안 뜨게 (콜드스타트에서만)
       window.location.href = "/";
       return { ok: true };
     }
