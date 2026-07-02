@@ -4,6 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 import { getBlockedIds } from "@/server/block/BlockService";
+import { createNotification } from "@/server/notification/NotificationService";
 
 export const COMMUNITY_CATEGORIES = [
   { key: "recommend", label: "맛집 추천받기" },
@@ -199,10 +200,19 @@ export async function setCommunityPostBlind(postId: string, blinded: boolean, re
 export async function addCommunityComment(userId: string, postId: string, content: string) {
   const text = content?.trim();
   if (!text) return { ok: false, reason: "EMPTY" };
+  const post = await prisma.communityPost.findUnique({ where: { id: postId }, select: { userId: true } });
+  if (!post) return { ok: false, reason: "NOT_FOUND" };
   await prisma.$transaction([
     prisma.communityComment.create({ data: { communityPostId: postId, userId, content: text } }),
     prisma.communityPost.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } }),
   ]);
+  // 글 작성자에게 알림 (본인 댓글 제외)
+  await createNotification(prisma, {
+    userId: post.userId,
+    actorUserId: userId,
+    type: "community_comment",
+    communityPostId: postId,
+  });
   return { ok: true };
 }
 

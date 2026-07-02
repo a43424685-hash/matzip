@@ -8,6 +8,8 @@ const LABEL: Record<string, string> = {
   comment: "회원님의 글에 댓글을 남겼어요",
   reply: "회원님의 댓글에 답글을 남겼어요",
   follow: "회원님을 팔로우했어요",
+  community_comment: "회원님의 커뮤니티 글에 댓글을 남겼어요",
+  community_accepted: "회원님의 답변을 채택했어요 🎉",
 };
 
 function iconFor(type: string) {
@@ -56,28 +58,28 @@ export default function NotificationListView({ rows }: { rows: NotificationRow[]
                   {n.actorIsOfficial && <OfficialBadge size={13} className="mx-0.5 align-middle" />}님이 {LABEL[n.type] ?? "활동했어요"}
                 </p>
               )}
-              {isMapUpdate
-                ? n.collectionTitle && (
-                    <p className="mt-0.5 truncate text-[12px] text-stone-400">{n.collectionTitle}</p>
-                  )
-                : n.restaurantName && (
-                    <p className="mt-0.5 truncate text-[12px] text-stone-400">{n.restaurantName}</p>
-                  )}
+              {(n.communityTitle || (isMapUpdate ? n.collectionTitle : n.restaurantName)) && (
+                <p className="mt-0.5 truncate text-[12px] text-stone-400">
+                  {n.communityTitle ?? (isMapUpdate ? n.collectionTitle : n.restaurantName)}
+                </p>
+              )}
             </div>
             <span className="shrink-0 text-[11px] text-stone-400">{ago(n.createdAt)}</span>
           </div>
         );
-        const href = isMapUpdate
-          ? n.collectionId
-            ? `/collections/${n.collectionId}`
-            : null
-          : n.type === "follow"
-            ? n.actorUserId
-              ? `/u/${n.actorUserId}`
+        const href = n.communityPostId
+          ? `/community/${n.communityPostId}`
+          : isMapUpdate
+            ? n.collectionId
+              ? `/collections/${n.collectionId}`
               : null
-            : n.postId
-              ? `/restaurants/${n.postId}`
-              : null;
+            : n.type === "follow"
+              ? n.actorUserId
+                ? `/u/${n.actorUserId}`
+                : null
+              : n.postId
+                ? `/restaurants/${n.postId}`
+                : null;
         return <li key={n.id}>{href ? <Link href={href}>{body}</Link> : body}</li>;
       })}
     </ul>

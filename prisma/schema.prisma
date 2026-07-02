@@ -189,6 +189,7 @@ model Notification {
   postId       String?
   commentId    String?
   collectionId String? // map_update 알림이 가리키는 지도(컬렉션)
+  communityPostId String? // 커뮤니티 알림이 가리키는 글
   read         Boolean  @default(false)
   createdAt    DateTime @default(now())
 

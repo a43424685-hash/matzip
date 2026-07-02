@@ -39,6 +39,12 @@ export default function CommunityWriteForm({ initialCategory }: { initialCategor
       setErr("제목과 내용을 입력해주세요.");
       return;
     }
+    // 가드레일: 전화번호 등 특정 가게 식별정보 자유텍스트 차단(저격/명예훼손 방지)
+    const joined = `${title} ${content}`;
+    if (/(01[0-9]|0\d{1,2})[-\s.]?\d{3,4}[-\s.]?\d{4}/.test(joined)) {
+      setErr("전화번호는 올릴 수 없어요. 특정 가게는 '맛집 카드'로 첨부하고, 평가는 그 가게의 정직 후기로 남겨주세요.");
+      return;
+    }
     setBusy(true);
     setErr("");
     const r = await fetch("/api/community", {
@@ -81,9 +87,14 @@ export default function CommunityWriteForm({ initialCategory }: { initialCategor
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={7}
-        placeholder="내용을 입력하세요. 맛집 추천/질문/후기 자유롭게!"
+        placeholder="내용을 입력하세요. 맛집 추천/질문/후기 자유롭게! (특정 가게 저격 ❌)"
         className="input min-h-[160px] resize-none"
       />
+      <p className="-mt-2 text-[12px] leading-relaxed text-stone-400">
+        ※ 상호·주소·전화·간판사진 등으로 특정 가게를 저격하는 글은 삭제·제재될 수 있어요. 특정 가게는{" "}
+        <b className="text-ink-muted">맛집 카드로 첨부</b>하고, 좋고 나쁨 평가는 그 가게의{" "}
+        <b className="text-ink-muted">정직 후기</b>로 남겨주세요.
+      </p>
 
       {/* 첨부 미리보기 */}
       {images.length > 0 && (
