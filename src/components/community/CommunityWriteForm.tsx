@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, X, Loader2 } from "lucide-react";
 import { uploadImage } from "@/lib/imageUpload";
-import { COMMUNITY_CATEGORIES } from "@/server/community/CommunityService";
+import { COMMUNITY_CATEGORIES } from "@/lib/community";
 
 export default function CommunityWriteForm({ initialCategory }: { initialCategory?: string }) {
   const router = useRouter();

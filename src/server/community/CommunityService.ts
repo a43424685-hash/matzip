@@ -5,21 +5,11 @@
 import { prisma } from "@/lib/db";
 import { getBlockedIds } from "@/server/block/BlockService";
 import { createNotification } from "@/server/notification/NotificationService";
+import { COMMUNITY_CATEGORIES, isCommunityCategory, categoryLabel } from "@/lib/community";
 
-export const COMMUNITY_CATEGORIES = [
-  { key: "recommend", label: "맛집 추천받기" },
-  { key: "review", label: "후기·자랑" },
-  { key: "free", label: "자유수다" },
-] as const;
-
-export type CommunityCategory = "recommend" | "review" | "free";
-
-export function isCommunityCategory(v: string): v is CommunityCategory {
-  return v === "recommend" || v === "review" || v === "free";
-}
-export function categoryLabel(key: string): string {
-  return COMMUNITY_CATEGORIES.find((c) => c.key === key)?.label ?? key;
-}
+// 서버 코드 호환용 재노출
+export { COMMUNITY_CATEGORIES, isCommunityCategory, categoryLabel };
+export type { CommunityCategory } from "@/lib/community";
 
 export interface CommunityCard {
   id: string;
