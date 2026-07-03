@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
@@ -79,12 +79,28 @@ export default function NearbyMapScreen() {
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [emptyArea, setEmptyArea] = useState(false); // 지오코딩은 됐지만 등록된 맛집이 없는 지역
   const [moved, setMoved] = useState(false);
   // 외부 지도 버튼: 안드로이드=구글, iOS/웹=애플 (마운트 후 결정)
   const [isAndroid, setIsAndroid] = useState(false);
   useEffect(() => setIsAndroid(getPlatform() === "android"), []);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const catFilterRef = useRef<string | null>(null); // 검색에서 넘어온 음식 종류 필터(cat)
+
+  // 지도 마커(카카오 오버레이 = HTML)를 눌렀을 때 전체 새로고침 대신 부드러운 이동(SPA).
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement)?.closest?.(".nb-marker") as HTMLElement | null;
+      if (!el) return;
+      const pid = el.getAttribute("data-pid");
+      if (!pid) return;
+      e.preventDefault();
+      router.push(`/restaurants/${pid}`);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [router]);
 
   // 검색에서 넘어온 경우(/nearby?q=…&cat=…) → 자동으로 그 위치로 지도 이동 + 음식 필터 유지
   useEffect(() => {
@@ -215,7 +231,7 @@ export default function NearbyMapScreen() {
         position: pos,
         yAnchor: 1.15,
         content: `
-          <a href="/restaurants/${item.post.id}" style="
+          <a href="/restaurants/${item.post.id}" class="nb-marker" data-pid="${item.post.id}" style="
             display:inline-flex;align-items:center;gap:4px;
             padding:6px 10px;border:1px solid rgba(31,61,43,.18);
             border-radius:999px;background:${bg};
@@ -262,17 +278,29 @@ export default function NearbyMapScreen() {
     if (!cleaned) return;
     setSearching(true);
     setNotFound(false);
+    setEmptyArea(false);
     try {
       const res = await fetch(`/api/geocode?q=${encodeURIComponent(cleaned)}`);
       const data = (await res.json()) as { ok?: boolean; lat?: number; lng?: number };
-      if (data.ok && Number.isFinite(data.lat) && Number.isFinite(data.lng)) {
-        setMoved(false);
-        // 검색한 지점으로 가깝게 줌인 (동 전체 말고 그 자리) — level 3 ≈ 반경 1km대
-        mapRef.current?.setLevel?.(3);
-        setCenter({ lat: data.lat as number, lng: data.lng as number });
-      } else {
+      if (!(data.ok && Number.isFinite(data.lat) && Number.isFinite(data.lng))) {
         setNotFound(true);
+        return;
       }
+      const lat = data.lat as number;
+      const lng = data.lng as number;
+      // 그 지역에 우리 앱에 "등록된 맛집"이 있는지 먼저 확인 — 없으면 빈 곳으로 지도를 옮기지 않는다.
+      const catQ = catFilterRef.current ? `&categoryId=${encodeURIComponent(catFilterRef.current)}` : "";
+      const nb = await fetch(`/api/nearby?lat=${lat}&lng=${lng}&radius=2000${catQ}`);
+      const nbData = (await nb.json()) as { ok?: boolean; items?: NearbyItem[] };
+      const found = nb.ok && nbData.ok ? nbData.items ?? [] : [];
+      if (found.length === 0) {
+        setEmptyArea(true); // 등록된 맛집 없음 → 지도 이동 안 함
+        return;
+      }
+      setMoved(false);
+      mapRef.current?.setLevel?.(4); // 반경 ~2km 로 맞춰 줌
+      setItems(found);
+      setCenter({ lat, lng });
     } catch {
       setNotFound(true);
     } finally {
@@ -385,6 +413,11 @@ export default function NearbyMapScreen() {
         {notFound && (
           <p className="mt-1.5 px-5 text-[12px] text-coral-dark">
             ‘{q.trim()}’ 위치를 못 찾았어요. 동/역/지역명으로 다시 검색해보세요.
+          </p>
+        )}
+        {emptyArea && (
+          <p className="mt-1.5 px-5 text-[12px] text-coral-dark">
+            ‘{q.trim()}’ 근처에 아직 등록된 맛집이 없어요.
           </p>
         )}
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4">

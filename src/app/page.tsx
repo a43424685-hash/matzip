@@ -26,6 +26,7 @@ import NearbyHomeSection from "@/components/NearbyHomeSection";
 import HomeFeedToggle from "@/components/HomeFeedToggle";
 import Coachmark from "@/components/Coachmark";
 import WelcomeOnboarding from "@/components/WelcomeOnboarding";
+import FollowingFeed from "@/components/FollowingFeed";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ function formatPostDate(value: Date | string) {
   const date = new Date(value);
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
+
 
 export default async function HomePage({
   searchParams,
@@ -65,9 +67,9 @@ export default async function HomePage({
     followingPosts = ids.length
       ? (
           await prisma.restaurantPost.findMany({
-            where: { userId: { in: ids }, visibility: "public" },
+            where: { userId: { in: ids }, visibility: "public", locationVerified: true },
             orderBy: { createdAt: "desc" },
-            take: 30,
+            take: 20,
             select: postCardSelect,
           })
         ).map(toPostCard)
@@ -134,7 +136,7 @@ export default async function HomePage({
       </header>
 
       {showFollowing ? (
-        <FollowingFeed posts={followingPosts} />
+        <FollowingFeed initialItems={followingPosts} />
       ) : (
         <>
       <CategoryIconGrid categories={navCats} />
@@ -262,33 +264,6 @@ export default async function HomePage({
 }
 
 // ── 작은 컴포넌트들 (서버 렌더) ──────────────────────────────
-
-// 팔로잉 피드 — 내가 팔로우한 사람들의 최신 글. 비어 있으면 발견으로 유도.
-function FollowingFeed({ posts }: { posts: PostCard[] }) {
-  if (posts.length === 0) {
-    return (
-      <div className="mx-5 mt-6 rounded-2xl bg-stone-50 px-6 py-12 text-center">
-        <p className="text-[15px] font-bold text-ink">아직 팔로잉 피드가 비어 있어요</p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          마음에 드는 미식가를 팔로우하면
-          <br />
-          그분들의 새 맛집이 여기 모여요.
-        </p>
-        <Link
-          href="/rankings"
-          className="mt-4 inline-flex items-center gap-1 rounded-full bg-forest px-4 py-2 text-[13px] font-bold text-white"
-        >
-          맛잘알 랭킹에서 찾아보기 <ChevronRight size={15} />
-        </Link>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-5 flex flex-wrap justify-center gap-3 px-5">
-      {photoFirst(posts).map((p) => (p.media ? <PhotoCard key={p.id} post={p} /> : <TextPostCard key={p.id} post={p} />))}
-    </div>
-  );
-}
 
 // 사진 있는 글을 앞으로 — 사진 없는 글은 비중을 낮춰 뒤로 민다 (순서는 안정적으로 유지)
 function photoFirst(arr: PostCard[]): PostCard[] {

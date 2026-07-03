@@ -16,16 +16,17 @@ export function markSplashSeen() {
 }
 
 export default function AppSplash() {
-  // 처음부터 노출(홈 깜빡임 방지). pointer-events-none이라 터치는 안 막음.
-  const [visible, setVisible] = useState(true);
+  // 서버/초기 렌더에선 아예 안 그린다(false). 이래야 페이지가 통째로 새로고침되는
+  // 앱 내 이동(하드 네비게이션)마다 스플래시가 "깜빡" 뜨던 문제가 원천 차단된다.
+  // 콜드스타트(앱 완전 재실행 → sessionStorage 비어있음)일 때만 노출한다.
+  const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    if (window.sessionStorage.getItem(SPLASH_SEEN_KEY) === "1") {
-      setVisible(false);
-      return;
-    }
+    // 이번 앱 실행에서 이미 봤으면(=콜드스타트 아님) 절대 안 뜬다.
+    if (window.sessionStorage.getItem(SPLASH_SEEN_KEY) === "1") return;
     markSplashSeen();
+    setVisible(true);
 
     const leave = window.setTimeout(() => setLeaving(true), 1300);
     const hide = window.setTimeout(() => setVisible(false), 1600);

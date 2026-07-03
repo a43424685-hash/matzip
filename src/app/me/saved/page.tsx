@@ -31,7 +31,7 @@ export default async function MySavedPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title={`저장한 맛집 (${cards.length})`} />
+      <MeSubPageHeader title={`저장한 맛집 (${cards.length})`} backHref="/" />
       {cards.length === 0 ? (
         <EmptyState
           icon={Bookmark}
