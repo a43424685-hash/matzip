@@ -93,6 +93,15 @@ export default function PurchaseMapButton({
 
   return (
     <div>
+      {/* 서비스 제공 기간·환불 규정 안내 (전자상거래법 + PG 심사 필수 표시) */}
+      <div className="mb-3 rounded-xl bg-stone-50 p-3 text-[12px] leading-relaxed text-stone-500">
+        <p>
+          <b className="text-ink">서비스 제공</b> · 온라인 디지털 상품으로, 결제 완료 <b className="text-ink">즉시</b> 맛집 지도 전체가 열려 바로 이용할 수 있어요.
+        </p>
+        <p className="mt-1">
+          <b className="text-ink">환불</b> · 콘텐츠 하자·결제 오류는 환불되며, 목록 전체 공개 후에는 환불이 제한됩니다. 자세한 내용은 환불·취소정책을 참고하세요.
+        </p>
+      </div>
       <label className="mb-2 flex items-start gap-2 text-[12px] leading-relaxed text-ink-muted">
         <input
           type="checkbox"

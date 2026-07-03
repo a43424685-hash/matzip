@@ -71,7 +71,9 @@ export default async function FeedListPage({
   return (
     <main className="px-5 py-6">
       <BackHomeHeader title={title(sortParam)} />
-      <form action="/search" method="get" className="mb-4 flex h-11 items-center gap-2 rounded-full bg-stone-100 px-4">
+      {/* 검색은 /search로 안 튀고 이 화면(/feed)에서 바로 결과가 갱신됨. 정렬(이번주/갓올라온)은 유지. */}
+      <form action="/feed" method="get" className="mb-4 flex h-11 items-center gap-2 rounded-full bg-stone-100 px-4">
+        <input type="hidden" name="sort" value={sortParam} />
         <Search size={17} className="shrink-0 text-stone-400" />
         <input
           name="q"
@@ -82,7 +84,7 @@ export default async function FeedListPage({
       </form>
       {items.length === 0 ? (
         <p className="mx-1 rounded-2xl bg-stone-50 py-10 text-center text-sm text-stone-400">
-          아직 등록된 맛집이 없어요.
+          {q ? `‘${q}’ 검색 결과가 없어요.` : "아직 등록된 맛집이 없어요."}
         </p>
       ) : (
         <InfiniteList

@@ -21,8 +21,8 @@ export default function SiteFooter() {
         <Link href="/store" className="hover:text-forest">상품 안내</Link>
       </nav>
 
-      {/* 사업자 정보 — 접이식 */}
-      <details className="group mt-4">
+      {/* 사업자 정보 — PG(카카오페이) 심사가 하단에서 바로 확인해야 하므로 기본 펼침(open) */}
+      <details open className="group mt-4">
         <summary className="flex cursor-pointer list-none items-center justify-between font-bold text-stone-600 [&::-webkit-details-marker]:hidden">
           <span className="brand-logo text-[18px] leading-none text-stone-400">
             <span>먹고</span>
