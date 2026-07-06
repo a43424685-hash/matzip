@@ -23,6 +23,8 @@ import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
 import NearbyHomeSection from "@/components/NearbyHomeSection";
+import WeatherPicksSection from "@/components/WeatherPicksSection";
+import { OperatorPickCard } from "@/components/FeedMiniCard";
 import HomeFeedToggle from "@/components/HomeFeedToggle";
 import Coachmark from "@/components/Coachmark";
 import WelcomeOnboarding from "@/components/WelcomeOnboarding";
@@ -49,31 +51,37 @@ export default async function HomePage({
   const user = await getCurrentUser();
   const sp = await searchParams;
   const cookieTab = (await cookies()).get("home_tab")?.value;
-  // 팔로잉 탭은 로그인 사용자만. 쿼리 우선, 없으면 마지막 선택(쿠키).
-  const tab: "recommend" | "following" =
-    user && (sp.tab === "following" || (sp.tab !== "recommend" && cookieTab === "following"))
-      ? "following"
-      : "recommend";
-  const showFollowing = tab === "following";
+  // 팔로잉을 원하는가 — 쿼리로 명시했거나, 마지막 선택(쿠키)이 팔로잉
+  const prefersFollowing =
+    !!user && (sp.tab === "following" || (sp.tab !== "recommend" && cookieTab === "following"));
+
+  // 팔로잉 탭은 실제로 팔로우한 사람이 있을 때만. 신규/무팔로우 유저는
+  // 빈 팔로잉 피드 대신 '추천'을 기본으로 (첫 가입 직후 텅 빈 화면 방지).
+  let followingIds: string[] = [];
+  if (prefersFollowing && user) {
+    const follows = await prisma.follow.findMany({
+      where: { followerId: user.id },
+      select: { followingId: true },
+    });
+    followingIds = follows.map((f) => f.followingId);
+  }
+  const showFollowing = prefersFollowing && followingIds.length > 0;
+  const tab: "recommend" | "following" = showFollowing ? "following" : "recommend";
 
   const { weekly, recent, saved, topUsers, categories, myPostCount, paidMaps } = await getHomeData(user?.id);
   const unread = user ? await unreadCount(user.id) : 0;
 
-  // 팔로잉 피드 — 내가 팔로우한 사람들의 공개 글 (최신순)
+  // 팔로잉 피드 — 내가 팔로우한 사람들의 공개·위치인증 글 (최신순)
   let followingPosts: PostCard[] = [];
-  if (user && showFollowing) {
-    const follows = await prisma.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } });
-    const ids = follows.map((f) => f.followingId);
-    followingPosts = ids.length
-      ? (
-          await prisma.restaurantPost.findMany({
-            where: { userId: { in: ids }, visibility: "public", locationVerified: true },
-            orderBy: { createdAt: "desc" },
-            take: 20,
-            select: postCardSelect,
-          })
-        ).map(toPostCard)
-      : [];
+  if (showFollowing) {
+    followingPosts = (
+      await prisma.restaurantPost.findMany({
+        where: { userId: { in: followingIds }, visibility: "public", locationVerified: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: postCardSelect,
+      })
+    ).map(toPostCard);
   }
 
   const idByName = new Map(categories.map((c) => [c.name, c.id]));
@@ -140,6 +148,9 @@ export default async function HomePage({
       ) : (
         <>
       <CategoryIconGrid categories={navCats} />
+
+      {/* 날씨 기반 추천 (GPS·기상청) — 위치/데이터 없으면 스스로 숨음 */}
+      <WeatherPicksSection />
 
       {/* 섹션 1. 이번 주 인기 맛집 */}
       <SectionHead title="이번 주 인기 맛집" sub="사람들이 많이 저장한 곳" href="/feed?sort=weekly" />
@@ -346,6 +357,8 @@ function PhotoCard({ post, showVerified }: { post: PostCard; showVerified?: bool
 // 사진 없는 글 — 큰 이미지 placeholder 대신 작고 깔끔한 텍스트 카드.
 // 운영자 PICK(사진 없음)은 "고장난 빈칸" 대신 앰버 PICK 카드로 표현.
 function TextPostCard({ post, showVerified }: { post: PostCard; showVerified?: boolean }) {
+  // 운영자 PICK은 공용 디자인 카드(대표메뉴 히어로 + 별점 + 1호 훅)로 통일
+  if (post.isOperatorPick) return <OperatorPickCard post={post} />;
   const isPick = post.isOperatorPick;
   return (
     <Link

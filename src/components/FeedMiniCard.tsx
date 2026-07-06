@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, Heart, ShieldCheck, Play, Check, Star } from "lucide-react";
+import { Bookmark, Heart, ShieldCheck, Play, Check, Star, Camera } from "lucide-react";
 import CardImage from "@/components/CardImage";
 import type { PostCard } from "@/server/restaurant/RestaurantService";
 
@@ -87,41 +87,33 @@ export function TextPostCard({
   showVerified?: boolean;
   variant?: Variant;
 }) {
-  const isPick = post.isOperatorPick;
+  // 운영자 PICK — 사진 없어도 "디자인 카드"로: 대표메뉴 히어로 + 별점 + 1호 사진 훅
+  if (post.isOperatorPick) return <OperatorPickCard post={post} variant={variant} />;
+
   return (
     <Link
       href={`/restaurants/${post.id}`}
       className={`flex h-[238px] ${widthCls(variant)} flex-col rounded-2xl border border-stone-200 bg-white p-2`}
     >
-      <div className={`relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl p-3 ${isPick ? "bg-amber-100" : "bg-forest-soft"}`}>
+      <div className="relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl bg-forest-soft p-3">
         <div className="absolute inset-0 opacity-60 thumb-empty" />
         <div className="relative z-[1] flex w-fit gap-1">
-          {isPick ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">
-              <Star size={11} strokeWidth={3} /> 운영자 PICK
+          {post.isOfficial && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+              <Check size={11} strokeWidth={3.2} /> 운영자
             </span>
-          ) : (
-            <>
-              {post.isOfficial && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
-                  <Check size={11} strokeWidth={3.2} /> 운영자
-                </span>
-              )}
-              {(showVerified || post.verification.location) && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
-                  <ShieldCheck size={11} /> 인증
-                </span>
-              )}
-              {!post.isOfficial && !post.verification.location && !showVerified && (
-                <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
-              )}
-            </>
+          )}
+          {(showVerified || post.verification.location) && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
+              <ShieldCheck size={11} /> 인증
+            </span>
+          )}
+          {!post.isOfficial && !post.verification.location && !showVerified && (
+            <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
           )}
         </div>
         <div className="relative z-[1] mt-auto">
-          <div className={`text-[11px] font-bold ${isPick ? "text-amber-700" : "text-forest"}`}>
-            {isPick ? (post.categories[0] ?? "가보고 싶은 곳") : "사진 준비 중"}
-          </div>
+          <div className="text-[11px] font-bold text-forest">사진 준비 중</div>
           {post.shortReview && (
             <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-ink-muted">
               {post.shortReview}
@@ -141,6 +133,51 @@ export function TextPostCard({
         <span className="flex items-center gap-0.5">
           <Heart size={11} /> {post.likeCount}
         </span>
+      </div>
+    </Link>
+  );
+}
+
+// 운영자 PICK 전용 카드 — 대표메뉴를 주인공으로, 별점·리뷰(다이닝코드) 크게,
+// 빈 사진칸은 "1호 사진 올리기" 참여 훅으로 전환. (외부 사진 저장 안 함 = 저작권 안전)
+export function OperatorPickCard({ post, variant = "fixed" }: { post: PostCard; variant?: Variant }) {
+  const hero = post.signatureMenu ?? post.categories[0] ?? "가보고 싶은 곳";
+  const rating = post.extRating;
+  const reviews = post.extReviewCount;
+  return (
+    <Link
+      href={`/restaurants/${post.id}`}
+      className={`flex h-[238px] ${widthCls(variant)} flex-col rounded-2xl border border-amber-200/80 bg-white p-2`}
+    >
+      <div className="relative flex h-[132px] flex-col justify-between overflow-hidden rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-orange-700 p-3">
+        <div className="flex items-start justify-between">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-extrabold text-orange-700">
+            <Star size={11} strokeWidth={3} fill="currentColor" /> 운영자 PICK
+          </span>
+          {rating != null && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-black/30 px-1.5 py-0.5 text-[12px] font-extrabold text-white backdrop-blur-sm">
+              <Star size={10} fill="currentColor" strokeWidth={0} /> {rating.toFixed(1)}
+            </span>
+          )}
+        </div>
+        <div>
+          <div className="line-clamp-2 text-[19px] font-black leading-[1.15] text-white drop-shadow-sm">
+            {hero}
+          </div>
+          {reviews != null && reviews > 0 && (
+            <div className="mt-0.5 text-[10.5px] font-semibold text-white/85">
+              리뷰 {reviews.toLocaleString()} · 다이닝코드
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 line-clamp-1 text-sm font-bold text-ink">{post.restaurantName}</div>
+      <div className="truncate text-[12px] text-stone-400">{post.regionName}</div>
+      {post.shortReview ? (
+        <p className="mt-1 line-clamp-1 text-[12px] font-semibold text-ink-muted">{post.shortReview}</p>
+      ) : null}
+      <div className="mt-auto flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] font-extrabold text-orange-700">
+        <Camera size={12} /> 1호 사진 올리고 +50 XP
       </div>
     </Link>
   );

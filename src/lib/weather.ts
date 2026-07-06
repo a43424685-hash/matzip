@@ -1,0 +1,128 @@
+/**
+ * 기상청 초단기실황(getUltraSrtNcst) 기반 현재 날씨 조회.
+ * data.go.kr 공공데이터포털 서비스키 필요 (env: KMA_SERVICE_KEY).
+ * GPS 위경도 → 기상청 격자(nx,ny) 변환은 기상청 표준 LCC(DFS) 공식.
+ */
+
+const KMA_ENDPOINT =
+  "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst";
+
+// 위경도 → 기상청 격자 좌표 (기상청 제공 표준 변환식)
+export function latLonToGrid(lat: number, lon: number): { nx: number; ny: number } {
+  const RE = 6371.00877; // 지구 반경(km)
+  const GRID = 5.0; // 격자 간격(km)
+  const SLAT1 = 30.0, SLAT2 = 60.0; // 표준 위도
+  const OLON = 126.0, OLAT = 38.0; // 기준점 경위도
+  const XO = 43, YO = 136; // 기준점 격자
+  const DEGRAD = Math.PI / 180.0;
+
+  const re = RE / GRID;
+  const slat1 = SLAT1 * DEGRAD;
+  const slat2 = SLAT2 * DEGRAD;
+  const olon = OLON * DEGRAD;
+  const olat = OLAT * DEGRAD;
+
+  let sn = Math.tan(Math.PI * 0.25 + slat2 * 0.5) / Math.tan(Math.PI * 0.25 + slat1 * 0.5);
+  sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn);
+  let sf = Math.tan(Math.PI * 0.25 + slat1 * 0.5);
+  sf = (Math.pow(sf, sn) * Math.cos(slat1)) / sn;
+  let ro = Math.tan(Math.PI * 0.25 + olat * 0.5);
+  ro = (re * sf) / Math.pow(ro, sn);
+
+  let ra = Math.tan(Math.PI * 0.25 + lat * DEGRAD * 0.5);
+  ra = (re * sf) / Math.pow(ra, sn);
+  let theta = lon * DEGRAD - olon;
+  if (theta > Math.PI) theta -= 2.0 * Math.PI;
+  if (theta < -Math.PI) theta += 2.0 * Math.PI;
+  theta *= sn;
+
+  const nx = Math.floor(ra * Math.sin(theta) + XO + 0.5);
+  const ny = Math.floor(ro - ra * Math.cos(theta) + YO + 0.5);
+  return { nx, ny };
+}
+
+// 실황 발표(매시각 40분 생성, 이후 제공) 기준 base_date/base_time 계산
+function baseDateTime(now: Date): { base_date: string; base_time: string } {
+  const d = new Date(now.getTime());
+  // 아직 이번 시각 실황이 안 올라온 경우(정시~40분) 한 시간 전 데이터 사용
+  if (d.getMinutes() < 45) d.setHours(d.getHours() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  return { base_date: `${yyyy}${mm}${dd}`, base_time: `${hh}00` };
+}
+
+export type WeatherCondition = "rain" | "snow" | "hot" | "cold" | "nice";
+
+export interface CurrentWeather {
+  condition: WeatherCondition;
+  tempC: number | null;
+  pty: number; // 강수형태 코드
+  emoji: string;
+  label: string; // 홈 섹션 헤드라인
+}
+
+const LABELS: Record<WeatherCondition, { emoji: string; label: string }> = {
+  rain: { emoji: "🌧️", label: "비 오는 날, 뜨끈한 국물 어때요?" },
+  snow: { emoji: "❄️", label: "눈 오는 날, 따뜻한 한 끼 어때요?" },
+  cold: { emoji: "🥶", label: "추운 날, 속 데우는 맛집" },
+  hot: { emoji: "🥵", label: "더운 날, 시원하게 즐길 맛집" },
+  nice: { emoji: "☀️", label: "날씨 좋은 날, 이런 곳 어때요?" },
+};
+
+function classify(tempC: number | null, pty: number): WeatherCondition {
+  if (pty === 1 || pty === 2 || pty === 5 || pty === 6) return "rain";
+  if (pty === 3 || pty === 7) return "snow";
+  if (tempC != null && tempC >= 28) return "hot";
+  if (tempC != null && tempC <= 5) return "cold";
+  return "nice";
+}
+
+// 날씨 → 앱 카테고리(이름) 매핑. 시드된 category 이름과 정확히 일치해야 함.
+export const WEATHER_CATEGORIES: Record<WeatherCondition, string[]> = {
+  rain: ["비 오는 날", "국밥/탕", "술집"],
+  snow: ["추운 날", "겨울 국물", "국밥/탕"],
+  cold: ["추운 날", "겨울 국물", "국밥/탕"],
+  hot: ["더운 날", "면", "카페"],
+  nice: ["날씨 좋은 날", "데이트", "카페"],
+};
+
+/** 현재 날씨 조회. 키/네트워크 문제 시 null (섹션 자체를 숨김). */
+export async function getCurrentWeather(lat: number, lon: number): Promise<CurrentWeather | null> {
+  const key = process.env.KMA_SERVICE_KEY;
+  if (!key) return null;
+
+  const { nx, ny } = latLonToGrid(lat, lon);
+  const { base_date, base_time } = baseDateTime(new Date());
+  const qs = new URLSearchParams({
+    serviceKey: key,
+    pageNo: "1",
+    numOfRows: "60",
+    dataType: "JSON",
+    base_date,
+    base_time,
+    nx: String(nx),
+    ny: String(ny),
+  });
+
+  try {
+    const res = await fetch(`${KMA_ENDPOINT}?${qs.toString()}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const items: { category: string; obsrValue: string }[] =
+      json?.response?.body?.items?.item ?? [];
+    if (!items.length) return null;
+
+    let tempC: number | null = null;
+    let pty = 0;
+    for (const it of items) {
+      if (it.category === "T1H") tempC = Number(it.obsrValue);
+      if (it.category === "PTY") pty = Number(it.obsrValue);
+    }
+    const condition = classify(tempC, pty);
+    return { condition, tempC, pty, ...LABELS[condition] };
+  } catch {
+    return null;
+  }
+}

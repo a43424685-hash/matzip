@@ -53,6 +53,18 @@ export interface ConfirmResult {
   collectionId?: string;
 }
 
+// 결제 직후(특히 모바일 리다이렉트 복귀 시) PortOne이 아직 PAID로 확정 전인
+// 정산 지연 레이스가 있음 → PAID/확정실패가 될 때까지 짧게 재조회한다.
+const TERMINAL_FAIL = new Set(["FAILED", "CANCELLED", "CANCELED", "PARTIAL_CANCELLED"]);
+async function getSettledPayment(paymentId: string) {
+  let payment = await getPortOnePayment(paymentId);
+  for (let i = 0; i < 4 && payment.status !== "PAID" && !TERMINAL_FAIL.has(payment.status); i++) {
+    await new Promise((r) => setTimeout(r, 700));
+    payment = await getPortOnePayment(paymentId);
+  }
+  return payment;
+}
+
 /**
  * 결제 검증 + 구매 확정. confirm 라우트(세션)와 webhook(무세션) 양쪽에서 사용.
  * paymentId 로 PortOne 실제 결제를 조회해 상태·금액·통화를 확인하고 MapPurchase 생성.
@@ -69,7 +81,7 @@ export async function confirmPurchase(
   const buyerId = intent.buyerId;
   if (expectBuyerId && expectBuyerId !== buyerId) return { ok: false, reason: "BUYER_MISMATCH" };
 
-  const payment = await getPortOnePayment(paymentId);
+  const payment = await getSettledPayment(paymentId);
   if (payment.status !== "PAID") return { ok: false, reason: "NOT_PAID" };
 
   const col = await prisma.collection.findUnique({

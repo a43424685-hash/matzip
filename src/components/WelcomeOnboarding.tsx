@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { MapPin, Trophy, Map as MapIcon } from "lucide-react";
 
-const KEY = "mgp:onboarded:v1";
+const KEY = "mgp:onboarded:v1"; // 영구(확인) — 다시 안 봄
+const SNOOZE_KEY = "mgp:onboard-snooze"; // 오늘 하루 안 보기(날짜 저장)
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
 
 const STEPS = [
   { Icon: MapPin, title: "맛집에 가서 '위치 인증'하세요", desc: "진짜 가본 맛집만 올라와요. 가게 50m 안에서 자동 인증돼요." },
@@ -20,7 +26,9 @@ export default function WelcomeOnboarding() {
 
   useEffect(() => {
     try {
+      // 영구 닫음이거나, 오늘 이미 '오늘 안 보기' 했으면 안 뜸
       if (localStorage.getItem(KEY)) return;
+      if (localStorage.getItem(SNOOZE_KEY) === today()) return;
     } catch {
       return;
     }
@@ -28,9 +36,10 @@ export default function WelcomeOnboarding() {
     return () => clearTimeout(t);
   }, []);
 
-  function close() {
+  // 확인 = 영구히 안 봄 / 오늘 안 보기 = 오늘 하루만 숨김
+  function close(permanent = true) {
     try {
-      localStorage.setItem(KEY, "1");
+      localStorage.setItem(permanent ? KEY : SNOOZE_KEY, permanent ? "1" : today());
     } catch {
       /* ignore */
     }
@@ -39,7 +48,7 @@ export default function WelcomeOnboarding() {
 
   if (!show) return null;
   return (
-    <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40" onClick={close}>
+    <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40" onClick={() => close(true)}>
       <div
         onClick={(e) => e.stopPropagation()}
         className="animate-fade-in w-full max-w-md rounded-t-3xl bg-white px-6 pb-8 pt-7"
@@ -67,8 +76,14 @@ export default function WelcomeOnboarding() {
         </div>
 
         <div className="mt-7">
-          <button onClick={close} className="btn-primary h-12 w-full !text-base">
+          <button onClick={() => close(true)} className="btn-primary h-12 w-full !text-base">
             확인
+          </button>
+          <button
+            onClick={() => close(false)}
+            className="mt-2 h-10 w-full text-[13px] font-semibold text-stone-400 active:scale-95"
+          >
+            오늘 하루 안 보기
           </button>
         </div>
       </div>

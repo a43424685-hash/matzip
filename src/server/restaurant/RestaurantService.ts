@@ -688,7 +688,15 @@ export const postCardSelect = {
   menuVerified: true,
   isOperatorPick: true,
   restaurant: {
-    select: { id: true, name: true, saveCount: true, primaryRegion: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      name: true,
+      saveCount: true,
+      signatureMenu: true,
+      extRating: true,
+      extReviewCount: true,
+      primaryRegion: { select: { id: true, name: true } },
+    },
   },
   user: { select: { id: true, nickname: true, totalLevel: true, isAdmin: true } },
   media: { select: { type: true, url: true, thumbnailUrl: true, muted: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
@@ -718,6 +726,9 @@ export function toPostCard(p: NonNullable<PostRow>) {
     createdAt: p.createdAt,
     restaurantId: p.restaurant.id,
     restaurantName: p.restaurant.name,
+    signatureMenu: p.restaurant.signatureMenu, // 대표메뉴 (외부 보강)
+    extRating: p.restaurant.extRating, // 외부 별점
+    extReviewCount: p.restaurant.extReviewCount, // 외부 리뷰수
     regionId: p.restaurant.primaryRegion.id,
     regionName: p.restaurant.primaryRegion.name,
     authorId: p.user.id,

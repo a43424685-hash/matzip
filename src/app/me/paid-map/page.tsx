@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Map, Check, Coins, ChevronRight } from "lucide-react";
+import { Map, Check } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
+import PaidMapManager from "@/components/PaidMapManager";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +45,7 @@ export default async function PaidMapPage() {
         id: true,
         title: true,
         isPaid: true,
+        isPublic: true,
         priceWon: true,
         _count: { select: { items: true, purchases: true } },
       },
@@ -56,7 +57,18 @@ export default async function PaidMapPage() {
   // 자격 = 레벨 20 + 위치 인증 30곳 (영수증/메뉴 조건 제거 — 다른 화면과 통일)
   const unlocked =
     user.isAdmin || (user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL);
-  const paidMaps = myCollections.filter((c) => c.isPaid);
+  // 판매 후보 = 맛집이 1곳 이상 담긴 내 리스트 (여기 관리 허브에서 바로 켜고 끔)
+  const candidates = myCollections
+    .filter((c) => c._count.items > 0)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      isPaid: c.isPaid,
+      isPublic: c.isPublic,
+      priceWon: c.priceWon,
+      itemCount: c._count.items,
+      purchaseCount: c._count.purchases,
+    }));
 
   return (
     <main className="px-5 pb-24 pt-5">
@@ -87,44 +99,12 @@ export default async function PaidMapPage() {
             <Check size={16} /> 판매 자격을 달성했어요!
           </p>
           <p className="mt-3 rounded-2xl bg-stone-50 p-4 text-[13px] text-ink-muted">
-            내 맛집 리스트를 골라 <b className="text-ink">유료로 판매</b>할 수 있어요. 리스트 상세 페이지에서{" "}
-            <b className="text-forest">유료 지도로 판매</b>를 켜고 가격(990~9,900원)을 정하면 돼요. 구매자는 가게 목록이
+            아래에서 내 리스트를 <b className="text-ink">바로 유료로 켜고 끌 수</b> 있어요. 구매자는 가게 목록이
             가려진 채 지역·개수만 보고, 구매하면 전체가 열려요. <b className="text-ink">수수료 30%</b> 차감 후 정산돼요.
           </p>
 
-          {/* 판매 중인 지도 */}
-          {paidMaps.length > 0 && (
-            <section className="mt-5">
-              <h2 className="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-ink">
-                <Coins size={15} className="text-forest" /> 판매 중인 지도 {paidMaps.length}개
-              </h2>
-              <div className="space-y-2">
-                {paidMaps.map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/collections/${c.id}`}
-                    className="card flex items-center gap-3 p-3.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-ink">{c.title}</div>
-                      <div className="mt-0.5 text-[12px] text-ink-muted">
-                        {c.priceWon?.toLocaleString()}원 · 맛집 {c._count.items}곳 · 구매 {c._count.purchases}건
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="shrink-0 text-stone-300" />
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 내 리스트로 이동 */}
-          <Link
-            href="/me/collections"
-            className="mt-4 flex h-12 w-full items-center justify-center gap-1.5 rounded-xl border border-forest/30 bg-forest-soft/30 text-sm font-bold text-forest active:scale-[0.99]"
-          >
-            <Map size={16} /> 내 맛집 리스트에서 판매 설정하기
-          </Link>
+          {/* 판매 관리 허브 — 모든 후보 리스트를 여기서 바로 켜고/끄고/가격 조정 */}
+          <PaidMapManager collections={candidates} />
         </>
       ) : (
         <div className="mt-5 rounded-2xl bg-stone-50 p-5 text-center">
