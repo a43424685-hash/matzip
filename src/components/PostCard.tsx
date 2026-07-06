@@ -32,6 +32,7 @@ export default function PostCard({
     return (
       <article className="card px-4 py-3.5">
         <Header post={post} />
+        <PickInfo post={post} />
         {post.shortReview && (
           <p className="mt-1 line-clamp-1 text-sm text-ink-muted">{post.shortReview}</p>
         )}
@@ -77,6 +78,7 @@ export default function PostCard({
       </Link>
       <div className="p-4">
         <Header post={post} />
+        <PickInfo post={post} />
         {post.shortReview && (
           <p className="mt-1.5 line-clamp-2 text-[15px] text-ink-muted">{post.shortReview}</p>
         )}
@@ -115,6 +117,25 @@ function Header({ post }: { post: PostCardData }) {
       <span className="flex shrink-0 items-center gap-0.5 text-[13px] text-stone-400">
         <MapPin size={13} /> {post.regionName}
       </span>
+    </div>
+  );
+}
+
+// 운영자 PICK 보강정보 — 대표메뉴(주인공) + ⭐별점 · 리뷰수(다이닝코드)
+function PickInfo({ post }: { post: PostCardData }) {
+  if (!post.isOperatorPick) return null;
+  if (!post.signatureMenu && post.extRating == null) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+      {post.signatureMenu && <span className="text-[15px] font-black text-forest">{post.signatureMenu}</span>}
+      {post.extRating != null && (
+        <span className="flex items-center gap-0.5 text-[13px] font-bold text-amber-500">
+          <Star size={12} fill="currentColor" strokeWidth={0} /> {post.extRating.toFixed(1)}
+        </span>
+      )}
+      {post.extReviewCount != null && post.extReviewCount > 0 && (
+        <span className="text-[12px] text-stone-400">리뷰 {post.extReviewCount.toLocaleString()} · 다이닝코드</span>
+      )}
     </div>
   );
 }

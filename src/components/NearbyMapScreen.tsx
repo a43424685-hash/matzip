@@ -616,6 +616,19 @@ function NearbyCard({ item }: { item: NearbyItem }) {
           {item.post.restaurantName}
         </div>
         <div className="mt-1 text-[13px] text-ink-muted">{item.post.regionName}</div>
+        {item.post.isOperatorPick && (item.post.signatureMenu || item.post.extRating != null) && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            {item.post.signatureMenu && <span className="text-[14px] font-black text-forest">{item.post.signatureMenu}</span>}
+            {item.post.extRating != null && (
+              <span className="flex items-center gap-0.5 text-[12px] font-bold text-amber-500">
+                <Star size={11} fill="currentColor" strokeWidth={0} /> {item.post.extRating.toFixed(1)}
+              </span>
+            )}
+            {item.post.extReviewCount != null && item.post.extReviewCount > 0 && (
+              <span className="text-[11px] text-stone-400">리뷰 {item.post.extReviewCount} · 다이닝코드</span>
+            )}
+          </div>
+        )}
         {item.post.shortReview && (
           <div className="mt-1 line-clamp-1 text-[13px] text-ink-muted">{item.post.shortReview}</div>
         )}

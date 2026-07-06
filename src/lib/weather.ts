@@ -123,7 +123,8 @@ export async function getCurrentWeather(lat: number, lon: number): Promise<Curre
   });
 
   try {
-    const res = await fetch(`${KMA_ENDPOINT}?${qs.toString()}`, { cache: "no-store" });
+    // 같은 격자·발표시각이면 결과가 동일 → 10분 캐시(첫 호출만 느리고 이후 즉시)
+    const res = await fetch(`${KMA_ENDPOINT}?${qs.toString()}`, { next: { revalidate: 600 } });
     if (!res.ok) return null;
     const json = await res.json();
     const items: { category: string; obsrValue: string }[] =

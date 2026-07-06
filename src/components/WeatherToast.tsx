@@ -7,7 +7,7 @@ import CardImage from "./CardImage";
 import type { PostCard } from "@/server/restaurant/RestaurantService";
 
 type Item = { post: PostCard; distanceMeters: number | null };
-type Weather = { condition: string; tempC: number | null; emoji: string; label: string };
+type Weather = { condition: string; tempC: number | null; humidity: number | null; emoji: string; label: string };
 
 const SNOOZE_KEY = "mgp:weather-snooze";
 const ONBOARD_KEY = "mgp:onboarded:v1";
@@ -114,7 +114,7 @@ export default function WeatherToast() {
           entered ? "translate-y-0 scale-100" : "translate-y-2 scale-95"
         }`}
       >
-        <WeatherScene condition={weather.condition} tempC={weather.tempC} />
+        <WeatherScene condition={weather.condition} tempC={weather.tempC} humidity={weather.humidity} />
 
         <div className="px-5 pt-3.5">
           <p className="text-[17px] font-black leading-snug text-ink">{weather.label}</p>
@@ -197,31 +197,31 @@ function MiniRow({ post, d, onGo }: { post: PostCard; d: number | null; onGo: ()
   );
 }
 
-// ── 날씨 애니메이션 씬 ────────────────────────────────────────
+// ── 날씨 애니메이션 씬 (weather-preview.html 버전) ─────────────
 const SCENE_BG: Record<string, string> = {
   storm: "bg-gradient-to-b from-slate-700 to-slate-900",
   rain: "bg-gradient-to-b from-slate-500 to-slate-700",
-  snow: "bg-gradient-to-b from-slate-300 to-sky-400",
+  snow: "bg-gradient-to-b from-slate-400 to-sky-300",
   hot: "bg-gradient-to-b from-amber-400 to-orange-500",
-  humid: "bg-gradient-to-b from-teal-600 to-slate-600",
-  cold: "bg-gradient-to-b from-sky-400 to-indigo-500",
+  humid: "bg-gradient-to-b from-teal-700 to-slate-600",
+  cold: "bg-gradient-to-b from-sky-400 to-indigo-600",
   nice: "bg-gradient-to-b from-sky-400 to-sky-300",
 };
 
-function WeatherScene({ condition, tempC }: { condition: string; tempC: number | null }) {
+function WeatherScene({ condition, tempC, humidity }: { condition: string; tempC: number | null; humidity: number | null }) {
   const bg = SCENE_BG[condition] ?? SCENE_BG.nice;
   return (
     <div className={`relative h-32 w-full overflow-hidden ${bg}`}>
-      {(condition === "rain" || condition === "storm") && <Rain heavy={condition === "storm"} />}
-      {condition === "storm" && <div className="wt-anim pointer-events-none absolute inset-0 bg-white" style={{ animation: "wt-flash 4s infinite" }} />}
-      {condition === "snow" && <Snow />}
-      {condition === "hot" && <Sun />}
-      {condition === "humid" && <Fog />}
-      {condition === "cold" && <Frost />}
-      {condition === "nice" && <Clouds />}
+      {condition === "nice" && <SceneNice />}
+      {condition === "rain" && <SceneRain />}
+      {condition === "storm" && <SceneStorm />}
+      {condition === "snow" && <SceneSnow />}
+      {condition === "hot" && <SceneHot />}
+      {condition === "humid" && <SceneHumid />}
+      {condition === "cold" && <SceneCold />}
       {tempC != null && (
-        <span className="absolute left-3 top-3 rounded-full bg-black/25 px-2 py-0.5 text-[13px] font-extrabold text-white backdrop-blur-sm">
-          {Math.round(tempC)}°
+        <span className="absolute left-3 top-3 z-10 rounded-full bg-black/30 px-2 py-0.5 text-[13px] font-extrabold text-white backdrop-blur-sm">
+          {Math.round(tempC)}°{condition === "humid" && humidity != null ? ` · 💧${Math.round(humidity)}%` : ""}
         </span>
       )}
       <style>{SCENE_CSS}</style>
@@ -229,126 +229,135 @@ function WeatherScene({ condition, tempC }: { condition: string; tempC: number |
   );
 }
 
-function Rain({ heavy }: { heavy: boolean }) {
-  const n = heavy ? 34 : 22;
+function SceneNice() {
+  const clouds = [
+    { top: 70, w: 70, h: 22, dur: "16s", d: "0s" },
+    { top: 30, w: 52, h: 18, dur: "22s", d: "3s" },
+    { top: 100, w: 44, h: 16, dur: "18s", d: "6s" },
+  ];
   return (
-    <div className="pointer-events-none absolute inset-0" style={{ transform: heavy ? "skewX(-16deg)" : "skewX(-8deg)" }}>
-      {Array.from({ length: n }).map((_, i) => (
-        <span
-          key={i}
-          className="wt-anim absolute top-0 w-px bg-white/50"
-          style={{
-            left: `${(i / n) * 100 + (i % 3) * 2}%`,
-            height: `${heavy ? 22 : 16}px`,
-            animation: `wt-rain ${(heavy ? 0.5 : 0.8) + (i % 5) * 0.08}s linear ${(i % 7) * 0.12}s infinite`,
-          }}
-        />
+    <div className="pointer-events-none absolute inset-0">
+      <div
+        className="wt-anim absolute right-6 top-4 h-14 w-14 rounded-full"
+        style={{ background: "radial-gradient(circle,#fef9c3,#fde047)", boxShadow: "0 0 34px 10px rgba(253,224,71,.55)", animation: "wt-pulse 3s ease-in-out infinite" }}
+      />
+      {clouds.map((c, i) => (
+        <div key={i} className="wt-anim absolute rounded-full bg-white/90 blur-[1px]" style={{ top: c.top, left: -34, width: c.w, height: c.h, animation: `wt-drift ${c.dur} linear ${c.d} infinite` }} />
       ))}
     </div>
   );
 }
 
-function Snow() {
+function SceneRain() {
   return (
     <div className="pointer-events-none absolute inset-0">
-      {Array.from({ length: 20 }).map((_, i) => {
-        const s = 3 + (i % 4);
-        return (
-          <span
-            key={i}
-            className="wt-anim absolute top-0 rounded-full bg-white/85"
-            style={{
-              left: `${(i / 20) * 100}%`,
-              width: `${s}px`,
-              height: `${s}px`,
-              animation: `wt-snow ${3 + (i % 5) * 0.5}s linear ${(i % 6) * 0.4}s infinite`,
-            }}
-          />
-        );
-      })}
+      {Array.from({ length: 26 }).map((_, i) => (
+        <span key={i} className="wt-anim absolute top-0 w-px" style={{ left: `${(i / 26) * 100 + (i % 3)}%`, height: "18px", background: "linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.7))", animation: `wt-fall ${0.55 + (i % 4) * 0.06}s linear ${(i % 7) * 0.08}s infinite` }} />
+      ))}
+      {Array.from({ length: 10 }).map((_, i) => (
+        <span key={`g${i}`} className="absolute rounded-full bg-white/30" style={{ left: `${(i * 47) % 95}%`, top: `${(i * 31) % 90}%`, width: "5px", height: "9px" }} />
+      ))}
     </div>
   );
 }
 
-function Sun() {
+function SceneStorm() {
   return (
     <div className="pointer-events-none absolute inset-0">
-      <div className="absolute -right-4 -top-4 h-24 w-24">
-        <div className="wt-anim absolute inset-0" style={{ animation: "wt-spin 14s linear infinite" }}>
+      <div className="absolute h-10 w-32 rounded-full bg-slate-800/90 blur-md" style={{ top: -8, left: -20 }} />
+      <div className="absolute h-10 w-32 rounded-full bg-slate-800/90 blur-md" style={{ top: -14, right: -30 }} />
+      {Array.from({ length: 28 }).map((_, i) => (
+        <span key={i} className="wt-anim absolute top-0 w-px" style={{ left: `${(i / 28) * 100 + (i % 3)}%`, height: "24px", background: "linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.6))", animation: `wt-fall-steep ${0.4 + (i % 4) * 0.05}s linear ${(i % 7) * 0.07}s infinite` }} />
+      ))}
+      <div className="wt-anim absolute inset-0 bg-white" style={{ animation: "wt-flash 3.5s infinite" }} />
+      <svg className="wt-anim absolute" style={{ left: "58%", top: 8, width: 34, height: 60, animation: "wt-flash 3.5s infinite" }} viewBox="0 0 40 70">
+        <polygon points="22,0 6,38 18,38 12,70 36,26 22,26" fill="#fde047" />
+      </svg>
+    </div>
+  );
+}
+
+function SceneSnow() {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {Array.from({ length: 22 }).map((_, i) => {
+        const s = 3 + (i % 4);
+        return <span key={i} className="wt-anim absolute top-0 rounded-full bg-white/90" style={{ left: `${(i / 22) * 100}%`, width: s, height: s, animation: `wt-snow ${3 + (i % 5) * 0.5}s linear ${(i % 6) * 0.4}s infinite` }} />;
+      })}
+      <div className="absolute inset-x-0 bottom-0 h-4 bg-white/95 blur-[1px]" style={{ borderRadius: "50% 50% 0 0 / 100% 100% 0 0" }} />
+    </div>
+  );
+}
+
+function SceneHot() {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <div className="absolute right-5 top-3 h-14 w-14">
+        <div className="wt-anim absolute inset-0" style={{ animation: "wt-spin 16s linear infinite" }}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <span
-              key={i}
-              className="absolute left-1/2 top-1/2 h-14 w-1 -translate-x-1/2 -translate-y-1/2 bg-yellow-100/50"
-              style={{ transform: `translate(-50%,-50%) rotate(${i * 30}deg)` }}
-            />
+            <span key={i} className="absolute left-1/2 top-1/2 rounded bg-yellow-100/60" style={{ width: 4, height: 62, transform: `translate(-50%,-50%) rotate(${i * 30}deg)` }} />
           ))}
         </div>
-        <div className="wt-anim absolute inset-4 rounded-full bg-yellow-200" style={{ animation: "wt-pulse 3s ease-in-out infinite" }} />
+        <div className="wt-anim absolute inset-2.5 rounded-full bg-yellow-200" style={{ boxShadow: "0 0 34px 12px rgba(254,240,138,.65)", animation: "wt-pulse 2.4s ease-in-out infinite" }} />
       </div>
-      <div className="wt-anim absolute inset-x-0 bottom-0 h-10 bg-white/10 blur-md" style={{ animation: "wt-shimmer 2.5s ease-in-out infinite" }} />
+      <div className="wt-anim absolute inset-x-0 bottom-0 h-10" style={{ background: "repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 8px,transparent 8px 16px)", filter: "blur(3px)", animation: "wt-shimmer 2.5s ease-in-out infinite" }} />
     </div>
   );
 }
 
-function Fog() {
+function SceneHumid() {
   return (
     <div className="pointer-events-none absolute inset-0">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="wt-anim absolute h-8 w-[140%] rounded-full bg-white/20 blur-lg"
-          style={{ top: `${20 + i * 30}%`, animation: `wt-fog ${6 + i * 2}s ease-in-out ${i * 1.2}s infinite alternate` }}
-        />
+      <div className="wt-anim absolute" style={{ top: 22, left: "-35%", width: "170%", height: 70, background: "rgba(255,255,255,.22)", filter: "blur(16px)", borderRadius: "50%", animation: "wt-fog 7s ease-in-out infinite alternate" }} />
+      <div className="wt-anim absolute" style={{ top: 78, left: "-35%", width: "170%", height: 70, background: "rgba(255,255,255,.22)", filter: "blur(16px)", borderRadius: "50%", animation: "wt-fog 7s ease-in-out 2s infinite alternate" }} />
+      {Array.from({ length: 7 }).map((_, i) => (
+        <span key={i} className="wt-anim wt-rundrop absolute" style={{ left: `${7 + i * 13}%`, top: -16, animation: `wt-rundown ${2.4 + (i % 3) * 0.8}s linear ${(i % 4) * 0.7}s infinite` }} />
+      ))}
+      {Array.from({ length: 10 }).map((_, i) => (
+        <span key={`c${i}`} className="absolute" style={{ left: `${(i * 37) % 92}%`, top: `${(i * 29) % 85}%`, width: 7, height: 11, borderRadius: "50% 50% 55% 55%", background: "rgba(255,255,255,.4)", boxShadow: "inset -1px -2px 2px rgba(255,255,255,.7)" }} />
       ))}
     </div>
   );
 }
 
-function Frost() {
+function SceneCold() {
+  const xtals = [
+    { c: "❄", left: "5%", top: "8%", fs: 16 },
+    { c: "❅", left: "84%", top: "10%", fs: 19 },
+    { c: "❆", left: "8%", top: "68%", fs: 22 },
+    { c: "✳", left: "80%", top: "64%", fs: 25 },
+  ];
   return (
     <div className="pointer-events-none absolute inset-0">
-      <div className="absolute inset-0 bg-gradient-to-t from-white/25 to-transparent" />
-      {Array.from({ length: 14 }).map((_, i) => (
-        <span
-          key={i}
-          className="wt-anim absolute rounded-full bg-white"
-          style={{
-            left: `${(i * 37) % 100}%`,
-            top: `${(i * 53) % 100}%`,
-            width: "3px",
-            height: "3px",
-            animation: `wt-sparkle ${2 + (i % 4)}s ease-in-out ${(i % 5) * 0.3}s infinite`,
-          }}
-        />
+      <div className="wt-anim absolute inset-0" style={{ boxShadow: "inset 0 0 46px 16px rgba(255,255,255,.55)", animation: "wt-frost 4s ease-in-out infinite" }} />
+      {xtals.map((x, i) => (
+        <span key={i} className="wt-anim absolute font-bold text-white/90" style={{ left: x.left, top: x.top, fontSize: x.fs, animation: `wt-twinkle 2.4s ease-in-out ${i * 0.4}s infinite` }}>{x.c}</span>
       ))}
-    </div>
-  );
-}
-
-function Clouds() {
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      <div className="absolute right-5 top-4 h-12 w-12 rounded-full bg-yellow-200/80 blur-[2px]" />
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="wt-anim absolute h-6 w-16 rounded-full bg-white/80 blur-[1px]"
-          style={{ top: `${25 + i * 22}%`, animation: `wt-cloud ${16 + i * 6}s linear ${i * 3}s infinite` }}
-        />
+      {Array.from({ length: 12 }).map((_, i) => (
+        <span key={`i${i}`} className="wt-anim absolute top-0 rounded-full bg-white" style={{ left: `${(i / 12) * 100}%`, width: 4, height: 4, boxShadow: "0 0 5px #fff", animation: `wt-ice ${4 + (i % 4)}s linear ${(i % 5) * 0.5}s infinite` }} />
       ))}
+      <span className="wt-anim absolute rounded-full bg-white/55 blur-md" style={{ left: 20, bottom: 24, width: 34, height: 16, animation: "wt-breath 4.5s ease-in-out infinite" }} />
+      <span className="wt-anim absolute rounded-full bg-white/55 blur-md" style={{ left: 58, bottom: 30, width: 34, height: 16, animation: "wt-breath 4.5s ease-in-out 2.2s infinite" }} />
     </div>
   );
 }
 
 const SCENE_CSS = `
-@keyframes wt-rain { 0%{transform:translateY(-140%)} 100%{transform:translateY(420%)} }
-@keyframes wt-snow { 0%{transform:translateY(-140%) translateX(0)} 100%{transform:translateY(460%) translateX(14px)} }
+@keyframes wt-pulse { 0%,100%{transform:scale(1);opacity:.85} 50%{transform:scale(1.08);opacity:1} }
+@keyframes wt-drift { from{transform:translateX(0)} to{transform:translateX(420px)} }
+@keyframes wt-fall { from{transform:translateY(-40px) skewX(-12deg)} to{transform:translateY(150px) skewX(-12deg)} }
+@keyframes wt-fall-steep { from{transform:translateY(-40px) skewX(-26deg)} to{transform:translateY(150px) skewX(-26deg)} }
+@keyframes wt-snow { from{transform:translateY(-20px) translateX(0)} to{transform:translateY(150px) translateX(16px)} }
 @keyframes wt-spin { to{transform:rotate(360deg)} }
-@keyframes wt-pulse { 0%,100%{opacity:.75;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
-@keyframes wt-shimmer { 0%,100%{opacity:.15;transform:translateY(0)} 50%{opacity:.35;transform:translateY(-3px)} }
-@keyframes wt-fog { 0%{transform:translateX(-25%)} 100%{transform:translateX(15%)} }
-@keyframes wt-cloud { 0%{transform:translateX(-30%)} 100%{transform:translateX(220%)} }
-@keyframes wt-flash { 0%,88%,100%{opacity:0} 90%,94%{opacity:0} 92%{opacity:.65} 96%{opacity:.4} }
-@keyframes wt-sparkle { 0%,100%{opacity:.2} 50%{opacity:.95} }
+@keyframes wt-shimmer { 0%,100%{opacity:.4;transform:translateY(0)} 50%{opacity:.7;transform:translateY(-3px)} }
+@keyframes wt-flash { 0%,90%,100%{opacity:0} 92%{opacity:.75} 94%{opacity:.2} 96%{opacity:.6} }
+@keyframes wt-fog { from{transform:translateX(-10%)} to{transform:translateX(10%)} }
+@keyframes wt-rundown { 0%{transform:translateY(0);opacity:0} 12%{opacity:1} 100%{transform:translateY(150px);opacity:.85} }
+@keyframes wt-frost { 0%,100%{opacity:.65} 50%{opacity:1} }
+@keyframes wt-twinkle { 0%,100%{opacity:.2;transform:scale(.85)} 50%{opacity:1;transform:scale(1.1)} }
+@keyframes wt-ice { 0%{transform:translateY(0) translateX(0);opacity:0} 12%{opacity:.9} 100%{transform:translateY(150px) translateX(12px);opacity:.35} }
+@keyframes wt-breath { 0%{opacity:0;transform:translate(0,0) scale(.7)} 45%{opacity:.6} 100%{opacity:0;transform:translate(16px,-16px) scale(1.25)} }
+.wt-rundrop { width:6px;height:11px;border-radius:50% 50% 55% 55%;background:rgba(255,255,255,.72);box-shadow:0 0 5px rgba(255,255,255,.6); }
+.wt-rundrop::after { content:'';position:absolute;top:-46px;left:2px;width:2px;height:46px;background:linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.5)); }
 @media (prefers-reduced-motion: reduce){ .wt-anim{animation:none!important} }
 `;

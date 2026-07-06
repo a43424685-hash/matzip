@@ -94,7 +94,13 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    weather: { condition: weather.condition, tempC: weather.tempC, emoji: weather.emoji, label: weather.label },
+    weather: {
+      condition: weather.condition,
+      tempC: weather.tempC,
+      humidity: weather.humidity,
+      emoji: weather.emoji,
+      label: weather.label,
+    },
     categories: catNames,
     items,
   });
