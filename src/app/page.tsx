@@ -23,7 +23,7 @@ import CardImage from "@/components/CardImage";
 import CategoryIconGrid from "@/components/CategoryIconGrid";
 import SiteFooter from "@/components/SiteFooter";
 import NearbyHomeSection from "@/components/NearbyHomeSection";
-import WeatherPicksSection from "@/components/WeatherPicksSection";
+import WeatherToast from "@/components/WeatherToast";
 import { OperatorPickCard } from "@/components/FeedMiniCard";
 import HomeFeedToggle from "@/components/HomeFeedToggle";
 import Coachmark from "@/components/Coachmark";
@@ -92,6 +92,7 @@ export default async function HomePage({
   return (
     <main className="bg-white pb-8">
       <WelcomeOnboarding />
+      <WeatherToast />
       {/* 1. 헤더 (스크롤 시 사라짐 — sticky 아님) */}
       <header className="px-5 pt-4">
         <div className="flex items-center justify-between">
@@ -148,9 +149,6 @@ export default async function HomePage({
       ) : (
         <>
       <CategoryIconGrid categories={navCats} />
-
-      {/* 날씨 기반 추천 (GPS·기상청) — 위치/데이터 없으면 스스로 숨음 */}
-      <WeatherPicksSection />
 
       {/* 섹션 1. 이번 주 인기 맛집 */}
       <SectionHead title="이번 주 인기 맛집" sub="사람들이 많이 저장한 곳" href="/feed?sort=weekly" />

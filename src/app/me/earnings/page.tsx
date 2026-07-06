@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Coins } from "lucide-react";
+import { Coins, Map as MapIcon, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getSellerEarnings } from "@/server/payment/PaymentService";
@@ -45,7 +46,7 @@ export default async function EarningsPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title="판매 수익 내역" />
+      <MeSubPageHeader title="판매자 센터" />
 
       {/* 정산 요약 */}
       <div className="rounded-2xl bg-forest p-5 text-white">
@@ -57,6 +58,21 @@ export default async function EarningsPage() {
           {balance.pendingWon > 0 && <span>신청 중 {balance.pendingWon.toLocaleString()}원</span>}
         </div>
       </div>
+
+      {/* 유료지도 관리 — 판매 켜기/끄기·가격 (센터에서 바로 접근) */}
+      <Link
+        href="/me/paid-map"
+        className="mt-3 flex items-center gap-3 rounded-2xl border border-forest/20 bg-white p-4 active:scale-[0.99]"
+      >
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-soft text-forest">
+          <MapIcon size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-extrabold text-ink">유료지도 관리</div>
+          <div className="text-[12px] text-ink-muted">판매 켜기·끄기 · 가격 조정</div>
+        </div>
+        <ChevronRight size={18} className="text-stone-300" />
+      </Link>
 
       {/* 출금 신청 */}
       <WithdrawForm

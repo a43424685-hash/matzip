@@ -54,11 +54,30 @@ export default function FeedListItem({ post }: { post: PostCard }) {
             </>
           )}
         </div>
-        <div className="mt-0.5 text-[12px] text-stone-400">{post.regionName}</div>
-        <div className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-muted">
-          {post.authorNickname}
-          {post.isOfficial && <OfficialBadge size={12} />}
-        </div>
+        {post.isOperatorPick ? (
+          <>
+            {post.signatureMenu && (
+              <div className="mt-0.5 truncate text-[12.5px] font-bold text-forest">{post.signatureMenu}</div>
+            )}
+            <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-stone-400">
+              {post.extRating != null && (
+                <span className="flex items-center gap-0.5 font-bold text-amber-500">
+                  <Star size={11} fill="currentColor" strokeWidth={0} /> {post.extRating.toFixed(1)}
+                </span>
+              )}
+              {post.extReviewCount != null && post.extReviewCount > 0 && <span>리뷰 {post.extReviewCount}</span>}
+              <span className="truncate">· {post.regionName}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-0.5 text-[12px] text-stone-400">{post.regionName}</div>
+            <div className="mt-0.5 flex items-center gap-1 text-[12px] text-ink-muted">
+              {post.authorNickname}
+              {post.isOfficial && <OfficialBadge size={12} />}
+            </div>
+          </>
+        )}
       </div>
     </Link>
   );

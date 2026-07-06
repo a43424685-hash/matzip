@@ -24,6 +24,7 @@ import { getMyOverallRank, getMyRegionRanks } from "@/server/ranking/RankingServ
 import { unreadCount } from "@/server/notification/NotificationService";
 import { calculateLevel } from "@/server/xp/LevelService";
 import { getProfileGrid, type GridItem } from "@/server/profile/ProfileGridService";
+import MyRestaurantsMap from "@/components/MyRestaurantsMap";
 
 export const dynamic = "force-dynamic";
 
@@ -63,14 +64,23 @@ export default async function MePage({
 
   // 활성 탭 데이터
   let gridPosts: GridItem[] = [];
-  let maps: { id: string; title: string; priceWon: number | null; itemCount: number }[] = [];
+  let myPins: { postId: string; name: string; lat: number; lng: number }[] = [];
   if (tab === "maps") {
-    const rows = await prisma.collection.findMany({
-      where: { userId: user.id },
+    // 내가 등록한 맛집을 지도에 — 좌표 있는 것만, 같은 가게는 1핀으로
+    const rows = await prisma.restaurantPost.findMany({
+      where: { userId: user.id, restaurant: { latitude: { not: null }, longitude: { not: null } } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, priceWon: true, _count: { select: { items: true } } },
+      select: { id: true, restaurant: { select: { name: true, latitude: true, longitude: true } } },
     });
-    maps = rows.map((m) => ({ id: m.id, title: m.title, priceWon: m.priceWon, itemCount: m._count.items }));
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const { latitude, longitude, name } = r.restaurant;
+      if (latitude == null || longitude == null) continue;
+      const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      myPins.push({ postId: r.id, name, lat: latitude, lng: longitude });
+    }
   } else {
     gridPosts = await getProfileGrid(user.id, user.id, tab, 0);
   }
@@ -212,30 +222,21 @@ export default async function MePage({
 
       {/* 콘텐츠 */}
       {tab === "maps" ? (
-        maps.length === 0 ? (
-          <EmptyGrid text="아직 만든 지도가 없어요." />
-        ) : (
-          <div className="space-y-2 p-4">
-            {maps.map((m) => (
-              <Link
-                key={m.id}
-                href={`/collections/${m.id}`}
-                className="flex items-center gap-3 rounded-2xl border border-stone-200 p-3.5 active:bg-stone-50"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-soft/50 text-forest">
-                  <MapIcon size={18} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-bold text-ink">{m.title}</div>
-                  <div className="text-[12px] text-stone-400">
-                    맛집 {m.itemCount}곳{m.priceWon ? ` · ${m.priceWon.toLocaleString()}원` : ""}
-                  </div>
-                </div>
-                <ChevronRight size={18} className="text-stone-300" />
-              </Link>
-            ))}
+        <div className="p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[13px] text-ink-muted">내가 등록한 맛집 {myPins.length}곳</p>
+            <Link href="/me/collections" className="flex items-center text-[13px] font-semibold text-forest">
+              내 리스트 관리 <ChevronRight size={14} />
+            </Link>
           </div>
-        )
+          {myPins.length === 0 ? (
+            <EmptyGrid text="지도에 표시할 맛집이 없어요. 맛집을 등록해보세요!" />
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-stone-200">
+              <MyRestaurantsMap pins={myPins} />
+            </div>
+          )}
+        </div>
       ) : gridPosts.length === 0 ? (
         <EmptyGrid
           text={tab === "verified" ? "아직 위치 인증한 맛집이 없어요." : "아직 등록한 맛집이 없어요."}

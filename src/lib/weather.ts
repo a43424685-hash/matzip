@@ -53,38 +53,54 @@ function baseDateTime(now: Date): { base_date: string; base_time: string } {
   return { base_date: `${yyyy}${mm}${dd}`, base_time: `${hh}00` };
 }
 
-export type WeatherCondition = "rain" | "snow" | "hot" | "cold" | "nice";
+// 7종: 태풍·비·눈·더움·습함·추움·맑음
+export type WeatherCondition = "storm" | "rain" | "snow" | "hot" | "humid" | "cold" | "nice";
 
 export interface CurrentWeather {
   condition: WeatherCondition;
   tempC: number | null;
   pty: number; // 강수형태 코드
+  humidity: number | null; // 습도 %
+  windMs: number | null; // 풍속 m/s
   emoji: string;
-  label: string; // 홈 섹션 헤드라인
+  label: string; // 헤드라인
 }
 
 const LABELS: Record<WeatherCondition, { emoji: string; label: string }> = {
-  rain: { emoji: "🌧️", label: "비 오는 날, 뜨끈한 국물 어때요?" },
-  snow: { emoji: "❄️", label: "눈 오는 날, 따뜻한 한 끼 어때요?" },
+  storm: { emoji: "⛈️", label: "이런 날은 나가지 말고, 근처 딱 한 곳" },
+  rain: { emoji: "🌧️", label: "비 오는 날, 뜨끈한 국물 한 그릇" },
+  snow: { emoji: "❄️", label: "눈 오는 날, 따뜻한 자리로" },
+  hot: { emoji: "🥵", label: "더운 날, 시원하게 한 방" },
+  humid: { emoji: "💧", label: "꿉꿉한 날, 개운한 메뉴 어때요?" },
   cold: { emoji: "🥶", label: "추운 날, 속 데우는 맛집" },
-  hot: { emoji: "🥵", label: "더운 날, 시원하게 즐길 맛집" },
   nice: { emoji: "☀️", label: "날씨 좋은 날, 이런 곳 어때요?" },
 };
 
-function classify(tempC: number | null, pty: number): WeatherCondition {
-  if (pty === 1 || pty === 2 || pty === 5 || pty === 6) return "rain";
-  if (pty === 3 || pty === 7) return "snow";
+function classify(
+  tempC: number | null,
+  pty: number,
+  reh: number | null,
+  wsd: number | null
+): WeatherCondition {
+  const raining = pty === 1 || pty === 2 || pty === 5 || pty === 6;
+  const snowing = pty === 3 || pty === 7;
+  if (raining && wsd != null && wsd >= 9) return "storm"; // 비 + 강풍(9m/s↑) = 태풍/폭풍
+  if (snowing) return "snow";
+  if (raining) return "rain";
   if (tempC != null && tempC >= 28) return "hot";
-  if (tempC != null && tempC <= 5) return "cold";
+  if (tempC != null && tempC <= 4) return "cold";
+  if (reh != null && reh >= 80 && tempC != null && tempC >= 21) return "humid"; // 따뜻+습함=장마느낌
   return "nice";
 }
 
 // 날씨 → 앱 카테고리(이름) 매핑. 시드된 category 이름과 정확히 일치해야 함.
 export const WEATHER_CATEGORIES: Record<WeatherCondition, string[]> = {
+  storm: ["비 오는 날", "국밥/탕", "술집"],
   rain: ["비 오는 날", "국밥/탕", "술집"],
   snow: ["추운 날", "겨울 국물", "국밥/탕"],
-  cold: ["추운 날", "겨울 국물", "국밥/탕"],
   hot: ["더운 날", "면", "카페"],
+  humid: ["더운 날", "면", "회/해산물"],
+  cold: ["추운 날", "겨울 국물", "국밥/탕"],
   nice: ["날씨 좋은 날", "데이트", "카페"],
 };
 
@@ -116,12 +132,16 @@ export async function getCurrentWeather(lat: number, lon: number): Promise<Curre
 
     let tempC: number | null = null;
     let pty = 0;
+    let humidity: number | null = null;
+    let windMs: number | null = null;
     for (const it of items) {
       if (it.category === "T1H") tempC = Number(it.obsrValue);
-      if (it.category === "PTY") pty = Number(it.obsrValue);
+      else if (it.category === "PTY") pty = Number(it.obsrValue);
+      else if (it.category === "REH") humidity = Number(it.obsrValue);
+      else if (it.category === "WSD") windMs = Number(it.obsrValue);
     }
-    const condition = classify(tempC, pty);
-    return { condition, tempC, pty, ...LABELS[condition] };
+    const condition = classify(tempC, pty, humidity, windMs);
+    return { condition, tempC, pty, humidity, windMs, ...LABELS[condition] };
   } catch {
     return null;
   }

@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { MapPin, Trophy, Map as MapIcon } from "lucide-react";
 
-const KEY = "mgp:onboarded:v1"; // 영구(확인) — 다시 안 봄
-const SNOOZE_KEY = "mgp:onboard-snooze"; // 오늘 하루 안 보기(날짜 저장)
-
-function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-}
+const KEY = "mgp:onboarded:v1"; // 첫 방문 1회만
 
 const STEPS = [
   { Icon: MapPin, title: "맛집에 가서 '위치 인증'하세요", desc: "진짜 가본 맛집만 올라와요. 가게 50m 안에서 자동 인증돼요." },
@@ -18,17 +12,15 @@ const STEPS = [
 ];
 
 /**
- * 첫 방문 1회 환영 시트 — 앱 사용법(해야 할 것) 3가지 안내. 확인으로만 닫힘.
- * localStorage로 한 번만 노출.
+ * 첫 방문 1회 환영 모달 — 앱 사용법 3가지 안내. 화면 가운데.
+ * localStorage로 '평생 첫 1번만' 노출. 닫으면 날씨 토스트가 이어서 뜨도록 신호를 쏜다.
  */
 export default function WelcomeOnboarding() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
     try {
-      // 영구 닫음이거나, 오늘 이미 '오늘 안 보기' 했으면 안 뜸
-      if (localStorage.getItem(KEY)) return;
-      if (localStorage.getItem(SNOOZE_KEY) === today()) return;
+      if (localStorage.getItem(KEY)) return; // 이미 봤으면 다시 안 뜸
     } catch {
       return;
     }
@@ -36,30 +28,33 @@ export default function WelcomeOnboarding() {
     return () => clearTimeout(t);
   }, []);
 
-  // 확인 = 영구히 안 봄 / 오늘 안 보기 = 오늘 하루만 숨김
-  function close(permanent = true) {
+  function close() {
     try {
-      localStorage.setItem(permanent ? KEY : SNOOZE_KEY, permanent ? "1" : today());
+      localStorage.setItem(KEY, "1");
     } catch {
       /* ignore */
     }
     setShow(false);
+    // 날씨 토스트가 이어서 뜨도록 신호
+    try {
+      window.dispatchEvent(new Event("mgp:welcome-done"));
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!show) return null;
   return (
-    <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/40" onClick={() => close(true)}>
+    <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/45 px-6" onClick={close}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-fade-in w-full max-w-md rounded-t-3xl bg-white px-6 pb-8 pt-7"
+        className="animate-fade-in w-full max-w-sm rounded-3xl bg-white px-6 pb-6 pt-7 shadow-2xl"
       >
         <div className="flex justify-center text-2xl font-black tracking-tight">
           <span className="text-ink">먹고</span>
           <span className="text-coral">핀</span>
         </div>
-        <p className="mt-1 text-center text-sm font-semibold text-ink-muted">
-          이렇게 하면 돼요
-        </p>
+        <p className="mt-1 text-center text-sm font-semibold text-ink-muted">이렇게 하면 돼요</p>
 
         <div className="mt-6 space-y-4">
           {STEPS.map(({ Icon, title, desc }) => (
@@ -75,17 +70,9 @@ export default function WelcomeOnboarding() {
           ))}
         </div>
 
-        <div className="mt-7">
-          <button onClick={() => close(true)} className="btn-primary h-12 w-full !text-base">
-            확인
-          </button>
-          <button
-            onClick={() => close(false)}
-            className="mt-2 h-10 w-full text-[13px] font-semibold text-stone-400 active:scale-95"
-          >
-            오늘 하루 안 보기
-          </button>
-        </div>
+        <button onClick={close} className="btn-primary mt-7 h-12 w-full !text-base">
+          시작하기
+        </button>
       </div>
     </div>
   );
