@@ -79,6 +79,9 @@ export default async function PostDetailPage({
           latitude: true,
           longitude: true,
           saveCount: true,
+          signatureMenu: true,
+          extRating: true,
+          extReviewCount: true,
           primaryRegion: { select: { name: true } },
           promotions: {
             where: { isAdLabeled: true },
@@ -228,6 +231,22 @@ export default async function PostDetailPage({
             {post.receiptVerified && <span className="text-stone-400">영수증</span>}
             {post.menuVerified && <span className="text-stone-400">메뉴</span>}
           </div>
+          {/* 운영자 PICK: 대표메뉴 + 별점(다이닝코드) — 카드와 동일하게 상세에도 노출 */}
+          {post.isOperatorPick && (post.restaurant.signatureMenu || post.restaurant.extRating != null) && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {post.restaurant.signatureMenu && (
+                <span className="text-[17px] font-black text-forest">{post.restaurant.signatureMenu}</span>
+              )}
+              {post.restaurant.extRating != null && (
+                <span className="flex items-center gap-1 text-[15px] font-bold text-amber-500">
+                  <Star size={14} fill="currentColor" strokeWidth={0} /> {post.restaurant.extRating.toFixed(1)}
+                </span>
+              )}
+              {post.restaurant.extReviewCount != null && post.restaurant.extReviewCount > 0 && (
+                <span className="text-[13px] text-stone-400">리뷰 {post.restaurant.extReviewCount.toLocaleString()} · 다이닝코드</span>
+              )}
+            </div>
+          )}
           {post.shortReview && (
             <p className="mt-3 text-[17px] font-semibold leading-relaxed text-ink">{post.shortReview}</p>
           )}

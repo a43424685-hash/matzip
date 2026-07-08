@@ -200,7 +200,12 @@ export default function RegisterForm({
   const foodGroup = categoryGroups.find((g) => g.type === "food")?.items ?? [];
   const situationGroup = categoryGroups.find((g) => g.type === "situation")?.items ?? [];
   const credentialGroup = categoryGroups.find((g) => g.type === "credential")?.items ?? [];
-  const seasonGroup = categoryGroups.find((g) => g.type === "season")?.items ?? [];
+  // 날씨 토스트(7종)와 1:1로 맞춘 4개 버킷만 노출 (봄/여름/가을 계절 태그는 제외).
+  // 태풍·폭우 → 비 오는 날 / 눈 → 추운 날 / 습함 → 더운 날 로 자동 매칭됨.
+  const WEATHER_TAGS = ["비 오는 날", "추운 날", "더운 날", "날씨 좋은 날"];
+  const seasonGroup = (categoryGroups.find((g) => g.type === "season")?.items ?? []).filter((c) =>
+    WEATHER_TAGS.includes(c.name)
+  );
   const stepShown = (n: number) => (isEdit ? "" : step === n ? "" : "hidden");
   // 장소 검색 / 좌표
   const [name, setName] = useState(initial?.name ?? "");
@@ -568,7 +573,7 @@ export default function RegisterForm({
         {seasonGroup.length > 0 && (
           <div>
             <label className="label">
-              어울리는 날씨 <span className="font-normal text-stone-400">비 오는 날·더운 날 등 (중복 가능) — 날씨 추천에 쓰여요</span>
+              어울리는 날씨 <span className="font-normal text-stone-400">중복 가능 · 태풍·눈·습한 날은 비/추운/더운 날로 자동 매칭돼요</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {seasonGroup.map((c) => (

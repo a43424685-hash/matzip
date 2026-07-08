@@ -9,6 +9,7 @@ import DetailBackButton from "@/components/DetailBackButton";
 import FollowButton from "@/components/FollowButton";
 import OfficialBadge from "@/components/OfficialBadge";
 import ProfileGrid from "@/components/ProfileGrid";
+import MyRestaurantsMap from "@/components/MyRestaurantsMap";
 import { getProfileGrid } from "@/server/profile/ProfileGridService";
 import { visiblePostWhere } from "@/server/visibility/PaidVisibility";
 import type { Prisma } from "@prisma/client";
@@ -60,6 +61,25 @@ export default async function UserProfilePage({
 
   // 활성 탭 데이터 (무한 스크롤은 ProfileGrid가 처리)
   const gridPosts = tab === "maps" ? [] : await getProfileGrid(userId, viewerId, tab, 0);
+
+  // 지도 탭 — 이 사람이 등록한 맛집을 지도에 핀으로 (좌표 있는 것만, 같은 가게 1핀)
+  let myPins: { postId: string; name: string; lat: number; lng: number }[] = [];
+  if (tab === "maps") {
+    const rows = await prisma.restaurantPost.findMany({
+      where: { ...baseWhere, restaurant: { latitude: { not: null }, longitude: { not: null } } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, restaurant: { select: { name: true, latitude: true, longitude: true } } },
+    });
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const { latitude, longitude, name } = r.restaurant;
+      if (latitude == null || longitude == null) continue;
+      const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      myPins.push({ postId: r.id, name, lat: latitude, lng: longitude });
+    }
+  }
 
   const topRegion = regionRanks[0];
   const isRanker = rank > 0 && rank <= 30;
@@ -152,24 +172,37 @@ export default async function UserProfilePage({
       </nav>
 
       {tab === "maps" ? (
-        maps.length === 0 ? (
-          <Empty text="판매 중인 맛집 지도가 없어요." />
-        ) : (
-          <div className="space-y-2.5 p-4">
-            {maps.map((m) => (
-              <Link key={m.id} href={`/collections/${m.id}`} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 active:bg-stone-50">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest-soft text-forest">
-                  <MapIcon size={20} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold text-ink">{m.title}</div>
-                  <div className="text-[12px] text-ink-muted">맛집 {m._count.items}곳</div>
-                </div>
-                <span className="shrink-0 text-sm font-black text-forest">{(m.priceWon ?? 0).toLocaleString()}원</span>
-              </Link>
-            ))}
-          </div>
-        )
+        <div className="p-4">
+          {/* 이 사람이 등록한 맛집 지도 */}
+          <p className="mb-2 text-[13px] text-ink-muted">등록한 맛집 {myPins.length}곳</p>
+          {myPins.length === 0 ? (
+            <Empty text="지도에 표시할 맛집이 없어요." />
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-stone-200">
+              <MyRestaurantsMap pins={myPins} />
+            </div>
+          )}
+          {/* 판매 중인 유료 지도 (있으면 아래에) */}
+          {maps.length > 0 && (
+            <section className="mt-6 space-y-2.5">
+              <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-ink">
+                <MapIcon size={15} className="text-forest" /> 판매 중인 지도 {maps.length}개
+              </h2>
+              {maps.map((m) => (
+                <Link key={m.id} href={`/collections/${m.id}`} className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 active:bg-stone-50">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest-soft text-forest">
+                    <MapIcon size={20} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold text-ink">{m.title}</div>
+                    <div className="text-[12px] text-ink-muted">맛집 {m._count.items}곳</div>
+                  </div>
+                  <span className="shrink-0 text-sm font-black text-forest">{(m.priceWon ?? 0).toLocaleString()}원</span>
+                </Link>
+              ))}
+            </section>
+          )}
+        </div>
       ) : gridPosts.length === 0 ? (
         <Empty text={tab === "verified" ? "아직 위치 인증한 맛집이 없어요." : "아직 등록한 맛집이 없어요."} />
       ) : (
