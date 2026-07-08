@@ -65,6 +65,20 @@ function foodCategory(cat) {
   return null;
 }
 
+// 대표메뉴·음식종류 → 어울리는 날씨 태그 (backfill-weather-tags.mjs와 동일 휴리스틱)
+const _HOT = ["냉면", "막국수", "빙수", "물회", "소바", "밀면"];
+const _SOUP = ["국밥", "곰탕", "순대", "칼국수", "국수", "우동", "짬뽕", "전골", "찌개", "탕", "해장", "수제비", "라멘", "샤브"];
+function weatherTags(menu, foodCat) {
+  const m = menu || "";
+  const s = new Set();
+  const has = (arr) => arr.some((k) => m.includes(k));
+  if (has(_HOT) || foodCat === "회/해산물") s.add("더운 날");
+  if (has(_SOUP) || foodCat === "국밥/탕") { s.add("비 오는 날"); s.add("추운 날"); s.add("겨울 국물"); }
+  if (foodCat === "카페" || foodCat === "디저트" || foodCat === "베이커리") { s.add("날씨 좋은 날"); s.add("더운 날"); }
+  if (foodCat === "바/와인" || m.includes("술") || m.includes("포차") || m.includes("전")) s.add("비 오는 날");
+  return [...s];
+}
+
 async function fetchDiningcode(area) {
   const body = new URLSearchParams({ query: `${area} 맛집`, order: "r_score", page: "1", size: String(PER_AREA) });
   const res = await fetch("https://im.diningcode.com/API/isearch/", {
@@ -107,6 +121,8 @@ async function main() {
   if (!operator) { console.log("❌ 운영자(admin) 계정 없음"); return; }
   const regions = await prisma.region.findMany({ select: { id: true, name: true } });
   const regionByName = new Map(regions.map((r) => [r.name, r.id]));
+  const seasonCats = await prisma.category.findMany({ where: { type: "season" }, select: { id: true, name: true } });
+  const seasonIdByName = new Map(seasonCats.map((c) => [c.name, c.id]));
 
   let matched = 0, created = 0, updated = 0, skipped = 0;
   const seen = new Set();
@@ -165,6 +181,14 @@ async function main() {
         if (foodCat) {
           const cat = await prisma.category.findUnique({ where: { name: foodCat }, select: { id: true } });
           if (cat) await prisma.restaurantPostCategory.create({ data: { postId: np.id, categoryId: cat.id } }).catch(() => {});
+        }
+        // 어울리는 날씨 태그 자동 부여 (날씨 추천용)
+        const wtags = weatherTags(sig, foodCat).map((n) => seasonIdByName.get(n)).filter(Boolean);
+        if (wtags.length) {
+          await prisma.restaurantPostCategory.createMany({
+            data: wtags.map((categoryId) => ({ postId: np.id, categoryId })),
+            skipDuplicates: true,
+          });
         }
       }
     }

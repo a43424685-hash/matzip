@@ -196,10 +196,11 @@ export default function RegisterForm({
   // 단계별 등록(create 모드만). 0:가게 1:카테고리 2:사진·한줄평 3:공개여부
   const TOTAL_STEPS = 4;
   const [step, setStep] = useState(0);
-  // 음식/어떤가게/인증 그룹 분리 (날씨·계절·가격 태그는 등록에서 제외)
+  // 음식/어떤가게/인증/날씨 그룹 분리 (가격 태그만 등록에서 제외)
   const foodGroup = categoryGroups.find((g) => g.type === "food")?.items ?? [];
   const situationGroup = categoryGroups.find((g) => g.type === "situation")?.items ?? [];
   const credentialGroup = categoryGroups.find((g) => g.type === "credential")?.items ?? [];
+  const seasonGroup = categoryGroups.find((g) => g.type === "season")?.items ?? [];
   const stepShown = (n: number) => (isEdit ? "" : step === n ? "" : "hidden");
   // 장소 검색 / 좌표
   const [name, setName] = useState(initial?.name ?? "");
@@ -564,6 +565,18 @@ export default function RegisterForm({
             ))}
           </div>
         </div>
+        {seasonGroup.length > 0 && (
+          <div>
+            <label className="label">
+              어울리는 날씨 <span className="font-normal text-stone-400">비 오는 날·더운 날 등 (중복 가능) — 날씨 추천에 쓰여요</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {seasonGroup.map((c) => (
+                <Chip key={c.id} id={c.id} name={c.name} />
+              ))}
+            </div>
+          </div>
+        )}
         {credentialGroup.length > 0 && (
           <div>
             <label className="label">

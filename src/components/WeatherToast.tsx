@@ -11,6 +11,7 @@ type Weather = { condition: string; tempC: number | null; humidity: number | nul
 
 const SNOOZE_KEY = "mgp:weather-snooze";
 const ONBOARD_KEY = "mgp:onboarded:v1";
+const CACHE_KEY = "mgp:weather-cache"; // 세션 캐시 — 재방문 시 즉시 표시
 function today() {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -38,22 +39,46 @@ export default function WeatherToast() {
     } catch {
       return;
     }
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
 
     let cancelled = false;
-    const fetchAndShow = () => {
+    let shown = false;
+
+    // 1) 세션 캐시가 있으면 즉시 표시 (대기 0) — 재방문 빠르게
+    try {
+      const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+      if (c && Date.now() - c.ts < 1_800_000 && c.weather && c.items?.length) {
+        setWeather(c.weather);
+        setItems(c.items);
+        setOpen(true);
+        requestAnimationFrame(() => setEntered(true));
+        shown = true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    // 2) 항상 최신 날씨를 백그라운드로 받아 갱신 (온도·날씨 바뀌면 조용히 교체)
+    const refresh = () => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try {
-            const res = await fetch(
-              `/api/weather-picks?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`
-            );
+            const res = await fetch(`/api/weather-picks?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
             const d = (await res.json()) as { ok?: boolean; weather?: Weather; items?: Item[] };
-            if (!cancelled && d.ok && d.weather && (d.items?.length ?? 0) > 0) {
-              setWeather(d.weather);
-              setItems((d.items ?? []).slice(0, 3));
+            if (cancelled || !d.ok || !d.weather || (d.items?.length ?? 0) === 0) return;
+            const items3 = (d.items ?? []).slice(0, 3);
+            setWeather(d.weather); // 캐시로 떠 있어도 최신 값으로 교체
+            setItems(items3);
+            if (!shown) {
               setOpen(true);
               requestAnimationFrame(() => setEntered(true));
+              shown = true;
+            }
+            try {
+              sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), weather: d.weather, items: items3 }));
+            } catch {
+              /* ignore */
             }
           } catch {
             /* 조용히 숨김 */
@@ -64,20 +89,20 @@ export default function WeatherToast() {
       );
     };
 
-    // 첫 방문(온보딩 전)이면 안내 모달이 닫힌 뒤에 뜬다
+    // 캐시로 이미 떴거나 온보딩 완료면 바로 갱신, 첫 방문이면 안내 모달 닫힌 뒤
     let onboarded: string | null = "1";
     try {
       onboarded = localStorage.getItem(ONBOARD_KEY);
     } catch {
       /* ignore */
     }
-    if (onboarded) {
-      fetchAndShow();
+    if (shown || onboarded) {
+      refresh();
       return () => {
         cancelled = true;
       };
     }
-    const handler = () => fetchAndShow();
+    const handler = () => refresh();
     window.addEventListener("mgp:welcome-done", handler, { once: true });
     return () => {
       cancelled = true;

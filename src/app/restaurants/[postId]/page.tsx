@@ -272,15 +272,23 @@ export default async function PostDetailPage({
           </div>
         )}
 
-        {/* "내 맛집으로 등록" — 남의 글이거나 운영자 PICK이면 노출(PICK은 운영자가 작성자라 !isAuthor로는 안 뜸) */}
-        {user && (post.isOperatorPick || !isAuthor) && (
+        {/* 운영자가 자기 PICK을 보면 → "사진·내용 등록(편집)"으로 콘텐츠를 채운다.
+            그 외(남의 글·일반 유저가 보는 PICK)는 "내 맛집으로 등록". */}
+        {user?.isAdmin && isAuthor && post.isOperatorPick ? (
+          <Link
+            href={`/restaurants/${post.id}/edit`}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-forest text-[15px] font-bold text-white active:scale-[0.99]"
+          >
+            <Camera size={18} strokeWidth={2.5} /> 운영자 · 사진·내용 등록
+          </Link>
+        ) : user && (post.isOperatorPick || !isAuthor) ? (
           <Link
             href={`/register?add=${post.restaurant.id}`}
             className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-forest text-[15px] font-bold text-white active:scale-[0.99]"
           >
             <Plus size={18} strokeWidth={2.5} /> 내 맛집으로 등록
           </Link>
-        )}
+        ) : null}
 
         {/* 작성자 본인 — 방문 인증 CTA */}
         {isAuthor && (
