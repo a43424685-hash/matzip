@@ -40,6 +40,9 @@ model User {
   suspendedAt     DateTime?
   suspendedReason String?
   lastLoginAt     DateTime? // 마지막 로그인 시각 (휴면·이상탐지 지표)
+  // 유료지도 구매 어뷰징 방어 — 누적 환불(스토어 환불 포함) 카운트, 도달 시 구매 차단
+  refundCount     Int      @default(0)
+  purchaseBlocked Boolean  @default(false) // 상습 환불 → 유료지도 구매 영구 제한
   totalXp      Int      @default(0)
   totalLevel   Int      @default(1)
   createdAt    DateTime @default(now())
@@ -62,6 +65,7 @@ model User {
   notifications Notification[]  @relation("NotifRecipient")
   notifActions  Notification[]  @relation("NotifActor")
   mapPurchases  MapPurchase[]   @relation("MapBuyer")
+  mapItemReveals MapItemReveal[] @relation("MapRevealUser")
   withdrawals   Withdrawal[]    @relation("SellerWithdrawals")
   xpEvents    XpEvent[]        @relation("XpRecipient")
   xpActions   XpEvent[]        @relation("XpActor")
@@ -746,13 +750,25 @@ model MapPurchase {
   id           String   @id @default(cuid())
   buyerId      String
   collectionId String
-  amountWon    Int // 결제 금액
-  feeWon       Int // 플랫폼 수수료(30%)
-  sellerNetWon Int // 판매자 정산액(70%)
-  // status: paid | refunded
+  amountWon    Int // 결제 금액(판매가)
+  feeWon       Int // 플랫폼 수수료(우리 몫, platformNetWon)
+  sellerNetWon Int // 판매자 정산액
+  storeFeeWon  Int      @default(0) // 애플·구글 몫(15%)
+  // status: paid | refunded | revoked
   status       String   @default("paid")
-  provider     String? // kakaopay | naverpay | card ...
-  paymentKey   String? // PG 결제 식별자
+  // ── IAP(RevenueCat) ──
+  platform      String? // ios | android
+  productId     String? // map_unlock_9900 ...
+  transactionId String?  @unique // 애플/구글 거래 ID (RevenueCat store_transaction_id) — 환불 매칭 키
+  purchaseToken String? // 구글 purchase token (검증·환불조회용)
+  // ── 환불·정산 방어 ──
+  revealCount     Int       @default(0) // 맛보기 외 열람 수 (환불자격 판정)
+  refundableUntil DateTime? // 단순변심 환불 가능 기한 (열람 임계치 넘으면 조기 소멸)
+  refundedAt      DateTime? // 환불 시각 → 자동 재잠금
+  settledAt       DateTime? // 정산홀드 해제(셀러 지급 가능) 시각
+  // ── 레거시(PortOne, 미사용) ──
+  provider     String?
+  paymentKey   String?
   orderId      String?  @unique
   paidAt       DateTime @default(now())
 
@@ -761,7 +777,26 @@ model MapPurchase {
 
   @@unique([buyerId, collectionId])
   @@index([collectionId])
+  @@index([status])
   @@map("map_purchases")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 유료 지도 구매 후 '열람' 기록 — 맛보기 외 가게를 몇 개 열었나(중복 카운트 방지).
+// REVEAL_REFUND_THRESHOLD 이상 열면 소비 완료로 간주 → 단순변심 환불 불가.
+// ─────────────────────────────────────────────────────────────
+model MapItemReveal {
+  id           String   @id @default(cuid())
+  userId       String
+  collectionId String
+  restaurantId String
+  revealedAt   DateTime @default(now())
+
+  user User @relation("MapRevealUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, collectionId, restaurantId])
+  @@index([userId, collectionId])
+  @@map("map_item_reveals")
 }
 
 // ─────────────────────────────────────────────────────────────

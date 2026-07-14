@@ -9,7 +9,7 @@ const MESSAGE: Record<string, string> = {
   EMPTY: "맛집이 1곳 이상 담긴 리스트만 판매할 수 있어요.",
   NEED_VERIFIED: "유료 지도엔 내가 위치 인증한 맛집만 담을 수 있어요. 미인증 맛집을 빼주세요.",
   NEED_PREVIEW: "맛보기(무료 공개) 가게를 5곳 이상 먼저 지정해주세요.",
-  BAD_PRICE: "가격은 990~9,900원 사이여야 해요.",
+  BAD_PRICE: "가격은 정해진 5개 티어(2,900·4,900·9,900·14,900·19,900원) 중에서만 선택할 수 있어요.",
 };
 
 export async function POST(req: Request) {

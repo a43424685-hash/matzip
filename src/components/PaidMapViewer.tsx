@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy, Quote, Pencil } from "lucide-react";
+import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy, Quote, Pencil, Lock, Eye } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { CollectionDetail } from "@/server/collection/CollectionService";
 import CardImage from "@/components/CardImage";
 import VerificationBadges from "@/components/VerificationBadges";
+import { REVEAL_REFUND_THRESHOLD } from "@/lib/iapTiers";
 
 type Item = CollectionDetail["items"][number];
 
@@ -19,6 +20,9 @@ export default function PaidMapViewer({
   initialSaved,
   canTrack,
   isOwner = false,
+  revealGating = false,
+  previewIds = [],
+  initialRevealed = [],
 }: {
   collectionId: string;
   items: Item[];
@@ -27,12 +31,39 @@ export default function PaidMapViewer({
   initialSaved: string[];
   canTrack: boolean;
   isOwner?: boolean;
+  // 구매자 블러 게이팅 — 맛보기 외 가게는 '열어보기'로 하나씩 공개(열람 임계치→환불창 소멸)
+  revealGating?: boolean;
+  previewIds?: string[];
+  initialRevealed?: string[];
 }) {
   // 지도 상품이므로 '지도'를 먼저, 목록은 둘째
   const [view, setView] = useState<"map" | "list">("map");
   const [region, setRegion] = useState<string>("전체");
   const [visited, setVisited] = useState<Set<string>>(new Set(initialVisited));
   const [saved, setSaved] = useState<Set<string>>(new Set(initialSaved));
+  // 맛보기 + 이미 열람한 가게는 공개 상태로 시작
+  const [revealed, setRevealed] = useState<Set<string>>(
+    () => new Set([...previewIds, ...initialRevealed]),
+  );
+  // 맛보기 제외 실제 열람 수 (환불창 판정용)
+  const revealCount = useMemo(
+    () => [...revealed].filter((id) => !previewIds.includes(id)).length,
+    [revealed, previewIds],
+  );
+
+  async function reveal(it: Item) {
+    if (revealed.has(it.restaurantId)) return;
+    setRevealed((s) => new Set(s).add(it.restaurantId));
+    try {
+      await fetch("/api/collections/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collectionId, restaurantId: it.restaurantId }),
+      });
+    } catch {
+      /* 낙관적 — 실패해도 화면은 유지 */
+    }
+  }
 
   const mapBoxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -248,12 +279,56 @@ export default function PaidMapViewer({
         )}
       </div>
 
+      {/* 구매자 열람/환불 안내 */}
+      {revealGating && (
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-800">
+          맛보기 외 가게는 <b>열어보기</b>로 하나씩 공개돼요.{" "}
+          {revealCount < REVEAL_REFUND_THRESHOLD ? (
+            <>
+              지금은 <b>환불 가능</b> (열람 {revealCount}/{REVEAL_REFUND_THRESHOLD}) — {REVEAL_REFUND_THRESHOLD}곳 열면 단순 변심 환불이 제한돼요.
+            </>
+          ) : (
+            <>
+              충분히 열람해 <b>단순 변심 환불이 제한</b>돼요. (콘텐츠 하자·결제 오류는 환불)
+            </>
+          )}
+        </div>
+      )}
+
       {/* 목록 (지도 밑에 늘 함께 — 핀 번호와 매칭) */}
       <div className="space-y-3">
         {filtered.map((it, i) => {
           const isVisited = visited.has(it.restaurantId);
           const isSaved = saved.has(it.restaurantId);
           const hasGeo = Number.isFinite(it.latitude) && Number.isFinite(it.longitude);
+          // 구매자 블러 게이팅 — 아직 안 연 가게는 흐릿하게 + '열어보기'
+          if (revealGating && !revealed.has(it.restaurantId)) {
+            return (
+              <button
+                key={it.restaurantId}
+                onClick={() => reveal(it)}
+                className="card relative flex w-full items-center gap-3 overflow-hidden p-3 text-left active:scale-[0.99]"
+              >
+                <span className="badge-rank bg-stone-100 text-stone-500">{i + 1}</span>
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-stone-200">
+                  {it.media && it.media.type === "image" ? (
+                    <CardImage src={it.media.thumbnailUrl ?? it.media.url} alt="" className="h-14 w-14 scale-110 object-cover blur-[6px]" />
+                  ) : (
+                    <div className="thumb-empty flex h-14 w-14 items-center justify-center text-forest/40">
+                      <Store size={20} strokeWidth={1.7} />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="h-3.5 w-2/3 rounded bg-stone-200" />
+                  <div className="mt-1.5 h-3 w-1/3 rounded bg-stone-100" />
+                </div>
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-forest px-3 py-1.5 text-[12px] font-bold text-white">
+                  <Eye size={13} /> 열어보기
+                </span>
+              </button>
+            );
+          }
           return (
             <div key={it.restaurantId} className={`card p-3 ${isVisited ? "border-forest/40 bg-forest-soft/15" : ""}`}>
               <div className="flex items-center gap-3">

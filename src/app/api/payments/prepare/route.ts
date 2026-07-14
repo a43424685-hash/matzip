@@ -7,6 +7,8 @@ const MESSAGE: Record<string, string> = {
   NOT_FOR_SALE: "판매 중인 지도가 아니에요.",
   OWNER: "내 지도는 구매할 수 없어요.",
   ALREADY: "이미 구매한 지도예요.",
+  BLOCKED: "반복 환불로 구매가 제한된 계정이에요.",
+  BAD_PRICE: "판매 가격 정보가 올바르지 않아요.",
 };
 
 export async function POST(req: Request) {
@@ -17,5 +19,6 @@ export async function POST(req: Request) {
   if (!r.ok) {
     return NextResponse.json({ ok: false, reason: r.reason, message: MESSAGE[r.reason ?? ""] }, { status: 400 });
   }
-  return NextResponse.json({ ok: true, paymentId: r.paymentId, orderName: r.orderName, amount: r.amount });
+  // 앱은 이 productId 로 RevenueCat 결제를 진행한다
+  return NextResponse.json({ ok: true, productId: r.productId, amount: r.amount, orderName: r.orderName });
 }

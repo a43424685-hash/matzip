@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/db";
 import { sendWebPush } from "@/server/push/PushService";
+import { isValidTierWon } from "@/lib/iapTiers";
 
 const DEMO_USER_ID_PREFIX = "demo-u";
 
@@ -508,10 +509,7 @@ export async function setPaidMap(
 
   // ── 비공개 초안 잠금 (자격 불필요) ──
   if (!forSale) {
-    const draftPrice =
-      priceWon != null && priceWon >= PAID_MAP_MIN_WON && priceWon <= PAID_MAP_MAX_WON
-        ? Math.round(priceWon)
-        : null;
+    const draftPrice = isValidTierWon(priceWon) ? Math.round(priceWon!) : null;
     await prisma.collection.update({
       where: { id: collectionId },
       data: { isPaid: true, isPublic: false, priceWon: draftPrice },
@@ -535,7 +533,7 @@ export async function setPaidMap(
   const previewCount = await prisma.collectionItem.count({ where: { collectionId, isPreview: true } });
   if (previewCount < PAID_MAP_PREVIEW_COUNT) return { ok: false, reason: "NEED_PREVIEW" };
   const price = Math.round(priceWon ?? 0);
-  if (price < PAID_MAP_MIN_WON || price > PAID_MAP_MAX_WON) return { ok: false, reason: "BAD_PRICE" };
+  if (!isValidTierWon(price)) return { ok: false, reason: "BAD_PRICE" };
 
   await prisma.collection.update({
     where: { id: collectionId },

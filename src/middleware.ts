@@ -17,7 +17,7 @@ const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 // 외부에서 직접 호출되는(브라우저 same-origin 아님) 엔드포인트 — 자체 서명/검증으로 보호됨
 const EXEMPT_PREFIXES = [
-  "/api/payments/webhook", // PortOne 웹훅(서명 검증)
+  "/api/payments/webhook", // RevenueCat 웹훅(Authorization 헤더 검증)
   "/api/auth/apple/callback", // Apple form_post 콜백
 ];
 

@@ -1,43 +1,47 @@
 import { NextResponse } from "next/server";
-import { confirmPurchase } from "@/server/payment/PaymentService";
-import { verifyPortOneWebhook } from "@/lib/portone";
+import { handleStoreRefund } from "@/server/payment/PaymentService";
+import { verifyWebhookAuth, REFUND_EVENT_TYPES } from "@/lib/revenuecat";
 
 /**
- * 포트원 웹훅 — 사용자가 결제 직후 브라우저를 닫아 confirm 호출이 누락돼도
- * 결제 완료를 받아 구매를 확정(멱등). 결제 진위는 PaymentService 가 PortOne API 로 재확인.
- * 먼저 서명을 검증(Standard Webhooks)하고, 통과한 요청만 처리한다.
+ * RevenueCat 웹훅 — 스토어(애플/구글) 환불·취소가 발생하면 알림이 온다.
+ * 환불 이벤트면 해당 구매를 회수(status=refunded → 자동 재잠금) + 상습 환불자 차단.
+ * 구매 확정은 앱이 /api/payments/confirm 으로 직접 하므로 여기선 환불만 처리.
+ * 인증: RevenueCat 대시보드에서 지정한 Authorization 헤더로 검증.
  */
 export async function POST(req: Request) {
-  // 서명 검증은 '원본 텍스트' 기준 — JSON 파싱 전에 raw body로 검증
-  const rawBody = await req.text();
-  const verified = verifyPortOneWebhook(rawBody, req.headers);
-  if (!verified.ok) {
-    console.error("[payments/webhook] 서명 검증 실패:", verified.reason);
-    return NextResponse.json({ ok: false, reason: verified.reason }, { status: 401 });
+  if (!verifyWebhookAuth(req.headers.get("authorization"))) {
+    return NextResponse.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  let body: { type?: string; data?: { paymentId?: string }; paymentId?: string } | null = null;
+  let body: {
+    event?: {
+      type?: string;
+      app_user_id?: string;
+      product_id?: string;
+      transaction_id?: string;
+      store_transaction_id?: string;
+      id?: string;
+    };
+  } | null = null;
   try {
-    body = JSON.parse(rawBody);
+    body = await req.json();
   } catch {
     return NextResponse.json({ ok: true });
   }
-  // V2 웹훅: { type, data: { paymentId, ... } }
-  const paymentId: string | undefined = body?.data?.paymentId ?? body?.paymentId;
-  const type: string | undefined = body?.type;
 
-  if (!paymentId) return NextResponse.json({ ok: true }); // 처리할 게 없음 — 200 으로 응답
-  // 결제 완료/거래 관련 이벤트만 처리
-  if (type && !/Paid|paid|Transaction\.Paid|PAID/.test(type)) {
-    return NextResponse.json({ ok: true });
-  }
+  const ev = body?.event;
+  if (!ev?.type) return NextResponse.json({ ok: true });
+  if (!REFUND_EVENT_TYPES.has(ev.type)) return NextResponse.json({ ok: true }); // 환불/취소만 처리
 
   try {
-    await confirmPurchase(paymentId);
+    await handleStoreRefund({
+      transactionId: ev.store_transaction_id ?? ev.transaction_id ?? ev.id,
+      appUserId: ev.app_user_id,
+      productId: ev.product_id,
+    });
   } catch (e) {
-    console.error("[payments/webhook]", e);
-    // 200 외 응답이면 포트원이 재시도하므로, 일시 오류는 500 으로 재시도 유도
-    return NextResponse.json({ ok: false }, { status: 500 });
+    console.error("[revenuecat/webhook]", e);
+    return NextResponse.json({ ok: false }, { status: 500 }); // 재시도 유도
   }
   return NextResponse.json({ ok: true });
 }

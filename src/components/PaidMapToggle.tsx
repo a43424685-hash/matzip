@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Coins, Lock } from "lucide-react";
+import { PRICE_TIERS, computeSettlement } from "@/lib/iapTiers";
 
 export default function PaidMapToggle({
   collectionId,
@@ -17,7 +18,16 @@ export default function PaidMapToggle({
 }) {
   const router = useRouter();
   const [isPaid, setIsPaid] = useState(initialIsPaid);
-  const [price, setPrice] = useState(initialPrice ?? 2900);
+  // 기존 자유가격(레거시)은 가장 가까운 티어로 스냅
+  const snapToTier = (won: number | null) => {
+    if (won == null) return 2900;
+    if (PRICE_TIERS.some((t) => t.won === won)) return won;
+    return PRICE_TIERS.reduce(
+      (best, t) => (Math.abs(t.won - won) < Math.abs(best - won) ? t.won : best),
+      PRICE_TIERS[0].won,
+    );
+  };
+  const [price, setPrice] = useState(snapToTier(initialPrice));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -92,25 +102,33 @@ export default function PaidMapToggle({
         <Coins size={16} className="text-forest" /> 유료 지도로 판매
       </h2>
       <p className="mt-1 text-[12px] text-ink-muted">
-        구매자는 가게 목록이 가려진 채 지역·개수만 보고, 구매하면 전체가 열려요. 수수료 30% 차감 후 정산돼요.
+        구매자는 가게 목록이 가려진 채 지역·개수만 보고, 구매하면 전체가 열려요. 애플·구글 수수료 15% 차감 후, 남은 금액의 80%가 정산돼요.
+      </p>
+
+      {/* 가격 티어 선택 (5개 고정) */}
+      <div className="mt-3 grid grid-cols-5 gap-1.5">
+        {PRICE_TIERS.map((t) => (
+          <button
+            key={t.won}
+            onClick={() => setPrice(t.won)}
+            className={`rounded-xl border py-2 text-center text-[13px] font-bold tabular-nums transition ${
+              price === t.won
+                ? "border-forest bg-forest text-white"
+                : "border-stone-200 bg-white text-ink active:bg-stone-50"
+            }`}
+          >
+            {(t.won / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}천
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[11px] text-stone-400">
+        {price.toLocaleString()}원 판매 시 → 내 정산 <b className="text-forest">{computeSettlement(price).sellerNetWon.toLocaleString()}원</b>
       </p>
 
       <div className="mt-3 flex items-center gap-2">
-        <div className="relative flex-1">
-          <input
-            type="number"
-            min={990}
-            max={9900}
-            step={100}
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
-            className="input h-11 !pr-8"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">원</span>
-        </div>
         {isPaid ? (
           <>
-            <button onClick={() => save(true, true)} disabled={busy} className="btn-outline h-11 px-3 !text-sm">
+            <button onClick={() => save(true, true)} disabled={busy} className="btn-outline h-11 flex-1 !text-sm">
               가격 변경
             </button>
             <button onClick={() => save(false, true)} disabled={busy} className="h-11 rounded-xl px-3 text-sm font-semibold text-coral-dark">
@@ -118,12 +136,11 @@ export default function PaidMapToggle({
             </button>
           </>
         ) : (
-          <button onClick={() => save(true, true)} disabled={busy} className="btn-primary h-11 px-4 !text-sm">
+          <button onClick={() => save(true, true)} disabled={busy} className="btn-primary h-11 w-full !text-sm">
             판매 시작
           </button>
         )}
       </div>
-      <p className="mt-1 text-[11px] text-stone-400">990~9,900원 사이로 정할 수 있어요.</p>
 
       {/* 비공개 초안 옵션 — 아직 팔지 않고 자산으로만 잠그고 싶을 때 */}
       {!isPaid && (

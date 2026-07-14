@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Coins, ChevronRight, Lock, ExternalLink } from "lucide-react";
+import { PRICE_TIERS, computeSettlement } from "@/lib/iapTiers";
 
 type Col = {
   id: string;
@@ -53,7 +54,15 @@ function Row({ col }: { col: Col }) {
   const router = useRouter();
   const selling = col.isPaid && col.isPublic;
   const draft = col.isPaid && !col.isPublic;
-  const [price, setPrice] = useState(col.priceWon ?? 2900);
+  const snapToTier = (won: number | null) => {
+    if (won == null) return 2900;
+    if (PRICE_TIERS.some((t) => t.won === won)) return won;
+    return PRICE_TIERS.reduce(
+      (best, t) => (Math.abs(t.won - won) < Math.abs(best - won) ? t.won : best),
+      PRICE_TIERS[0].won,
+    );
+  };
+  const [price, setPrice] = useState(snapToTier(col.priceWon));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [needDetail, setNeedDetail] = useState(false);
@@ -108,23 +117,31 @@ function Row({ col }: { col: Col }) {
         </Link>
       </div>
 
-      <div className="mt-2.5 flex items-center gap-2">
-        <div className="relative flex-1">
-          <input
-            type="number"
-            min={990}
-            max={9900}
-            step={100}
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
+      {/* 가격 티어 선택 (5개 고정) */}
+      <div className="mt-2.5 grid grid-cols-5 gap-1.5">
+        {PRICE_TIERS.map((t) => (
+          <button
+            key={t.won}
+            onClick={() => setPrice(t.won)}
             disabled={busy}
-            className="input h-10 !pr-8 !text-sm"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-stone-400">원</span>
-        </div>
+            className={`rounded-lg border py-1.5 text-center text-[12px] font-bold tabular-nums transition ${
+              price === t.won
+                ? "border-forest bg-forest text-white"
+                : "border-stone-200 bg-white text-ink active:bg-stone-50"
+            }`}
+          >
+            {(t.won / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}천
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-[11px] text-stone-400">
+        정산 <b className="text-forest">{computeSettlement(price).sellerNetWon.toLocaleString()}원</b> (수수료 차감 후)
+      </p>
+
+      <div className="mt-2 flex items-center gap-2">
         {selling ? (
           <>
-            <button onClick={() => save(true, true)} disabled={busy} className="btn-outline h-10 px-3 !text-[13px]">
+            <button onClick={() => save(true, true)} disabled={busy} className="btn-outline h-10 flex-1 !text-[13px]">
               가격변경
             </button>
             <button
@@ -136,7 +153,7 @@ function Row({ col }: { col: Col }) {
             </button>
           </>
         ) : (
-          <button onClick={() => save(true, true)} disabled={busy} className="btn-primary h-10 px-4 !text-[13px]">
+          <button onClick={() => save(true, true)} disabled={busy} className="btn-primary h-10 w-full !text-[13px]">
             판매 시작
           </button>
         )}

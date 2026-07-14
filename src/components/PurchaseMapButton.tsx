@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Loader2 } from "lucide-react";
-import * as PortOne from "@portone/browser-sdk/v2";
+import { Lock, Loader2, Smartphone } from "lucide-react";
 import { track } from "@/lib/analytics";
-
-const STORE_ID = process.env.NEXT_PUBLIC_PORTONE_STORE_ID ?? "";
-const CHANNEL_KEY = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAO ?? "";
+import { isNativeApp, purchaseMapProduct } from "@/lib/iapClient";
+import { REVEAL_REFUND_THRESHOLD } from "@/lib/iapTiers";
 
 export default function PurchaseMapButton({
   collectionId,
@@ -22,6 +20,11 @@ export default function PurchaseMapButton({
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [native, setNative] = useState(true); // SSR엔 앱 가정 → 마운트 후 실제 판정
+
+  useEffect(() => {
+    setNative(isNativeApp());
+  }, []);
 
   async function buy() {
     if (!buyerId) {
@@ -32,74 +35,67 @@ export default function PurchaseMapButton({
     setBusy(true);
     setErr("");
     try {
-      // 1) 서버에서 주문번호·금액 발급 (금액은 서버 DB 기준)
+      // 1) 서버에서 결제할 상품ID 발급 (금액·상품은 서버 DB 기준, 구매차단 확인)
       const prep = await fetch("/api/payments/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ collectionId }),
       });
       const pd = await prep.json().catch(() => ({}));
-      if (!prep.ok || !pd.ok) {
+      if (!prep.ok || !pd.ok || !pd.productId) {
         setErr(pd.message || "결제를 시작할 수 없어요.");
         setBusy(false);
         return;
       }
 
-      // 2) 포트원 결제창(카카오페이) 호출
-      //   redirectUrl 지정 → 모바일은 전체화면 리다이렉트(작은 QR 모달 오버플로우 방지).
-      //   리다이렉트로 돌아오면 PaymentReturnHandler가 confirm 처리. PC는 iframe→아래 promise로 confirm.
-      const res = await PortOne.requestPayment({
-        storeId: STORE_ID,
-        channelKey: CHANNEL_KEY,
-        paymentId: pd.paymentId,
-        orderName: pd.orderName,
-        totalAmount: pd.amount,
-        currency: "CURRENCY_KRW",
-        payMethod: "EASY_PAY",
-        customData: { collectionId, buyerId },
-        redirectUrl: `${window.location.origin}/collections/${collectionId}`,
-      });
-      // 모바일 리다이렉트 흐름이면 여기 도달 전에 페이지가 떠남 → 이후는 PC(iframe) 케이스
+      // 2) 네이티브 인앱결제(RevenueCat) — 애플/구글 결제창
+      const { transactionId, platform } = await purchaseMapProduct(buyerId, pd.productId);
 
-      if (!res || res.code != null) {
-        // 사용자가 취소했거나 결제 실패
-        setErr(res?.message || "결제가 취소됐어요.");
-        setBusy(false);
-        return;
-      }
-
-      // 3) 서버 검증 + 구매 확정
+      // 3) 서버 검증 + 구매 확정(잠금 해제)
       const conf = await fetch("/api/payments/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId: res.paymentId }),
+        body: JSON.stringify({ collectionId, transactionId, platform }),
       });
       const cd = await conf.json().catch(() => ({}));
       if (!conf.ok || !cd.ok) {
-        setErr(cd.message || "결제 확인에 실패했어요. 결제됐다면 잠시 후 새로고침해 주세요.");
+        setErr(cd.message || "결제 확인에 실패했어요. 결제됐다면 잠시 후 다시 시도해 주세요.");
         setBusy(false);
         return;
       }
 
-      // 성공 — 잠금 해제된 화면으로 갱신
       track("purchase", { collection_id: collectionId, value: priceWon ?? undefined });
       router.refresh();
     } catch (e) {
-      console.error(e);
-      setErr("결제 중 오류가 났어요. 다시 시도해 주세요.");
+      const m = e instanceof Error ? e.message : "";
+      // 사용자가 결제창을 닫은 경우 등
+      setErr(m && !/cancel/i.test(m) ? m : "결제가 취소됐어요.");
       setBusy(false);
     }
   }
 
+  // 웹 브라우저 — 인앱결제 불가 → 앱으로 안내
+  if (!native) {
+    return (
+      <div className="rounded-xl border border-forest/25 bg-forest-soft/30 p-4 text-center">
+        <Smartphone size={22} className="mx-auto text-forest" />
+        <p className="mt-1.5 text-sm font-bold text-ink">앱에서 구매할 수 있어요</p>
+        <p className="mt-0.5 text-[13px] text-ink-muted">
+          유료 지도 구매는 먹고핀 <b>앱(iOS·안드로이드)</b>에서 진행돼요.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* 서비스 제공 기간·환불 규정 안내 (전자상거래법 + PG 심사 필수 표시) */}
+      {/* 서비스 제공 기간·환불 규정 안내 (전자상거래법 필수 표시) */}
       <div className="mb-3 rounded-xl bg-stone-50 p-3 text-[12px] leading-relaxed text-stone-500">
         <p>
-          <b className="text-ink">서비스 제공</b> · 온라인 디지털 상품으로, 결제 완료 <b className="text-ink">즉시</b> 맛집 지도 전체가 열려 바로 이용할 수 있어요.
+          <b className="text-ink">서비스 제공</b> · 온라인 디지털 상품으로, 결제 즉시 맛집 지도를 이용할 수 있어요.
         </p>
         <p className="mt-1">
-          <b className="text-ink">환불</b> · 콘텐츠 하자·결제 오류는 환불되며, 목록 전체 공개 후에는 환불이 제한됩니다. 자세한 내용은 환불·취소정책을 참고하세요.
+          <b className="text-ink">환불</b> · 콘텐츠 하자·결제 오류는 환불되며, 맛보기 외 <b className="text-ink">{REVEAL_REFUND_THRESHOLD}곳 이상 열람</b> 후에는 단순 변심 환불이 제한됩니다. 반복 환불 시 구매가 제한될 수 있어요.
         </p>
       </div>
       <label className="mb-2 flex items-start gap-2 text-[12px] leading-relaxed text-ink-muted">
@@ -110,7 +106,7 @@ export default function PurchaseMapButton({
           className="mt-0.5 h-4 w-4 shrink-0 accent-forest"
         />
         <span>
-          구매 즉시 맛집 목록 전체가 공개되며, 공개 후에는 환불이 제한됨에 동의합니다. (콘텐츠 하자·결제 오류는 환불)
+          맛보기 외 {REVEAL_REFUND_THRESHOLD}곳 이상 열람 시 단순 변심 환불이 제한되고, 반복 환불 시 구매가 제한됨에 동의합니다. (콘텐츠 하자·결제 오류는 환불)
         </span>
       </label>
       <button

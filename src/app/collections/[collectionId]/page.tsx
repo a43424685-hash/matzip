@@ -1,11 +1,9 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Share2, MapPin, Lock, Coins, Eye, ShieldCheck, Trophy } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyOverallRank } from "@/server/ranking/RankingService";
 import MapTeaser from "@/components/MapTeaser";
-import PaymentReturnHandler from "@/components/PaymentReturnHandler";
 import UnlockCelebration from "@/components/UnlockCelebration";
 import {
   getCollectionDetail,
@@ -19,6 +17,7 @@ import PreviewPicker from "@/components/PreviewPicker";
 import CollectionAddPicker from "@/components/CollectionAddPicker";
 import PurchaseMapButton from "@/components/PurchaseMapButton";
 import PaidMapViewer from "@/components/PaidMapViewer";
+import { getRevealedIds } from "@/server/payment/PaymentService";
 import BackButton from "@/components/BackButton";
 import OfficialBadge from "@/components/OfficialBadge";
 
@@ -47,6 +46,11 @@ export default async function CollectionDetailPage({
   const addableRestaurants = isOwner ? await getMyRestaurantsForPicker(col.ownerId, col.id) : [];
   const ownerRank = await getMyOverallRank(col.ownerId);
   const ownerIsRanker = ownerRank > 0 && ownerRank <= 30;
+
+  // 구매자 블러 게이팅 — 유료 지도를 산 사람(소유자 제외)은 맛보기 외 가게를 '열어보기'로 하나씩 공개
+  const revealGating = !!(col.isPaid && col.purchased && !isOwner);
+  const previewIds = revealGating ? col.items.filter((i) => i.isPreview).map((i) => i.restaurantId) : [];
+  const initialRevealed = revealGating && user ? await getRevealedIds(user.id, col.id) : [];
 
   return (
     <main className="pb-10">
@@ -78,9 +82,6 @@ export default async function CollectionDetailPage({
         <h1 className="mt-1.5 text-xl font-black tracking-tight text-ink">{col.title}</h1>
       </header>
 
-      <Suspense fallback={null}>
-        <PaymentReturnHandler collectionId={col.id} />
-      </Suspense>
       {col.purchased && <UnlockCelebration collectionId={col.id} title={col.title} count={col.itemCount} />}
 
       <div className="px-5 pt-4">
@@ -215,6 +216,9 @@ export default async function CollectionDetailPage({
             initialSaved={col.savedIds}
             canTrack={!!user}
             isOwner={isOwner}
+            revealGating={revealGating}
+            previewIds={previewIds}
+            initialRevealed={initialRevealed}
           />
         )}
 
