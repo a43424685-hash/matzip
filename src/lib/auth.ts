@@ -137,8 +137,10 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (user && user.suspendedAt) {
     redirect("/suspended");
   }
-  // 가입 온보딩 — 닉네임/실명 미완이면 한 화면(/onboarding)에서 한 번에 (기존 가입자 포함)
-  if (user && (!user.nicknameConfirmedAt || !user.legalName)) {
+  // 가입 온보딩 — 닉네임 미확정이면 /onboarding 으로.
+  // 실명은 여기서 받지 않는다(Apple 가이드라인 4: 소셜 로그인 후 이름·이메일 재요구 금지).
+  // 실명이 실제로 필요한 순간(정산 계좌 등록)에만 받는다 → /me/account
+  if (user && !user.nicknameConfirmedAt) {
     redirect("/onboarding");
   }
   return user;

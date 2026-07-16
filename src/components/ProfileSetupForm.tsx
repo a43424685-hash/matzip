@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { confirmProfileAction, type ProfileSetupState } from "@/app/actions/onboarding";
+import { confirmNicknameAction, type NicknameState } from "@/app/actions/onboarding";
 
+// 가입 온보딩 — 닉네임만 확정. 실명은 정산 계좌 등록(/me/account) 때 받는다.
 export default function ProfileSetupForm({ nickname }: { nickname: string }) {
-  const [state, action, pending] = useActionState<ProfileSetupState, FormData>(
-    confirmProfileAction,
+  const [state, action, pending] = useActionState<NicknameState, FormData>(
+    confirmNicknameAction,
     undefined
   );
 
@@ -24,25 +25,7 @@ export default function ProfileSetupForm({ nickname }: { nickname: string }) {
           placeholder="예: 성수맛잘알"
         />
         <p className="mt-1.5 text-xs text-stone-500">
-          랭킹·맛집 카드에 보일 이름. 2~12자, 한글·영문·숫자만.
-        </p>
-      </div>
-
-      <div>
-        <label className="label">실명</label>
-        <input
-          name="legalName"
-          required
-          minLength={2}
-          maxLength={20}
-          autoComplete="name"
-          className="input"
-          placeholder="예: 홍길동"
-        />
-        <p className="mt-1.5 text-xs leading-relaxed text-stone-500">
-          본인 확인용. <b className="text-ink">비공개</b>로 안전하게 보관되고 화면엔 닉네임만 보여요.
-          <br />
-          <span className="font-semibold text-coral-dark">한 번 입력하면 수정할 수 없어요.</span>
+          랭킹·맛집 카드에 보일 이름. 2~12자, 한글·영문·숫자만. 나중에 프로필에서 바꿀 수 있어요.
         </p>
       </div>
 

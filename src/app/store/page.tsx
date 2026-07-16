@@ -206,8 +206,8 @@ function StoreInfo() {
           <ShieldCheck size={14} className="mt-0.5 shrink-0 text-forest" /> 위치·메뉴 인증을 거친 맛집 위주로 구성됩니다.
         </p>
         <p className="flex items-start gap-1.5">
-          <Coins size={14} className="mt-0.5 shrink-0 text-forest" /> 가격 990원 ~ 9,900원(부가세 포함). 결제는
-          카카오페이·네이버페이 등 간편결제(PG)로 처리됩니다.
+          <Coins size={14} className="mt-0.5 shrink-0 text-forest" /> 가격 2,900원 ~ 19,900원(부가세 포함). 결제는 App
+          Store·Google Play 인앱결제로 처리됩니다.
         </p>
         <p className="text-stone-400">
           본 상품은 디지털 콘텐츠로, 구매 즉시 콘텐츠 전체가 공개되며 공개 후에는 청약철회가 제한될 수 있습니다. 자세한 내용은{" "}

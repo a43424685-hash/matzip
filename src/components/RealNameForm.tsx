@@ -25,7 +25,7 @@ export default function RealNameForm() {
       </p>
       {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
       <button type="submit" disabled={pending} className="btn-primary w-full">
-        {pending ? "저장 중..." : "확인하고 시작하기"}
+        {pending ? "저장 중..." : "실명 등록하기"}
       </button>
     </form>
   );
