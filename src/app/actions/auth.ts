@@ -116,6 +116,9 @@ export async function loginAction(
     }
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
+  if (user.suspendedAt) {
+    return { error: "운영정책 위반으로 정지된 계정이에요. 문의: chun8588@naver.com" };
+  }
   await prisma.user.update({
     where: { id: user.id },
     data: { loginFailCount: 0, loginLockedUntil: null, lastLoginAt: new Date(), deactivatedAt: null },

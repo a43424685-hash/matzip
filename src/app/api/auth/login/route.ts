@@ -70,6 +70,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (user.suspendedAt) {
+    return NextResponse.json(
+      { ok: false, error: "운영정책 위반으로 정지된 계정이에요. 문의: chun8588@naver.com" },
+      { status: 403 }
+    );
+  }
+
   // 성공 — 실패 카운트 리셋 + 비활성화 계정은 자동 복구 (쉬어가기 → 다시 활성)
   await prisma.user.update({
     where: { id: user.id },
