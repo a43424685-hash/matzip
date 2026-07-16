@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { toggleItem } from "@/server/collection/CollectionService";
 
 // 컬렉션에 음식점 담기/빼기 토글
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const { collectionId, restaurantId } = await req.json();

@@ -3,8 +3,6 @@ import Link from "next/link";
 import {
   ChevronRight,
   Pencil,
-  Gift,
-  Megaphone,
   Settings,
   BellRing,
   ShieldAlert,
@@ -31,8 +29,10 @@ export default async function MeMenuPage() {
 
       <Group title="내 활동">
         <Row href="/me/profile" icon={<Pencil size={18} />} label="프로필 편집" />
+        {/* 혜택 모음·정직 리뷰 캠페인은 사장님 기능 오픈 전까지 숨김 (앱 심사 4.2: 준비중 화면 노출 방지)
+            복원: 아래 두 줄 주석 해제
         <Row href="/me/benefits" icon={<Gift size={18} />} label="혜택 모음" />
-        <Row href="/me/review-campaigns" icon={<Megaphone size={18} />} label="정직 리뷰 캠페인" />
+        <Row href="/me/review-campaigns" icon={<Megaphone size={18} />} label="정직 리뷰 캠페인" /> */}
       </Group>
 
       <Group title="계정 · 개인정보">

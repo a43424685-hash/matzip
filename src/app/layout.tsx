@@ -7,6 +7,7 @@ import NativeAuthBridge from "@/components/NativeAuthBridge";
 import ScrollReset from "@/components/ScrollReset";
 import SwipeNav from "@/components/SwipeNav";
 import XpToastWatcher from "@/components/XpToastWatcher";
+import AppDialogs from "@/components/AppDialogs";
 import Analytics from "@/components/Analytics";
 
 // 카톡/SNS 공유 미리보기(og:image)가 절대 URL로 잡히도록 사이트 주소 지정
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Analytics />
         </Suspense>
         <XpToastWatcher />
+        <AppDialogs />
         <div className="app-shell">{children}</div>
         <BottomNav />
         <AppSplash />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appConfirm, toast } from "@/components/AppDialogs";
 import { MessageCircle, Heart, Pin, Trash2 } from "lucide-react";
 import ReportButton from "./ReportButton";
 import BlockButton from "./BlockButton";
@@ -182,21 +183,26 @@ export default function Comments({
     if (!content.trim() || busy) return;
     setBusy(true);
     setErr("");
-    const r = await fetch(`/api/posts/${postId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: content.trim(), parentId }),
-    });
-    setBusy(false);
-    const d = await r.json().catch(() => ({}));
-    if (r.ok && d.ok) {
-      setText("");
-      setReplyText("");
-      setReplyTo(null);
-      setCount((c) => c + 1);
-      await reload();
-    } else {
-      setErr(d.reason || "댓글 작성에 실패했어요.");
+    try {
+      const r = await fetch(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: content.trim(), parentId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) {
+        setText("");
+        setReplyText("");
+        setReplyTo(null);
+        setCount((c) => c + 1);
+        await reload();
+      } else {
+        setErr(d.reason || "댓글 작성에 실패했어요.");
+      }
+    } catch {
+      setErr("네트워크 오류로 등록하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -205,16 +211,28 @@ export default function Comments({
     await fetch(`/api/comments/${id}/like`, { method: "POST" }).catch(() => {});
   }
   async function pin(id: string) {
-    await fetch(`/api/comments/${id}/pin`, { method: "POST" });
-    await reload();
+    try {
+      const r = await fetch(`/api/comments/${id}/pin`, { method: "POST" });
+      if (!r.ok) toast("고정 처리에 실패했어요.", "error");
+      await reload();
+    } catch {
+      toast("네트워크 오류로 처리하지 못했어요.", "error");
+    }
   }
   async function del(id: string) {
-    if (!confirm("이 댓글을 삭제할까요?")) return;
-    const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    const d = await r.json().catch(() => ({}));
-    if (r.ok && d.ok) {
-      setCount((c) => Math.max(0, c - (d.deleted || 1)));
-      await reload();
+    const ok = await appConfirm({ title: "이 댓글을 삭제할까요?", confirmLabel: "삭제", danger: true });
+    if (!ok) return;
+    try {
+      const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) {
+        setCount((c) => Math.max(0, c - (d.deleted || 1)));
+        await reload();
+      } else {
+        toast("삭제에 실패했어요.", "error");
+      }
+    } catch {
+      toast("네트워크 오류로 삭제하지 못했어요.", "error");
     }
   }
 

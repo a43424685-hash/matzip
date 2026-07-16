@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "@/components/AppDialogs";
 import { useRouter, usePathname } from "next/navigation";
 import { ListPlus, Check, Plus, X, Lock } from "lucide-react";
 import { markScrollReset } from "@/lib/scrollReset";
@@ -30,14 +31,20 @@ export default function CollectionPicker({
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const res = await fetch(`/api/collections?restaurantId=${restaurantId}`);
-    if (res.status === 401) {
-      markScrollReset();
-      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
-      return;
+    try {
+      const res = await fetch(`/api/collections?restaurantId=${restaurantId}`);
+      if (res.status === 401) {
+        markScrollReset();
+        router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
+        return;
+      }
+      if (!res.ok) throw new Error("load");
+      const d = await res.json();
+      setCols(Array.isArray(d.collections) ? d.collections : []);
+    } catch {
+      setCols([]);
+      toast("리스트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "error");
     }
-    const d = await res.json();
-    setCols(d.collections);
   }
 
   function onOpen() {

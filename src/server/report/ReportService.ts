@@ -108,9 +108,11 @@ export interface AdminReportRow {
   reporterNickname: string;
   postId: string | null; // 이동용 (글이면 자기 id, 댓글이면 소속 글 id)
   targetExists: boolean;
-  targetLabel: string; // 가게명 또는 "댓글"
+  targetLabel: string; // 가게명 · "댓글" · "커뮤니티 글" 등
   targetSnippet: string | null;
   targetAuthor: string | null;
+  href: string | null; // 운영자 '보기' 링크
+  deleteEndpoint: string | null; // 콘텐츠 삭제 API (타입별)
 }
 
 /** 운영자용 신고 목록 (대상 콘텐츠 미리보기 포함) */
@@ -124,42 +126,32 @@ export async function listReports(
     include: { reporter: { select: { nickname: true } } },
   });
 
-  const postIds = reports.filter((r) => r.targetType === "post").map((r) => r.targetId);
-  const commentIds = reports.filter((r) => r.targetType === "comment").map((r) => r.targetId);
-  const [posts, comments] = await Promise.all([
+  const idsOf = (t: string) => reports.filter((r) => r.targetType === t).map((r) => r.targetId);
+  const [posts, comments, cPosts, cComments] = await Promise.all([
     prisma.restaurantPost.findMany({
-      where: { id: { in: postIds } },
+      where: { id: { in: idsOf("post") } },
       select: { id: true, shortReview: true, restaurant: { select: { name: true } }, user: { select: { nickname: true } } },
     }),
     prisma.comment.findMany({
-      where: { id: { in: commentIds } },
+      where: { id: { in: idsOf("comment") } },
       select: { id: true, content: true, postId: true, user: { select: { nickname: true } } },
+    }),
+    prisma.communityPost.findMany({
+      where: { id: { in: idsOf("community_post") } },
+      select: { id: true, title: true, content: true, user: { select: { nickname: true } } },
+    }),
+    prisma.communityComment.findMany({
+      where: { id: { in: idsOf("community_comment") } },
+      select: { id: true, content: true, communityPostId: true, user: { select: { nickname: true } } },
     }),
   ]);
   const postMap = new Map(posts.map((p) => [p.id, p]));
   const commentMap = new Map(comments.map((c) => [c.id, c]));
+  const cPostMap = new Map(cPosts.map((p) => [p.id, p]));
+  const cCommentMap = new Map(cComments.map((c) => [c.id, c]));
 
   return reports.map((r): AdminReportRow => {
-    if (r.targetType === "post") {
-      const p = postMap.get(r.targetId);
-      return {
-        id: r.id,
-        targetType: r.targetType,
-        targetId: r.targetId,
-        reason: r.reason,
-        detail: r.detail,
-        status: r.status,
-        createdAt: r.createdAt.toISOString(),
-        reporterNickname: r.reporter.nickname,
-        postId: p?.id ?? null,
-        targetExists: !!p,
-        targetLabel: p?.restaurant.name ?? "(삭제됨)",
-        targetSnippet: p?.shortReview ?? null,
-        targetAuthor: p?.user.nickname ?? null,
-      };
-    }
-    const c = commentMap.get(r.targetId);
-    return {
+    const base = {
       id: r.id,
       targetType: r.targetType,
       targetId: r.targetId,
@@ -168,11 +160,56 @@ export async function listReports(
       status: r.status,
       createdAt: r.createdAt.toISOString(),
       reporterNickname: r.reporter.nickname,
+    };
+    if (r.targetType === "post") {
+      const p = postMap.get(r.targetId);
+      return {
+        ...base,
+        postId: p?.id ?? null,
+        targetExists: !!p,
+        targetLabel: p?.restaurant.name ?? "(삭제됨)",
+        targetSnippet: p?.shortReview ?? null,
+        targetAuthor: p?.user.nickname ?? null,
+        href: p ? `/restaurants/${p.id}` : null,
+        deleteEndpoint: p ? `/api/posts/${p.id}` : null,
+      };
+    }
+    if (r.targetType === "community_post") {
+      const p = cPostMap.get(r.targetId);
+      return {
+        ...base,
+        postId: null,
+        targetExists: !!p,
+        targetLabel: p ? `커뮤니티 글 · ${p.title}` : "커뮤니티 글",
+        targetSnippet: p?.content?.slice(0, 200) ?? null,
+        targetAuthor: p?.user.nickname ?? null,
+        href: p ? `/community/${p.id}` : null,
+        deleteEndpoint: p ? `/api/community/${p.id}` : null,
+      };
+    }
+    if (r.targetType === "community_comment") {
+      const c = cCommentMap.get(r.targetId);
+      return {
+        ...base,
+        postId: null,
+        targetExists: !!c,
+        targetLabel: "커뮤니티 댓글",
+        targetSnippet: c?.content ?? null,
+        targetAuthor: c?.user.nickname ?? null,
+        href: c ? `/community/${c.communityPostId}` : null,
+        deleteEndpoint: c ? `/api/community/comments/${c.id}` : null,
+      };
+    }
+    const c = commentMap.get(r.targetId);
+    return {
+      ...base,
       postId: c?.postId ?? null,
       targetExists: !!c,
       targetLabel: "댓글",
       targetSnippet: c?.content ?? null,
       targetAuthor: c?.user.nickname ?? null,
+      href: c ? `/restaurants/${c.postId}` : null,
+      deleteEndpoint: c ? `/api/comments/${c.id}` : null,
     };
   });
 }

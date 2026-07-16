@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ChevronDown, Mail, MessageSquare } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { BUSINESS } from "@/lib/businessInfo";
 import MeSubPageHeader from "@/components/MeSubPageHeader";
 
 export const dynamic = "force-dynamic";
@@ -47,13 +48,16 @@ export default async function SupportPage() {
 
       <h2 className="mb-2 mt-7 text-sm font-bold text-stone-400">문의하기</h2>
       <div className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200/80">
-        <div className="flex items-center gap-3 bg-white px-4 py-3.5 text-sm text-ink">
-          <Mail size={18} className="text-stone-400" /> 이메일 문의
-          <span className="ml-auto text-[12px] text-stone-400">준비중</span>
-        </div>
-        <div className="flex items-center gap-3 bg-white px-4 py-3.5 text-sm text-ink">
-          <MessageSquare size={18} className="text-stone-400" /> 카카오 채널
-          <span className="ml-auto text-[12px] text-stone-400">준비중</span>
+        <a
+          href={`mailto:${BUSINESS.email}?subject=${encodeURIComponent("[먹고핀 문의] ")}`}
+          className="flex items-center gap-3 bg-white px-4 py-3.5 text-sm font-semibold text-ink active:bg-stone-50"
+        >
+          <Mail size={18} className="text-forest" /> 이메일 문의
+          <span className="ml-auto text-[12px] text-stone-400">{BUSINESS.email}</span>
+        </a>
+        <div className="flex items-center gap-3 bg-white px-4 py-3.5 text-[13px] text-ink-muted">
+          <MessageSquare size={18} className="text-stone-300" /> 결제·환불 문의도 이메일로 보내주시면 영업일 기준 3일 이내에
+          답변드려요.
         </div>
       </div>
     </main>

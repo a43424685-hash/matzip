@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { openExternal } from "@/lib/nativeAuth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy, Quote, Pencil, Lock, Eye } from "lucide-react";
@@ -110,7 +111,7 @@ export default function PaidMapViewer({
       plotMarkers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geoItems, view, visited]);
+  }, [geoItems, view, visited, revealed]);
 
   function plotMarkers() {
     const kakao = window.kakao;
@@ -125,11 +126,24 @@ export default function PaidMapViewer({
       const pos = new kakao.maps.LatLng(it.latitude, it.longitude);
       bounds.extend(pos);
       const done = visited.has(it.restaurantId);
+      // 블러 게이팅 중 아직 안 연 가게: 핀에 이름·상세 링크를 넣지 않는다.
+      // (핀 title/링크로 열람 카운트 없이 전체를 소비 → 단순변심 환불하는 우회 차단)
+      const locked = revealGating && !revealed.has(it.restaurantId);
       // 라벨 겹침 방지 — 이름 없이 '번호 핀'만. (이름은 목록 탭에서)
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         yAnchor: 1,
-        content: `
+        content: locked
+          ? `
+          <div style="
+            display:flex;align-items:center;justify-content:center;
+            width:26px;height:26px;border-radius:999px;
+            background:#e7e5e4;color:#78716c;
+            border:2px dashed #a8a29e;font-size:12px;font-weight:900;
+            box-shadow:0 3px 8px rgba(0,0,0,.15);">
+            ?
+          </div>`
+          : `
           <a href="${it.postId ? `/restaurants/${it.postId}` : "#"}" title="${escapeHtml(it.restaurantName)}" style="
             display:flex;align-items:center;justify-content:center;
             width:26px;height:26px;border-radius:999px;
@@ -366,14 +380,17 @@ export default function PaidMapViewer({
               {/* 액션 바: 길찾기 / 저장 / 방문 */}
               <div className="mt-3 flex items-center gap-2">
                 {hasGeo && (
-                  <a
-                    href={`https://map.kakao.com/link/to/${encodeURIComponent(it.restaurantName)},${it.latitude},${it.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openExternal(
+                        `https://map.kakao.com/link/to/${encodeURIComponent(it.restaurantName)},${it.latitude},${it.longitude}`
+                      )
+                    }
                     className="flex h-9 flex-1 items-center justify-center gap-1 rounded-xl border border-stone-200 text-[13px] font-bold text-ink active:scale-[0.98]"
                   >
                     <Navigation size={14} className="text-forest" /> 길찾기
-                  </a>
+                  </button>
                 )}
                 {canTrack && (
                   <>

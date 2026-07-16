@@ -217,20 +217,22 @@ export async function updateRestaurantPost(
   if (post.userId !== userId) return { ok: false, reason: "FORBIDDEN" };
 
   await prisma.$transaction(async (tx) => {
+    // undefined = "폼에 없던 필드 → 건드리지 않음" (Prisma는 undefined 필드를 무시).
+    // 수정 폼에 없는 상세후기·맛/서비스 평가가 null/[]로 덮여 영구 삭제되던 버그 방지.
     await tx.restaurantPost.update({
       where: { id: postId },
       data: {
-        shortReview: input.shortReview?.trim() || null,
-        content: input.content?.trim() || null,
-        tasteRating: input.tasteRating ?? null,
-        tasteTags: input.tasteTags ?? [],
-        serviceRating: input.serviceRating ?? null,
-        serviceTags: input.serviceTags ?? [],
-        atmosphereTags: input.atmosphereTags ?? [],
-        revisitIntent: input.revisitIntent ?? null,
-        priceRange: input.priceRange ?? null,
-        priceMemo: input.priceMemo?.trim() || null,
-        waitingLevel: input.waitingLevel ?? null,
+        shortReview: input.shortReview === undefined ? undefined : input.shortReview?.trim() || null,
+        content: input.content === undefined ? undefined : input.content?.trim() || null,
+        tasteRating: input.tasteRating,
+        tasteTags: input.tasteTags,
+        serviceRating: input.serviceRating,
+        serviceTags: input.serviceTags,
+        atmosphereTags: input.atmosphereTags,
+        revisitIntent: input.revisitIntent,
+        priceRange: input.priceRange,
+        priceMemo: input.priceMemo === undefined ? undefined : input.priceMemo?.trim() || null,
+        waitingLevel: input.waitingLevel,
       },
     });
 
@@ -284,6 +286,8 @@ export async function deletePost(
     where: { targetType: "post", targetId: postId, status: "open" },
     data: { status: "resolved" },
   });
+  // 이 글을 가리키는 알림 삭제 — 남겨두면 탭했을 때 404로 떨어진다
+  await prisma.notification.deleteMany({ where: { postId } });
   return { ok: true };
 }
 

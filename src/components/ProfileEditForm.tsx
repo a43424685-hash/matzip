@@ -84,7 +84,7 @@ export default function ProfileEditForm({
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           className="input h-12"
-          maxLength={20}
+          maxLength={12}
         />
         <p className="mt-1 text-[12px] text-stone-400">닉네임은 30일에 한 번만 바꿀 수 있어요.</p>
       </div>

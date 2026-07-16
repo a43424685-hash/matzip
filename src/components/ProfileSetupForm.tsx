@@ -33,6 +33,12 @@ export default function ProfileSetupForm({ nickname }: { nickname: string }) {
       <button type="submit" disabled={pending} className="btn-primary w-full">
         {pending ? "저장 중..." : "확인하고 시작하기"}
       </button>
+      <p className="text-center text-[12px] leading-relaxed text-stone-400">
+        시작하면{" "}
+        <a href="/terms" className="underline">이용약관</a> 및{" "}
+        <a href="/privacy" className="underline">개인정보처리방침</a>, 불쾌·혐오 콘텐츠와 악성 사용자에 대한{" "}
+        <b className="font-semibold text-stone-500">무관용 정책</b>에 동의하는 것으로 간주돼요.
+      </p>
     </form>
   );
 }

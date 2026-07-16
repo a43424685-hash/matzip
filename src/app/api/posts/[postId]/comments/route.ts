@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { addComment, getComments } from "@/server/comment/CommentService";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ postId: string }> }
 ) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   const { postId } = await params;
   const comments = await getComments(postId, userId);
   return NextResponse.json({ comments });
@@ -26,7 +26,7 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ postId: string }> }
 ) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const { postId } = await params;
   const body = await req.json().catch(() => ({}));

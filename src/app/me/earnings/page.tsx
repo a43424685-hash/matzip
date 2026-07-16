@@ -54,9 +54,15 @@ export default async function EarningsPage() {
         <div className="mt-1 text-3xl font-black tabular-nums">{balance.availableWon.toLocaleString()}원</div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-white/80">
           <span>누적 정산액 {balance.totalNetWon.toLocaleString()}원</span>
+          {balance.holdWon > 0 && <span>정산 대기 {balance.holdWon.toLocaleString()}원</span>}
           <span>지급완료 {balance.withdrawnWon.toLocaleString()}원</span>
           {balance.pendingWon > 0 && <span>신청 중 {balance.pendingWon.toLocaleString()}원</span>}
         </div>
+        {balance.holdWon > 0 && (
+          <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+            판매 후 14일 동안은 스토어 환불 가능성 때문에 정산 대기 상태예요. 기간이 지나면 자동으로 출금 가능 잔액에 더해져요.
+          </p>
+        )}
       </div>
 
       {/* 유료지도 관리 — 판매 켜기/끄기·가격 (센터에서 바로 접근) */}
@@ -112,7 +118,7 @@ export default async function EarningsPage() {
         {[
           { label: "총 판매", v: `${e.salesCount}건` },
           { label: "총 판매액", v: `${e.totalGrossWon.toLocaleString()}원` },
-          { label: "수수료(30%)", v: `${e.totalFeeWon.toLocaleString()}원` },
+          { label: "수수료 합계", v: `${e.totalFeeWon.toLocaleString()}원` },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-stone-200 p-3">
             <div className="text-[15px] font-extrabold tabular-nums text-ink">{s.v}</div>
@@ -151,7 +157,7 @@ export default async function EarningsPage() {
       )}
 
       <p className="mt-4 px-1 text-[12px] leading-relaxed text-stone-400">
-        ※ 판매액에서 결제·운영 수수료 30%가 차감된 금액이 정산돼요. 출금을 신청하면 운영자가 확인 후 등록하신 계좌로 입금해드려요.
+        ※ 판매액에서 앱 마켓 수수료 15%를 뗀 뒤, 남은 금액의 80%가 정산돼요(판매가 기준 약 68%). 판매 후 14일 정산 대기가 지나면 출금할 수 있고, 출금 신청 시 운영자가 확인 후 등록하신 계좌로 입금해드려요.
       </p>
     </main>
   );

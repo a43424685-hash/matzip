@@ -15,16 +15,17 @@ export function computePayout(amountWon: number) {
 }
 
 export interface SellerBalance {
-  totalNetWon: number; // 누적 정산액(70%)
+  totalNetWon: number; // 누적 정산액
+  holdWon: number; // 정산 홀드(14일) 중 — 아직 출금 불가
   withdrawnWon: number; // 지급완료된 합계
   pendingWon: number; // 신청 중(미지급) 합계
-  availableWon: number; // 지금 출금 가능 잔액
+  availableWon: number; // 지금 출금 가능 잔액 (홀드 지난 정산액 기준)
   canWithdraw: boolean; // 최소금액 이상 + 진행 중 신청 없음
   hasPending: boolean;
 }
 
 export async function getSellerBalance(sellerId: string): Promise<SellerBalance> {
-  const [{ totalNetWon }, withdrawals] = await Promise.all([
+  const [earnings, withdrawals] = await Promise.all([
     getSellerEarnings(sellerId),
     prisma.withdrawal.findMany({
       where: { sellerId, status: { in: ["requested", "paid"] } },
@@ -37,10 +38,13 @@ export async function getSellerBalance(sellerId: string): Promise<SellerBalance>
     if (w.status === "paid") withdrawnWon += w.amountWon;
     else pendingWon += w.amountWon;
   }
-  const availableWon = totalNetWon - withdrawnWon - pendingWon;
+  // 출금 가능액은 '홀드가 지난 정산액'만 인정 — 판매 직후 출금해버리면
+  // 이후 스토어 환불 때 플랫폼이 현금 손해를 보는 걸 막는다.
+  const availableWon = Math.max(0, earnings.settledNetWon - withdrawnWon - pendingWon);
   const hasPending = pendingWon > 0;
   return {
-    totalNetWon,
+    totalNetWon: earnings.totalNetWon,
+    holdWon: earnings.holdWon,
     withdrawnWon,
     pendingWon,
     availableWon,
@@ -63,14 +67,18 @@ export async function requestWithdrawal(
   const accountHolder = user?.accountHolder?.trim();
   if (!bankName || !accountNumber || !accountHolder) return { ok: false, reason: "BANK_REQUIRED" };
 
-  const bal = await getSellerBalance(sellerId);
-  if (bal.hasPending) return { ok: false, reason: "PENDING_EXISTS" };
-  if (bal.availableWon < MIN_WITHDRAW_WON) return { ok: false, reason: "BELOW_MIN" };
+  // 셀러 단위 잠금으로 동시 신청 레이스(이중 신청→이중 지급) 차단
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sellerId}))`;
+    const bal = await getSellerBalance(sellerId);
+    if (bal.hasPending) return { ok: false, reason: "PENDING_EXISTS" };
+    if (bal.availableWon < MIN_WITHDRAW_WON) return { ok: false, reason: "BELOW_MIN" };
 
-  await prisma.withdrawal.create({
-    data: { sellerId, amountWon: bal.availableWon, bankName, accountNumber, accountHolder },
+    await tx.withdrawal.create({
+      data: { sellerId, amountWon: bal.availableWon, bankName, accountNumber, accountHolder },
+    });
+    return { ok: true };
   });
-  return { ok: true };
 }
 
 export async function listMyWithdrawals(sellerId: string) {
@@ -122,16 +130,18 @@ export async function processWithdrawal(
   action: "paid" | "reject",
   memo?: string
 ): Promise<{ ok: boolean; reason?: string }> {
-  const w = await prisma.withdrawal.findUnique({ where: { id }, select: { status: true } });
-  if (!w) return { ok: false, reason: "NOT_FOUND" };
-  if (w.status !== "requested") return { ok: false, reason: "ALREADY_PROCESSED" };
-  await prisma.withdrawal.update({
-    where: { id },
+  // 원자적 처리 — 운영자 2명이 동시에 눌러도 한 번만 처리된다
+  const updated = await prisma.withdrawal.updateMany({
+    where: { id, status: "requested" },
     data: {
       status: action === "paid" ? "paid" : "rejected",
       processedAt: new Date(),
       memo: memo?.trim() || null,
     },
   });
+  if (updated.count === 0) {
+    const exists = await prisma.withdrawal.findUnique({ where: { id }, select: { id: true } });
+    return { ok: false, reason: exists ? "ALREADY_PROCESSED" : "NOT_FOUND" };
+  }
   return { ok: true };
 }

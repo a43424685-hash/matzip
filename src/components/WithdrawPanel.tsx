@@ -2,6 +2,7 @@
 
 import { Moon, UserX } from "lucide-react";
 import { deactivateAction, deleteAccountAction } from "@/app/actions/account";
+import { appConfirm } from "@/components/AppDialogs";
 
 export default function WithdrawPanel() {
   return (
@@ -18,8 +19,15 @@ export default function WithdrawPanel() {
         <form action={deactivateAction}>
           <button
             type="submit"
-            onClick={(e) => {
-              if (!confirm("계정을 비활성화할까요? 다시 로그인하면 복구돼요.")) e.preventDefault();
+            onClick={async (e) => {
+              e.preventDefault();
+              const form = e.currentTarget.form;
+              const ok = await appConfirm({
+                title: "계정을 비활성화할까요?",
+                body: "다시 로그인하면 복구돼요.",
+                confirmLabel: "비활성화",
+              });
+              if (ok) form?.requestSubmit();
             }}
             className="btn-outline mt-3 h-11 w-full !text-sm"
           >
@@ -39,13 +47,23 @@ export default function WithdrawPanel() {
         <form action={deleteAccountAction}>
           <button
             type="submit"
-            onClick={(e) => {
-              if (
-                !confirm("정말 탈퇴할까요? 내 모든 기록이 영구 삭제되며 되돌릴 수 없어요.") ||
-                !confirm("마지막 확인이에요. 탈퇴를 진행할까요?")
-              ) {
-                e.preventDefault();
-              }
+            onClick={async (e) => {
+              e.preventDefault();
+              const form = e.currentTarget.form;
+              const first = await appConfirm({
+                title: "정말 탈퇴할까요?",
+                body: "내 모든 기록이 영구 삭제되며 되돌릴 수 없어요.",
+                confirmLabel: "계속",
+                danger: true,
+              });
+              if (!first) return;
+              const second = await appConfirm({
+                title: "마지막 확인이에요.",
+                body: "탈퇴를 진행할까요?",
+                confirmLabel: "탈퇴하기",
+                danger: true,
+              });
+              if (second) form?.requestSubmit();
             }}
             className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-coral text-sm font-bold text-white active:scale-[0.99]"
           >

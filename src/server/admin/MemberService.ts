@@ -83,6 +83,8 @@ export async function getMemberDetail(userId: string) {
       bankName: true,
       accountNumber: true,
       accountHolder: true,
+      refundCount: true,
+      purchaseBlocked: true,
       authAccounts: { select: { provider: true } }, // 가입 경로 (kakao/apple/email)
       _count: {
         select: {

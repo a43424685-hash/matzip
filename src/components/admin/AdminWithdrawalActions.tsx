@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appConfirm, toast } from "@/components/AppDialogs";
 import { useRouter } from "next/navigation";
 import { Check, X, Loader2 } from "lucide-react";
 
@@ -10,8 +11,12 @@ export default function AdminWithdrawalActions({ id }: { id: string }) {
 
   async function run(action: "paid" | "reject") {
     if (busy) return;
-    if (action === "reject" && !confirm("이 출금 신청을 반려할까요? (잔액으로 되돌아가요)")) return;
-    if (action === "paid" && !confirm("실제로 계좌이체를 완료하셨나요? '지급완료'로 처리하면 잔액에서 차감돼요.")) return;
+    const ok = await appConfirm(
+      action === "reject"
+        ? { title: "이 출금 신청을 반려할까요?", body: "금액은 판매자 잔액으로 되돌아가요.", confirmLabel: "반려", danger: true }
+        : { title: "실제로 계좌이체를 완료하셨나요?", body: "'지급완료'로 처리하면 잔액에서 차감돼요.", confirmLabel: "지급완료" }
+    );
+    if (!ok) return;
     setBusy(action);
     const r = await fetch("/api/admin/withdrawals", {
       method: "POST",
@@ -22,7 +27,7 @@ export default function AdminWithdrawalActions({ id }: { id: string }) {
       router.refresh();
     } else {
       setBusy(null);
-      alert("처리에 실패했어요.");
+      toast("처리에 실패했어요.", "error");
     }
   }
 

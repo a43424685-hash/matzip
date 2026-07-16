@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { requestWithdrawal } from "@/server/payment/WithdrawalService";
 
 const MESSAGE: Record<string, string> = {
@@ -9,7 +9,7 @@ const MESSAGE: Record<string, string> = {
 };
 
 export async function POST() {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   const r = await requestWithdrawal(userId);
   if (!r.ok) {

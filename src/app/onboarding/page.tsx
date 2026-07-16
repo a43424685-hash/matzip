@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
+import { logoutAction } from "@/app/actions/auth";
 import ProfileSetupForm from "@/components/ProfileSetupForm";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,12 @@ export default async function OnboardingPage() {
       <h1 className="text-2xl font-extrabold text-ink">시작하기 전에</h1>
       <p className="mt-2 text-sm text-ink-muted">앱에서 쓸 닉네임만 정하면 바로 시작해요.</p>
       <ProfileSetupForm nickname={nickDefault} />
+      {/* 막다른 길 방지 — 진행을 원치 않으면 나갈 수 있게 */}
+      <form action={logoutAction} className="mt-6 text-center">
+        <button type="submit" className="text-[13px] text-stone-400 underline">
+          나중에 할게요 (로그아웃)
+        </button>
+      </form>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { getStorage } from "@/server/storage/StorageService";
 
 const ALLOWED_TYPES: Record<string, string> = {
@@ -15,7 +15,7 @@ const MAX_BYTES = 50 * 1024 * 1024; // 50MB
  * Vercel serverless 본문 제한이 있어 운영에선 큰 영상이 막힐 수 있음 → 운영은 /api/video/sign 사용.
  */
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const form = await req.formData().catch(() => null);

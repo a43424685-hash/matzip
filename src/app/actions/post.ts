@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { createRestaurantPost, updateRestaurantPost } from "@/server/restaurant/RestaurantService";
 import { XP_AMOUNT } from "@/server/xp/xpRules";
 
@@ -48,7 +48,7 @@ export async function registerPostAction(
   _prev: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   const parsed = schema.safeParse({
@@ -188,7 +188,7 @@ export async function updatePostAction(
   _prev: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   const parsed = updateSchema.safeParse({
@@ -236,23 +236,26 @@ export async function updatePostAction(
       muted: d.videoMuted === "on",
     });
 
+  // 폼에 실제로 존재한 필드만 갱신한다 — 수정 폼에 없는 필드(상세후기·맛/서비스 평가)를
+  // null/[]로 덮어 기존 데이터를 지우던 버그 방지. formData.has()로 제출 여부를 판별.
+  const has = (k: string) => formData.has(k);
   const r = await updateRestaurantPost(userId, d.postId, {
-    shortReview: d.shortReview ?? null,
-    content: d.content ?? null,
-    tasteRating: d.tasteRating ?? null,
-    tasteTags: d.tasteTags ?? [],
-    serviceRating: d.serviceRating ?? null,
-    serviceTags: d.serviceTags ?? [],
-    atmosphereTags: d.atmosphereTags ?? [],
-    priceRange: (d.priceRange as never) || null,
-    priceMemo: d.priceMemo ?? null,
-    revisitIntent: (d.revisitIntent as never) || null,
-    waitingLevel: (d.waitingLevel as never) || null,
+    ...(has("shortReview") ? { shortReview: d.shortReview ?? null } : {}),
+    ...(has("content") ? { content: d.content ?? null } : {}),
+    ...(has("tasteRating") ? { tasteRating: d.tasteRating ?? null } : {}),
+    ...(has("tasteTags") ? { tasteTags: d.tasteTags ?? [] } : {}),
+    ...(has("serviceRating") ? { serviceRating: d.serviceRating ?? null } : {}),
+    ...(has("serviceTags") ? { serviceTags: d.serviceTags ?? [] } : {}),
+    ...(has("atmosphereTagsPresent") || has("atmosphereTags") ? { atmosphereTags: d.atmosphereTags ?? [] } : {}),
+    ...(has("priceRange") ? { priceRange: (d.priceRange as never) || null } : {}),
+    ...(has("priceMemo") ? { priceMemo: d.priceMemo ?? null } : {}),
+    ...(has("revisitIntent") ? { revisitIntent: (d.revisitIntent as never) || null } : {}),
+    ...(has("waitingLevel") ? { waitingLevel: (d.waitingLevel as never) || null } : {}),
     categoryIds: d.categoryIds,
     media,
   });
   if (!r.ok) return { error: r.reason === "FORBIDDEN" ? "내 글만 수정할 수 있어요." : "수정 중 오류가 발생했어요." };
 
-  // 수정은 '작업 끝낸 화면' — 저장 후 홈으로 replace (수정 페이지가 히스토리에 안 남게 → 뒤로가기 루프 방지)
-  return { redirectTo: "/" };
+  // 저장 후 방금 고친 글로 이동 — 수정 결과를 바로 확인할 수 있게 (replace라 뒤로가기 루프 없음)
+  return { redirectTo: `/restaurants/${d.postId}` };
 }

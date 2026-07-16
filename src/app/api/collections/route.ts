@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   listMyCollections,
@@ -9,7 +9,7 @@ import {
 
 // 내 컬렉션 목록 (+ 특정 음식점 포함 여부)
 export async function GET(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const restaurantId = new URL(req.url).searchParams.get("restaurantId") ?? undefined;
   const collections = await listMyCollections(userId, restaurantId);
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
 // 새 컬렉션 생성 (+ 옵션: 만들면서 음식점 바로 담기)
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const { title, restaurantId } = await req.json();

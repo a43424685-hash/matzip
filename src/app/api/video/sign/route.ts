@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { getStorage } from "@/server/storage/StorageService";
 
 const ALLOWED_TYPES: Record<string, string> = {
@@ -15,7 +15,7 @@ const ALLOWED_TYPES: Record<string, string> = {
  * - local(dev): 서명 미지원 → mode:"local" (클라가 /api/video/upload 로 업로드)
  */
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));

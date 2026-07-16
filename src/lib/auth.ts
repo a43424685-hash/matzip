@@ -100,6 +100,22 @@ export async function getSessionUserId(): Promise<string | null> {
   return parseToken(store.get(COOKIE_NAME)?.value);
 }
 
+/**
+ * 상태변경(쓰기) API·서버액션용 — 정지·탈퇴 계정은 null.
+ * 페이지 게이트(getCurrentUser의 /suspended 리다이렉트)만으로는 세션 쿠키로
+ * API를 직접 호출하는 걸 못 막으므로, 쓰기 경로는 반드시 이걸 쓴다.
+ */
+export async function getActiveUserId(): Promise<string | null> {
+  const userId = await getSessionUserId();
+  if (!userId) return null;
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { suspendedAt: true, deletedAt: true },
+  });
+  if (!u || u.suspendedAt || u.deletedAt) return null;
+  return userId;
+}
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -131,8 +147,11 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       isAdmin: true,
       role: true,
       suspendedAt: true,
+      deletedAt: true,
     },
   });
+  // 탈퇴(익명화)된 계정 — 남은 세션 쿠키가 있어도 비로그인 취급.
+  if (user && user.deletedAt) return null;
   // 운영자에게 정지당한 계정은 이용 차단 → 안내 화면으로.
   if (user && user.suspendedAt) {
     redirect("/suspended");

@@ -100,7 +100,7 @@ export default async function PaidMapPage() {
           </p>
           <p className="mt-3 rounded-2xl bg-stone-50 p-4 text-[13px] text-ink-muted">
             아래에서 내 리스트를 <b className="text-ink">바로 유료로 켜고 끌 수</b> 있어요. 구매자는 가게 목록이
-            가려진 채 지역·개수만 보고, 구매하면 전체가 열려요. <b className="text-ink">수수료 30%</b> 차감 후 정산돼요.
+            가려진 채 지역·개수만 보고, 구매하면 전체가 열려요. <b className="text-ink">앱 마켓 15% + 서비스 수수료</b>를 뺀 금액(판매가의 약 68%)이 정산돼요.
           </p>
 
           {/* 판매 관리 허브 — 모든 후보 리스트를 여기서 바로 켜고/끄고/가격 조정 */}

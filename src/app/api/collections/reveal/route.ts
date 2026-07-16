@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { recordReveal } from "@/server/payment/PaymentService";
 
 /**
@@ -7,7 +7,7 @@ import { recordReveal } from "@/server/payment/PaymentService";
  * 맛보기 외 가게를 열 때 호출 → 열람 수 카운트. 임계치 넘으면 단순변심 환불 창이 닫힌다.
  */
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const collectionId = String(body.collectionId ?? "");

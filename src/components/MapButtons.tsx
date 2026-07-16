@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import { getPlatform } from "@/lib/nativeAuth";
+import { getPlatform, openExternal } from "@/lib/nativeAuth";
 
 /**
  * 외부 지도 열기 버튼 — 카카오 지도는 항상, 다른 하나는 플랫폼별:
@@ -34,12 +34,12 @@ export default function MapButtons({
 
   return (
     <div className="mt-2 grid grid-cols-2 gap-2">
-      <a href={otherUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
+      <button type="button" onClick={() => openExternal(otherUrl)} className="btn-outline h-10 !text-sm">
         <MapPin size={15} /> {otherLabel}
-      </a>
-      <a href={kakaoUrl} target="_blank" rel="noreferrer" className="btn-outline h-10 !text-sm">
+      </button>
+      <button type="button" onClick={() => openExternal(kakaoUrl)} className="btn-outline h-10 !text-sm">
         <MapPin size={15} /> 카카오 지도
-      </a>
+      </button>
     </div>
   );
 }

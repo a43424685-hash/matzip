@@ -4,7 +4,7 @@
  */
 import { prisma } from "@/lib/db";
 
-export type AuditAction = "suspend" | "unsuspend" | "memo" | "view_account";
+export type AuditAction = "suspend" | "unsuspend" | "memo" | "view_account" | "purchase_block" | "purchase_unblock";
 
 export async function writeAudit(input: {
   adminId: string;

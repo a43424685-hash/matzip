@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appConfirm, toast } from "@/components/AppDialogs";
 import { useRouter } from "next/navigation";
 import { RotateCcw, Loader2 } from "lucide-react";
 
@@ -10,7 +11,13 @@ export default function AdminRefundButton({ purchaseId, amountWon }: { purchaseI
 
   async function refund() {
     if (busy) return;
-    if (!confirm(`${amountWon.toLocaleString()}원을 환불할까요?\n구매자 카드/카카오페이로 돈이 돌아가고, 지도 접근이 회수돼요.`)) return;
+    const ok = await appConfirm({
+      title: `${amountWon.toLocaleString()}원 구매를 환불 처리할까요?`,
+      body: "지도 접근이 회수되고 정산 대상에서 제외돼요.\n실제 결제 환불은 App Store·Google Play에서 처리돼요.",
+      confirmLabel: "환불 처리",
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     const r = await fetch("/api/admin/refunds", {
       method: "POST",
@@ -22,7 +29,7 @@ export default function AdminRefundButton({ purchaseId, amountWon }: { purchaseI
       router.refresh();
     } else {
       setBusy(false);
-      alert(d.message || "환불에 실패했어요.");
+      toast(d.message || "환불에 실패했어요.", "error");
     }
   }
 

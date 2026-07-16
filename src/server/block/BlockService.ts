@@ -11,11 +11,22 @@ export async function blockUser(
   if (blockerId === blockedId) return { ok: false, reason: "SELF" };
   const target = await prisma.user.findUnique({ where: { id: blockedId }, select: { id: true } });
   if (!target) return { ok: false, reason: "NOT_FOUND" };
-  await prisma.block.upsert({
-    where: { blockerId_blockedId: { blockerId, blockedId } },
-    create: { blockerId, blockedId },
-    update: {},
-  });
+  await prisma.$transaction([
+    prisma.block.upsert({
+      where: { blockerId_blockedId: { blockerId, blockedId } },
+      create: { blockerId, blockedId },
+      update: {},
+    }),
+    // 차단하면 팔로우 관계도 양방향 해제 — 팔로잉 피드에 계속 노출되는 것 방지
+    prisma.follow.deleteMany({
+      where: {
+        OR: [
+          { followerId: blockerId, followingId: blockedId },
+          { followerId: blockedId, followingId: blockerId },
+        ],
+      },
+    }),
+  ]);
   return { ok: true };
 }
 

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { followUser, unfollowUser } from "@/server/follow/FollowService";
 
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const targetId = String(body.targetId ?? "");
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const targetId = String(body.targetId ?? "");

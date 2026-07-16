@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "@/components/AppDialogs";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { MapPin, Check, X, Search } from "lucide-react";
@@ -79,34 +80,47 @@ export default function CommunityComments({
     const content = text.trim();
     if (!content || busy) return;
     if (containsProfanity(content)) {
-      alert("욕설·비속어는 쓸 수 없어요.");
+      toast("욕설·비속어는 쓸 수 없어요.", "error");
       return;
     }
     setBusy(true);
-    const r = await fetch(`/api/community/${postId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, place: attach }),
-    });
-    setBusy(false);
-    if (r.ok) {
-      setText("");
-      setAttach(null);
-      router.refresh();
+    try {
+      const r = await fetch(`/api/community/${postId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, place: attach }),
+      });
+      if (r.ok) {
+        setText("");
+        setAttach(null);
+        router.refresh();
+      } else {
+        const d = await r.json().catch(() => ({}));
+        toast(d.reason || d.error || "댓글 등록에 실패했어요.", "error");
+      }
+    } catch {
+      toast("네트워크 오류로 등록하지 못했어요.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function accept(commentId: string) {
     if (busy) return;
     setBusy(true);
-    const r = await fetch(`/api/community/${postId}/accept`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commentId }),
-    });
-    setBusy(false);
-    if (r.ok) router.refresh();
-    else alert("채택에 실패했어요.");
+    try {
+      const r = await fetch(`/api/community/${postId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+      if (r.ok) router.refresh();
+      else toast("채택에 실패했어요.", "error");
+    } catch {
+      toast("네트워크 오류로 처리하지 못했어요.", "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

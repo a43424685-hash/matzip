@@ -126,8 +126,15 @@ export default function VerifyPanel({
   async function submitLocation(lat: number, lng: number, acc: number | null) {
     if (verifyingRef.current || locVerified) return;
     verifyingRef.current = true;
-    const res = await post({ type: "location", lat, lng, accuracy: acc });
-    verifyingRef.current = false;
+    let res: Response;
+    try {
+      res = await post({ type: "location", lat, lng, accuracy: acc });
+    } catch {
+      setMsg("네트워크 오류로 인증하지 못했어요. 다시 시도해 주세요.");
+      return;
+    } finally {
+      verifyingRef.current = false;
+    }
     if (!res.ok) return setMsg("인증에 실패했어요.");
     const d = await res.json();
     if (d.verified) {

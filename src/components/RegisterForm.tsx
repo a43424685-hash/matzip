@@ -334,6 +334,8 @@ export default function RegisterForm({
       {[...selected].map((id) => (
         <input key={id} type="hidden" name="categoryIds" value={id} />
       ))}
+      {/* 분위기 태그가 이 폼에 존재함을 알리는 마커 — 전부 해제한 경우에도 서버가 '비우기'로 인식 */}
+      <input type="hidden" name="atmosphereTagsPresent" value="1" />
       {[...atmosphereTags].map((id) => (
         <input key={id} type="hidden" name="atmosphereTags" value={id} />
       ))}

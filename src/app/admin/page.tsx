@@ -2,15 +2,29 @@ import Link from "next/link";
 import { Banknote, RotateCcw, ShieldAlert, Users, ChevronRight } from "lucide-react";
 import { getPayoutSummary } from "@/server/payment/WithdrawalService";
 import { countMembers } from "@/server/admin/MemberService";
+import { countOpenReports } from "@/server/report/ReportService";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const [s, memberCount] = await Promise.all([getPayoutSummary(), countMembers()]);
+  const [s, memberCount, openReports] = await Promise.all([getPayoutSummary(), countMembers(), countOpenReports()]);
 
   return (
     <div>
       <h1 className="text-xl font-black text-ink">관리자 홈</h1>
+
+      {openReports > 0 && (
+        <Link
+          href="/admin/reports"
+          className="mt-4 flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-4"
+        >
+          <div>
+            <div className="text-sm font-extrabold text-ink">미처리 신고 {openReports}건</div>
+            <div className="mt-0.5 text-[12px] text-ink-muted">신고는 24시간 내 확인·조치가 필요해요 (앱 심사 요건)</div>
+          </div>
+          <ChevronRight size={18} className="text-red-400" />
+        </Link>
+      )}
 
       {s.requestedCount > 0 && (
         <Link

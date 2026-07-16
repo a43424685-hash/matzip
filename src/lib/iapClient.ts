@@ -56,3 +56,13 @@ export async function purchaseMapProduct(userId: string, productId: string): Pro
   const res = await Purchases.purchaseStoreProduct({ product });
   return { transactionId: res?.transaction?.transactionIdentifier, platform };
 }
+
+/**
+ * 스토어 구매 복원 — 결제는 됐는데 서버 확정이 끊긴 경우
+ * (confirm 네트워크 오류, 자녀 보호 '승인 대기' 후 승인 완료 등).
+ * 복원 후 서버 confirm 을 다시 호출하면 RevenueCat 검증으로 잠금이 풀린다.
+ */
+export async function restoreMapPurchases(userId: string): Promise<void> {
+  await ensureConfigured(userId);
+  await Purchases.restorePurchases();
+}

@@ -31,9 +31,9 @@ export default async function UserProfilePage({
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, nickname: true, avatarUrl: true, totalLevel: true, totalXp: true, isAdmin: true, deactivatedAt: true },
+    select: { id: true, nickname: true, avatarUrl: true, totalLevel: true, totalXp: true, isAdmin: true, deactivatedAt: true, suspendedAt: true, deletedAt: true },
   });
-  if (!user || user.deactivatedAt) notFound();
+  if (!user || user.deactivatedAt || user.suspendedAt || user.deletedAt) notFound();
 
   const viewerId = await getSessionUserId();
   const isOwnProfile = viewerId === user.id;

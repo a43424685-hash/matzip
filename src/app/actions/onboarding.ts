@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { nicknameSchema } from "@/lib/nickname";
 
 const formSchema = z.object({ nickname: nicknameSchema });
@@ -15,7 +15,7 @@ export async function confirmNicknameAction(
   _prev: NicknameState,
   formData: FormData
 ): Promise<NicknameState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   const parsed = formSchema.safeParse({ nickname: formData.get("nickname") });
@@ -27,6 +27,7 @@ export async function confirmNicknameAction(
       data: {
         nickname: parsed.data.nickname,
         nicknameConfirmedAt: new Date(),
+        termsAgreedAt: new Date(), // 온보딩 화면의 약관 동의 고지에 대한 증적
       },
     });
   } catch (e) {
@@ -53,7 +54,7 @@ export async function confirmLegalNameAction(
   _prev: LegalNameState,
   formData: FormData
 ): Promise<LegalNameState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   const parsed = legalNameSchema.safeParse(formData.get("legalName"));

@@ -62,11 +62,13 @@ export default async function FeedListPage({
     items.map((p) => p.restaurantId)
   );
 
-  // "더보기" 시 API 가 받을 동일 쿼리 (정렬/검색/필터 유지). categoryIds 는 반복 파라미터로 전달.
+  // "더보기" 시 API 가 받을 동일 쿼리 (정렬/검색/필터 유지)
   const query: Record<string, string> = { sort: sortParam };
   if (q) query.q = q;
   if (regionId) query.regionId = regionId;
   if (priceRange) query.priceRange = priceRange;
+  // categoryIds 는 다중 값 — 콤마로 합쳐 보내고 InfiniteList가 반복 파라미터로 풀어 보낸다
+  if (categoryIds.length > 0) query.categoryIdsCsv = categoryIds.join(",");
 
   return (
     <main className="px-5 py-6">
@@ -74,6 +76,11 @@ export default async function FeedListPage({
       {/* 검색은 /search로 안 튀고 이 화면(/feed)에서 바로 결과가 갱신됨. 정렬(이번주/갓올라온)은 유지. */}
       <form action="/feed" method="get" className="mb-4 flex h-11 items-center gap-2 rounded-full bg-stone-100 px-4">
         <input type="hidden" name="sort" value={sortParam} />
+        {regionId && <input type="hidden" name="regionId" value={regionId} />}
+        {priceRange && <input type="hidden" name="priceRange" value={priceRange} />}
+        {categoryIds.map((id) => (
+          <input key={id} type="hidden" name="categoryIds" value={id} />
+        ))}
         <Search size={17} className="shrink-0 text-stone-400" />
         <input
           name="q"

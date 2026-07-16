@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EyeOff, Eye } from "lucide-react";
+import { toast } from "@/components/AppDialogs";
 
 export default function CommunityBlindButton({ postId, blinded }: { postId: string; blinded: boolean }) {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function CommunityBlindButton({ postId, blinded }: { postId: stri
     if (r.ok) router.refresh();
     else {
       setBusy(false);
-      alert("처리에 실패했어요.");
+      toast("처리에 실패했어요.", "error");
     }
   }
 

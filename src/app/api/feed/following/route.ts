@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
 import { toPostCard, postCardSelect } from "@/server/restaurant/RestaurantService";
+import { getBlockedIds } from "@/server/block/BlockService";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,12 @@ export async function GET(req: Request) {
 
   const skip = Math.max(0, Number(new URL(req.url).searchParams.get("skip")) || 0);
 
-  const follows = await prisma.follow.findMany({
-    where: { followerId: userId },
-    select: { followingId: true },
-  });
-  const ids = follows.map((f) => f.followingId);
+  const [follows, blocked] = await Promise.all([
+    prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } }),
+    getBlockedIds(userId),
+  ]);
+  const blockedSet = new Set(blocked);
+  const ids = follows.map((f) => f.followingId).filter((id) => !blockedSet.has(id));
   if (ids.length === 0) return NextResponse.json({ items: [], hasMore: false });
 
   const rows = await prisma.restaurantPost.findMany({

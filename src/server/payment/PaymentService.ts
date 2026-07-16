@@ -79,6 +79,13 @@ export async function confirmPurchase(
   const productId = productIdForWon(col.priceWon);
   if (!productId) return { ok: false, reason: "BAD_PRICE" };
 
+  // 이미 열려 있으면 그대로 성공 (재시도/복원 멱등)
+  const existing = await prisma.mapPurchase.findUnique({
+    where: { buyerId_collectionId: { buyerId: userId, collectionId } },
+    select: { status: true },
+  });
+  if (existing?.status === "paid") return { ok: true, collectionId };
+
   // RevenueCat 검증 — 이 유저가 이 상품을 실제 구매했는가
   const verified = await verifyConsumable(userId, productId, transactionId).catch((e) => {
     console.error("[confirm] RevenueCat 검증 실패", e);
@@ -86,13 +93,24 @@ export async function confirmPurchase(
   });
   if (!verified) return { ok: false, reason: "NOT_VERIFIED" };
 
-  // 이 거래ID가 다른 지도에 이미 쓰였으면 거부(한 결제 = 한 지도)
+  // 샌드박스 구매: 심사 기간엔 심사원이 샌드박스로 결제하므로 허용하고 기록만 남긴다.
+  // 심사 승인 후 BLOCK_SANDBOX_IAP=1 을 켜면 차단된다.
+  if (verified.isSandbox) {
+    if (process.env.BLOCK_SANDBOX_IAP === "1") return { ok: false, reason: "NOT_VERIFIED" };
+    console.warn("[confirm] 샌드박스 구매 허용", { userId, collectionId, tx: verified.storeTransactionId });
+  }
+
+  // 거래ID 재사용 방어(한 결제 = 한 지도) + 환불된 거래의 재-confirm(재잠금 우회) 차단.
+  // 이 거래ID가 어떤 구매 기록에든 이미 쓰였으면 새 잠금해제에 쓸 수 없다.
   if (verified.storeTransactionId) {
-    const dup = await prisma.mapPurchase.findFirst({
-      where: { transactionId: verified.storeTransactionId, NOT: { collectionId } },
-      select: { id: true },
+    const used = await prisma.mapPurchase.findFirst({
+      where: { transactionId: verified.storeTransactionId },
+      select: { id: true, collectionId: true, buyerId: true, status: true },
     });
-    if (dup) return { ok: false, reason: "TX_REUSED" };
+    if (used) {
+      const sameCol = used.collectionId === collectionId && used.buyerId === userId;
+      return { ok: false, reason: sameCol ? "REFUNDED" : "TX_REUSED" };
+    }
   }
 
   const amountWon = col.priceWon;
@@ -149,26 +167,39 @@ export async function handleStoreRefund(params: {
 }): Promise<{ ok: boolean; reason?: string }> {
   const { transactionId, appUserId, productId } = params;
 
-  // 1) 거래ID로 매칭 (우선)
-  let purchase = transactionId
-    ? await prisma.mapPurchase.findFirst({ where: { transactionId, status: "paid" }, select: { id: true, buyerId: true } })
-    : null;
+  // 1) 거래ID로 매칭 (우선). 상태 무관 조회 — 이미 refunded면 중복 이벤트이므로
+  //    조용히 성공 처리(멱등). 과거엔 매칭 실패 시 '같은 가격 최근 구매'로 폴백해
+  //    중복 이벤트가 엉뚱한 구매를 환불하고 refundCount를 이중 증가시켰다.
+  let purchase: { id: string; buyerId: string; status: string } | null = null;
+  if (transactionId) {
+    purchase = await prisma.mapPurchase.findFirst({
+      where: { transactionId },
+      select: { id: true, buyerId: true, status: true },
+    });
+    if (purchase && purchase.status !== "paid") return { ok: true }; // 이미 처리됨(멱등)
+  }
 
-  // 2) 폴백: 유저 + 상품 가격의 가장 최근 'paid' 구매
+  // 2) 폴백: 유저+가격 후보가 '정확히 1건'일 때만 (모호하면 건드리지 않는다)
   if (!purchase && appUserId && productId) {
     const won = wonForProductId(productId);
-    purchase = await prisma.mapPurchase.findFirst({
+    const candidates = await prisma.mapPurchase.findMany({
       where: { buyerId: appUserId, status: "paid", ...(won ? { amountWon: won } : {}) },
-      orderBy: { paidAt: "desc" },
-      select: { id: true, buyerId: true },
+      select: { id: true, buyerId: true, status: true },
+      take: 2,
     });
+    if (candidates.length === 1) purchase = candidates[0];
   }
-  if (!purchase) return { ok: false, reason: "NO_MATCH" };
+  if (!purchase) {
+    console.error("[refund] 매칭 실패 — 수동 확인 필요", { transactionId, appUserId, productId });
+    return { ok: false, reason: "NO_MATCH" };
+  }
 
-  await prisma.mapPurchase.update({
-    where: { id: purchase.id },
+  // 원자적 회수 — 동시 웹훅이 와도 한 번만 refunded 로 바뀌고 카운트도 한 번만 오른다
+  const updated = await prisma.mapPurchase.updateMany({
+    where: { id: purchase.id, status: "paid" },
     data: { status: "refunded", refundedAt: new Date() }, // status!=paid → 자동 재잠금
   });
+  if (updated.count === 0) return { ok: true }; // 경쟁에서 진 쪽 — 이미 처리됨
 
   // 상습 환불자 차단
   const u = await prisma.user.update({
@@ -302,6 +333,8 @@ export interface SellerEarnings {
   totalGrossWon: number; // 총 판매액
   totalFeeWon: number; // 총 수수료(플랫폼+스토어)
   totalNetWon: number; // 총 정산액(셀러)
+  settledNetWon: number; // 정산 홀드(14일)가 지나 출금 가능해진 정산액
+  holdWon: number; // 아직 홀드 중인 정산액 (스토어 환불 대비)
   salesCount: number;
   perMap: { collectionId: string; title: string; count: number; netWon: number }[];
 }
@@ -315,19 +348,25 @@ export async function getSellerEarnings(sellerId: string): Promise<SellerEarning
       feeWon: true,
       storeFeeWon: true,
       sellerNetWon: true,
+      settledAt: true,
       collectionId: true,
       collection: { select: { title: true } },
     },
   });
 
+  const now = Date.now();
   let totalGrossWon = 0;
   let totalFeeWon = 0;
   let totalNetWon = 0;
+  let settledNetWon = 0;
   const map = new Map<string, { title: string; count: number; netWon: number }>();
   for (const r of rows) {
     totalGrossWon += r.amountWon;
     totalFeeWon += r.feeWon + r.storeFeeWon;
     totalNetWon += r.sellerNetWon;
+    // 정산 홀드: settledAt(=구매 +14일)이 지난 건만 출금 가능.
+    // settledAt이 없는 옛 데이터는 홀드가 이미 지난 것으로 취급.
+    if (!r.settledAt || r.settledAt.getTime() <= now) settledNetWon += r.sellerNetWon;
     const cur = map.get(r.collectionId) ?? { title: r.collection.title, count: 0, netWon: 0 };
     cur.count += 1;
     cur.netWon += r.sellerNetWon;
@@ -337,5 +376,13 @@ export async function getSellerEarnings(sellerId: string): Promise<SellerEarning
     .map(([collectionId, v]) => ({ collectionId, ...v }))
     .sort((a, b) => b.netWon - a.netWon);
 
-  return { totalGrossWon, totalFeeWon, totalNetWon, salesCount: rows.length, perMap };
+  return {
+    totalGrossWon,
+    totalFeeWon,
+    totalNetWon,
+    settledNetWon,
+    holdWon: totalNetWon - settledNetWon,
+    salesCount: rows.length,
+    perMap,
+  };
 }

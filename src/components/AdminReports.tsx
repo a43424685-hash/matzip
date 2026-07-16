@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appConfirm, toast } from "@/components/AppDialogs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trash2, Check, ExternalLink } from "lucide-react";
@@ -38,16 +39,27 @@ export default function AdminReports({ rows }: { rows: AdminReportRow[] }) {
   }
 
   async function del(row: AdminReportRow) {
-    if (!confirm(`이 ${row.targetType === "post" ? "글" : "댓글"}을 삭제할까요? 되돌릴 수 없어요.`)) return;
+    if (!row.deleteEndpoint) return;
+    const ok = await appConfirm({
+      title: "신고된 콘텐츠를 삭제할까요?",
+      body: "되돌릴 수 없어요.",
+      confirmLabel: "삭제",
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(row.id);
-    const url = row.targetType === "post" ? `/api/posts/${row.targetId}` : `/api/comments/${row.targetId}`;
-    const r = await fetch(url, { method: "DELETE" });
-    setBusy(null);
-    if (!r.ok) {
-      alert("삭제에 실패했어요.");
-      return;
+    try {
+      const r = await fetch(row.deleteEndpoint, { method: "DELETE" });
+      if (!r.ok) {
+        toast("삭제에 실패했어요.", "error");
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast("네트워크 오류로 삭제하지 못했어요.", "error");
+    } finally {
+      setBusy(null);
     }
-    router.refresh();
   }
 
   if (rows.length === 0) {
@@ -67,7 +79,13 @@ export default function AdminReports({ rows }: { rows: AdminReportRow[] }) {
               {REASON_LABEL[r.reason] ?? r.reason}
             </span>
             <span className="rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-ink-muted">
-              {r.targetType === "post" ? "글" : "댓글"}
+              {r.targetType === "post"
+                ? "글"
+                : r.targetType === "comment"
+                  ? "댓글"
+                  : r.targetType === "community_post"
+                    ? "커뮤니티 글"
+                    : "커뮤니티 댓글"}
             </span>
             <span className="ml-auto text-[12px] text-stone-400">{ago(r.createdAt)}</span>
           </div>
@@ -94,15 +112,12 @@ export default function AdminReports({ rows }: { rows: AdminReportRow[] }) {
           </div>
 
           <div className="mt-3 flex items-center gap-4">
-            {r.postId && r.targetExists && (
-              <Link
-                href={`/restaurants/${r.postId}`}
-                className="flex items-center gap-1 text-[13px] font-semibold text-forest"
-              >
+            {r.href && r.targetExists && (
+              <Link href={r.href} className="flex items-center gap-1 text-[13px] font-semibold text-forest">
                 <ExternalLink size={14} /> 보기
               </Link>
             )}
-            {r.targetExists && (
+            {r.targetExists && r.deleteEndpoint && (
               <button
                 type="button"
                 disabled={busy === r.id}

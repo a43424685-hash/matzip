@@ -271,6 +271,29 @@ export async function addCommunityComment(
   return { ok: true };
 }
 
+/** 커뮤니티 댓글 삭제 — 작성자 본인 또는 운영자. 채택된 답변이면 채택도 해제. */
+export async function deleteCommunityComment(userId: string, commentId: string, isAdmin: boolean) {
+  const c = await prisma.communityComment.findUnique({
+    where: { id: commentId },
+    select: { userId: true, communityPostId: true },
+  });
+  if (!c) return { ok: false, reason: "NOT_FOUND" };
+  if (c.userId !== userId && !isAdmin) return { ok: false, reason: "FORBIDDEN" };
+  await prisma.$transaction(async (tx) => {
+    await tx.communityComment.delete({ where: { id: commentId } });
+    await tx.communityPost.update({
+      where: { id: c.communityPostId },
+      data: { commentCount: { decrement: 1 } },
+    });
+    // 이 댓글이 채택 답변이었으면 채택 해제
+    await tx.communityPost.updateMany({
+      where: { id: c.communityPostId, acceptedCommentId: commentId },
+      data: { acceptedCommentId: null },
+    });
+  });
+  return { ok: true };
+}
+
 export async function deleteCommunityPost(userId: string, postId: string, isAdmin: boolean) {
   const post = await prisma.communityPost.findUnique({ where: { id: postId }, select: { userId: true } });
   if (!post) return { ok: false, reason: "NOT_FOUND" };

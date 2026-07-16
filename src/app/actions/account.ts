@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { getSessionUserId, destroySession } from "@/lib/auth";
+import { getActiveUserId, destroySession } from "@/lib/auth";
 import { encryptField } from "@/lib/fieldCrypto";
 import {
   updateNickname,
@@ -25,7 +25,7 @@ export type BankState = { error?: string } | undefined;
  * 계좌번호는 암호화(AES-256-GCM)해서 저장한다. 수정 시 계좌번호 칸을 비우면 기존 번호를 유지.
  */
 export async function saveBankAccountAction(_prev: BankState, formData: FormData): Promise<BankState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   if (!formData.get("agree")) return { error: "정산 약관에 동의해야 등록할 수 있어요." };
@@ -79,7 +79,7 @@ export async function updateProfileAction(
   _prev: ProfileState,
   formData: FormData
 ): Promise<ProfileState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   const avatarUrl = String(formData.get("avatarUrl") ?? "");
@@ -94,7 +94,7 @@ export async function updateProfileAction(
 }
 
 export async function deactivateAction(): Promise<void> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
   await deactivateAccount(userId);
   await destroySession();
@@ -102,7 +102,7 @@ export async function deactivateAction(): Promise<void> {
 }
 
 export async function deleteAccountAction(): Promise<void> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
   await deleteAccount(userId);
   await destroySession();

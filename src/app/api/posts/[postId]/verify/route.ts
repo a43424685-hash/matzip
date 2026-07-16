@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { verifyLocation } from "@/server/verification/VerificationService";
 
 /**
@@ -11,7 +11,7 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ postId: string }> }
 ) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const { postId } = await params;
   const body = await req.json();

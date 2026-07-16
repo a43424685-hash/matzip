@@ -22,12 +22,18 @@ export default async function CommunityPage({
   const sp = await searchParams;
   const cat = sp.cat && COMMUNITY_CATEGORIES.some((c) => c.key === sp.cat) ? sp.cat : null;
   const sort: "latest" | "hot" = sp.sort === "hot" ? "hot" : "latest";
+  const page = Math.max(1, Number(sp.page) || 1);
+  const PAGE_SIZE = 20;
   const viewerId = await getSessionUserId();
-  const posts = await listCommunityPosts(viewerId, cat, 0, 20, sort);
-  const qs = (o: { cat?: string | null; sort?: string }) => {
+  // 한 개 더 가져와서 다음 페이지 존재 여부 판단 (21번째 이후 글 접근 불가 문제 해결)
+  const fetched = await listCommunityPosts(viewerId, cat, (page - 1) * PAGE_SIZE, PAGE_SIZE + 1, sort);
+  const hasMore = fetched.length > PAGE_SIZE;
+  const posts = fetched.slice(0, PAGE_SIZE);
+  const qs = (o: { cat?: string | null; sort?: string; page?: number }) => {
     const p = new URLSearchParams();
     if (o.cat) p.set("cat", o.cat);
     if (o.sort && o.sort !== "latest") p.set("sort", o.sort);
+    if (o.page && o.page > 1) p.set("page", String(o.page));
     const s = p.toString();
     return s ? `/community?${s}` : "/community";
   };
@@ -57,7 +63,7 @@ export default async function CommunityPage({
 
       {posts.length === 0 ? (
         <p className="mt-10 rounded-2xl bg-stone-50 py-12 text-center text-sm text-stone-400">
-          아직 글이 없어요. 첫 글을 남겨보세요!
+          {page > 1 ? "이 페이지에는 글이 없어요." : "아직 글이 없어요. 첫 글을 남겨보세요!"}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -92,6 +98,27 @@ export default async function CommunityPage({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* 페이지 이동 */}
+      {(page > 1 || hasMore) && (
+        <div className="mt-5 flex items-center justify-between">
+          {page > 1 ? (
+            <Link href={qs({ cat, sort, page: page - 1 })} className="btn-outline h-11 px-5 !text-sm">
+              이전
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span className="text-[12px] text-stone-400">{page}페이지</span>
+          {hasMore ? (
+            <Link href={qs({ cat, sort, page: page + 1 })} className="btn-outline h-11 px-5 !text-sm">
+              다음
+            </Link>
+          ) : (
+            <span />
+          )}
+        </div>
       )}
 
       {/* 글쓰기 FAB */}

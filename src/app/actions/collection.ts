@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { createCollection } from "@/server/collection/CollectionService";
 
 const schema = z.object({
@@ -18,7 +18,7 @@ export async function createCollectionAction(
   _prev: CollectionState,
   formData: FormData
 ): Promise<CollectionState> {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) redirect("/login");
 
   const parsed = schema.safeParse({

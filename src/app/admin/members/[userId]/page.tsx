@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck, MapPin, Star, ShoppingBag } from "lucide-react"
 import { getMemberDetail } from "@/server/admin/MemberService";
 import { listAuditForTarget } from "@/server/admin/AuditService";
 import AdminMemberActions from "@/components/admin/AdminMemberActions";
+import { setPurchaseBlockedAction } from "@/app/actions/admin-member";
 import {
   decryptField,
   maskAccountNumber,
@@ -36,6 +37,10 @@ export default async function AdminMemberDetailPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
+  async function unblockPurchase(formData: FormData) {
+    "use server";
+    await setPurchaseBlockedAction(undefined, formData);
+  }
   const { userId } = await params;
   const data = await getMemberDetail(userId);
   if (!data) notFound();
@@ -104,7 +109,7 @@ export default async function AdminMemberDetailPage({
         <Stat label="지도 구매" value={`${u._count.mapPurchases}건`} />
         <Stat label="총 판매" value={`${earnings.salesCount}건`} />
         <Stat label="총 판매액" value={`${won(earnings.totalGrossWon)}원`} />
-        <Stat label="정산액(70%)" value={`${won(earnings.totalNetWon)}원`} />
+        <Stat label="정산액(셀러 몫)" value={`${won(earnings.totalNetWon)}원`} />
         <Stat label="출금 신청" value={`${u._count.withdrawals}건`} />
         <Stat label="내 지도" value={`${u._count.collections}개`} />
       </Section>
@@ -114,7 +119,27 @@ export default async function AdminMemberDetailPage({
         <Stat label="이 회원 차단 수" value={`${u._count.blockedBy}`} warn={u._count.blockedBy > 0} />
         <Stat label="신고 당한 수" value={`${reportsAgainst}`} warn={reportsAgainst > 0} />
         <Stat label="접수한 신고" value={`${u._count.reports}`} />
+        <Stat label="누적 환불" value={`${u.refundCount}회`} warn={u.refundCount > 0} />
+        <Stat label="구매 제한" value={u.purchaseBlocked ? "차단됨" : "정상"} warn={u.purchaseBlocked} />
       </Section>
+
+      {/* 상습환불 구매 제한 관리 — 오탐(웹훅 중복 등) 복구용 */}
+      {u.purchaseBlocked && (
+        <form action={unblockPurchase} className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-[13px] font-bold text-ink">이 회원은 반복 환불로 유료지도 구매가 차단된 상태예요.</p>
+          <input type="hidden" name="userId" value={u.id} />
+          <input type="hidden" name="blocked" value="0" />
+          <input
+            name="reason"
+            required
+            placeholder="해제 사유 (감사로그에 기록)"
+            className="input mt-2 !h-10 !text-[13px]"
+          />
+          <button type="submit" className="btn-outline mt-2 h-10 w-full !text-[13px]">
+            구매 제한 해제 (환불 카운트 리셋)
+          </button>
+        </form>
+      )}
 
       {/* 운영자 조치 */}
       <AdminMemberActions userId={u.id} suspended={!!u.suspendedAt} isTargetAdmin={u.isAdmin} />

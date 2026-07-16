@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { togglePinComment } from "@/server/comment/CommentService";
 
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ commentId: string }> }
 ) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const { commentId } = await params;
   try {

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Loader2, Smartphone } from "lucide-react";
+import { Lock, Loader2, Smartphone, RotateCcw } from "lucide-react";
 import { track } from "@/lib/analytics";
-import { isNativeApp, purchaseMapProduct } from "@/lib/iapClient";
+import { isNativeApp, purchaseMapProduct, restoreMapPurchases } from "@/lib/iapClient";
 import { REVEAL_REFUND_THRESHOLD } from "@/lib/iapTiers";
 
 export default function PurchaseMapButton({
@@ -21,20 +21,48 @@ export default function PurchaseMapButton({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [native, setNative] = useState(true); // SSR엔 앱 가정 → 마운트 후 실제 판정
+  // 결제는 성공했는데 서버 확정이 실패한 경우의 거래ID — 재시도 시 재결제하지 않고 확정만 다시 한다
+  const pendingTxRef = useRef<{ transactionId?: string; platform: string } | null>(null);
 
   useEffect(() => {
     setNative(isNativeApp());
   }, []);
 
+  /** 서버 검증 + 구매 확정(잠금 해제). 성공 시 true. */
+  async function confirmOnServer(tx: { transactionId?: string; platform?: string }): Promise<boolean> {
+    const conf = await fetch("/api/payments/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId, ...tx }),
+    });
+    const cd = await conf.json().catch(() => ({}));
+    if (!conf.ok || !cd.ok) {
+      setErr(cd.message || "결제 확인에 실패했어요. 결제됐다면 아래 '구매 복원'을 눌러주세요.");
+      return false;
+    }
+    pendingTxRef.current = null;
+    track("purchase", { collection_id: collectionId, value: priceWon ?? undefined });
+    router.refresh();
+    return true;
+  }
+
   async function buy() {
     if (!buyerId) {
-      window.location.href = "/login";
+      window.location.href = `/login?returnTo=${encodeURIComponent(`/collections/${collectionId}`)}`;
       return;
     }
     if (!agree || busy) return;
     setBusy(true);
     setErr("");
     try {
+      // 결제됐는데 확정만 실패했던 건이 있으면 재결제 없이 확정부터 재시도
+      if (pendingTxRef.current) {
+        const done = await confirmOnServer(pendingTxRef.current);
+        setBusy(false);
+        if (done) return;
+        return;
+      }
+
       // 1) 서버에서 결제할 상품ID 발급 (금액·상품은 서버 DB 기준, 구매차단 확인)
       const prep = await fetch("/api/payments/prepare", {
         method: "POST",
@@ -50,26 +78,35 @@ export default function PurchaseMapButton({
 
       // 2) 네이티브 인앱결제(RevenueCat) — 애플/구글 결제창
       const { transactionId, platform } = await purchaseMapProduct(buyerId, pd.productId);
+      pendingTxRef.current = { transactionId, platform };
 
       // 3) 서버 검증 + 구매 확정(잠금 해제)
-      const conf = await fetch("/api/payments/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectionId, transactionId, platform }),
-      });
-      const cd = await conf.json().catch(() => ({}));
-      if (!conf.ok || !cd.ok) {
-        setErr(cd.message || "결제 확인에 실패했어요. 결제됐다면 잠시 후 다시 시도해 주세요.");
-        setBusy(false);
-        return;
-      }
-
-      track("purchase", { collection_id: collectionId, value: priceWon ?? undefined });
-      router.refresh();
+      await confirmOnServer({ transactionId, platform });
+      setBusy(false);
     } catch (e) {
       const m = e instanceof Error ? e.message : "";
-      // 사용자가 결제창을 닫은 경우 등
-      setErr(m && !/cancel/i.test(m) ? m : "결제가 취소됐어요.");
+      if (/pending|deferred/i.test(m)) {
+        // 자녀 보호(승인 대기) 등 — 결제창은 닫혔지만 결제가 진행 중일 수 있음
+        setErr("결제 승인 대기 중이에요. 승인이 완료되면 아래 '구매 복원'을 눌러주세요.");
+      } else {
+        // 사용자가 결제창을 닫은 경우 등
+        setErr(m && !/cancel/i.test(m) ? m : "결제가 취소됐어요.");
+      }
+      setBusy(false);
+    }
+  }
+
+  /** 이미 결제했는데 잠금이 안 풀린 경우 — 스토어 구매 복원 후 서버 확정 재시도 */
+  async function restore() {
+    if (!buyerId || busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await restoreMapPurchases(buyerId);
+      await confirmOnServer(pendingTxRef.current ?? {});
+    } catch {
+      setErr("구매 복원에 실패했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
       setBusy(false);
     }
   }
@@ -125,6 +162,16 @@ export default function PurchaseMapButton({
         )}
       </button>
       {err && <p className="mt-2 text-center text-[13px] text-coral-dark">{err}</p>}
+      {buyerId && (
+        <button
+          type="button"
+          onClick={restore}
+          disabled={busy}
+          className="mx-auto mt-2.5 flex items-center gap-1 text-[12px] font-semibold text-stone-400 underline disabled:opacity-50"
+        >
+          <RotateCcw size={12} /> 이미 결제했는데 안 열리나요? 구매 복원
+        </button>
+      )}
     </div>
   );
 }

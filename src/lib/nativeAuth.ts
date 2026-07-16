@@ -118,3 +118,14 @@ export async function nativeGoogleLogin(): Promise<{ ok: boolean; error?: string
     return { ok: false, error: msg || "failed" };
   }
 }
+
+// 외부 링크(카카오맵·구글맵 등)를 연다.
+// 네이티브에선 window.open이 앱 내 WebView로 열려 돌아올 방법이 없으므로
+// SFSafariViewController/Custom Tab(닫기 버튼 있음)으로 연다. 웹은 새 탭.
+export function openExternal(url: string): void {
+  if (isNativeApp()) {
+    import("@capacitor/browser").then(({ Browser }) => Browser.open({ url }));
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}

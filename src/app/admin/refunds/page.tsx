@@ -23,7 +23,7 @@ export default async function AdminRefundsPage() {
         <RotateCcw size={20} className="text-forest" /> 환불 관리
       </h1>
       <p className="mt-1 text-sm text-ink-muted">
-        결제 건을 환불하면 포트원에서 자동으로 결제가 취소되고, 구매자 접근 회수 + 판매자 정산에서 차감돼요.
+        환불 처리하면 구매자 접근이 회수되고 판매자 정산에서 차감돼요. 실제 결제 환불(현금)은 App Store·Google Play에서 이뤄져요.
       </p>
 
       {purchases.length === 0 ? (

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { getStorage } from "@/server/storage/StorageService";
 
 // 데이터 URL 길이 상한 (클라가 리사이즈해서 보냄 — 악성 클라 토큰/용량 폭탄 방어)
@@ -20,7 +20,7 @@ function parse(dataUrl: string): { mime: string; ext: string; buf: Buffer } | nu
  * (DB엔 절대 base64 저장하지 않음 — 여기서 스토리지로 보내고 URL만 돌려줌)
  */
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));

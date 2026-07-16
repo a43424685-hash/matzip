@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
-import { getPlatform } from "@/lib/nativeAuth";
+import { getPlatform, openExternal } from "@/lib/nativeAuth";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
 
@@ -456,17 +456,20 @@ export default function NearbyMapScreen() {
       </button>
 
       {/* 이 지역을 외부 지도로 열기 — 카카오 외 옵션 제공. 안드=구글, iOS/웹=애플 */}
-      <a
-        href={
-          isAndroid
-            ? `https://www.google.com/maps/search/?api=1&query=${center.lat},${center.lng}`
-            : `https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`
+      <button
+        type="button"
+        onClick={() =>
+          openExternal(
+            isAndroid
+              ? `https://www.google.com/maps/search/?api=1&query=${center.lat},${center.lng}`
+              : `https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`
+          )
         }
         className="absolute bottom-[calc(30dvh_+_3.5rem)] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95"
         aria-label={isAndroid ? "구글 지도로 보기" : "Apple 지도로 보기"}
       >
         <MapPin size={18} className="text-forest" /> {isAndroid ? "구글 지도" : "Apple 지도"}
-      </a>
+      </button>
 
       <section
         className={`absolute inset-x-0 bottom-0 z-30 rounded-t-[28px] bg-white shadow-[0_-8px_24px_rgba(0,0,0,.12)] transition-[height] duration-200 ${sheetClass(sheet)}`}

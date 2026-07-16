@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "@/components/AppDialogs";
 import { useRouter, usePathname } from "next/navigation";
 import { Heart, Bookmark } from "lucide-react";
 import { markScrollReset } from "@/lib/scrollReset";
@@ -41,29 +42,35 @@ export default function LikeSaveButtons({
 
   async function onLike() {
     if (!requireLogin()) return;
-    const res = await fetch("/api/like", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/like", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId }),
+      });
+      if (!res.ok) throw new Error("like");
       const d = await res.json();
       setLiked(d.liked);
       setLikeCount(d.likeCount);
+    } catch {
+      toast("좋아요 처리에 실패했어요.", "error");
     }
   }
 
   async function onSave() {
     if (!requireLogin()) return;
-    const res = await fetch("/api/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ restaurantId, postId }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restaurantId, postId }),
+      });
+      if (!res.ok) throw new Error("save");
       const d = await res.json();
       setSaved(d.saved);
       setSaveCount(d.saveCount);
+    } catch {
+      toast("저장 처리에 실패했어요.", "error");
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { appConfirm, toast } from "@/components/AppDialogs";
 
 export default function FollowButton({
   targetId,
@@ -23,16 +24,22 @@ export default function FollowButton({
     if (busy) return;
     setBusy(true);
     setFollowing(true); // 낙관적
-    const r = await fetch("/api/follows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetId }),
-    });
-    setBusy(false);
-    if (r.ok) router.refresh();
-    else {
+    try {
+      const r = await fetch("/api/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId }),
+      });
+      if (r.ok) router.refresh();
+      else {
+        setFollowing(false);
+        toast("팔로우에 실패했어요.", "error");
+      }
+    } catch {
       setFollowing(false);
-      alert("팔로우에 실패했어요.");
+      toast("네트워크 오류로 팔로우하지 못했어요.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -40,22 +47,34 @@ export default function FollowButton({
     setSheet(false);
     setBusy(true);
     setFollowing(false);
-    const r = await fetch("/api/follows", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetId }),
-    });
-    setBusy(false);
-    if (r.ok) router.refresh();
-    else {
+    try {
+      const r = await fetch("/api/follows", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId }),
+      });
+      if (r.ok) router.refresh();
+      else {
+        setFollowing(true);
+        toast("언팔로우에 실패했어요.", "error");
+      }
+    } catch {
       setFollowing(true);
-      alert("언팔로우에 실패했어요.");
+      toast("네트워크 오류로 언팔로우하지 못했어요.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function block() {
     setSheet(false);
-    if (!confirm(`${nickname ?? "이 사용자"}님을 차단할까요?\n팔로우가 해제되고 이 사람의 글·댓글이 안 보여요. (마이페이지에서 해제 가능)`)) return;
+    const ok = await appConfirm({
+      title: `${nickname ?? "이 사용자"}님을 차단할까요?`,
+      body: "팔로우가 해제되고 이 사람의 글·댓글이 안 보여요.\n(마이페이지에서 해제 가능)",
+      confirmLabel: "차단",
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     // 차단 + 팔로우 해제
     await fetch("/api/blocks", {
@@ -70,6 +89,7 @@ export default function FollowButton({
     }).catch(() => {});
     setBusy(false);
     setFollowing(false);
+    toast("차단했어요", "success");
     router.refresh();
   }
 

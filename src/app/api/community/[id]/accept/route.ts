@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSessionUserId } from "@/lib/auth";
+import { getActiveUserId } from "@/lib/auth";
 import { acceptCommunityAnswer } from "@/server/community/CommunityService";
 
 // Q&A 답변 채택 — 질문 작성자만
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await getSessionUserId();
+  const userId = await getActiveUserId();
   if (!userId) return NextResponse.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   const { id } = await params;
   const body = await req.json().catch(() => ({}));

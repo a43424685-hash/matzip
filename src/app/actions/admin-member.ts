@@ -74,3 +74,35 @@ export async function memoMemberAction(_prev: MemberActionState, formData: FormD
   revalidatePath(`/admin/members/${userId}`);
   return { ok: true };
 }
+
+/** 유료지도 구매 제한(상습환불 차단) 해제/재설정 — 오탐 복구용. 감사로그 기록. */
+export async function setPurchaseBlockedAction(
+  _prev: MemberActionState,
+  formData: FormData
+): Promise<MemberActionState> {
+  const admin = await requireAdmin();
+  if (!admin) return { error: "권한이 없어요." };
+
+  const userId = String(formData.get("userId") ?? "");
+  const blocked = String(formData.get("blocked") ?? "") === "1";
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) return { error: "사유를 입력해주세요." };
+
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!target) return { error: "회원을 찾을 수 없어요." };
+
+  await prisma.user.update({
+    where: { id: userId },
+    // 해제 시 환불 카운트도 리셋 — 다음 환불 1건으로 곧바로 재차단되는 것 방지
+    data: blocked ? { purchaseBlocked: true } : { purchaseBlocked: false, refundCount: 0 },
+  });
+  await writeAudit({
+    adminId: admin.id,
+    action: blocked ? "purchase_block" : "purchase_unblock",
+    targetType: "user",
+    targetId: userId,
+    reason,
+  });
+  revalidatePath(`/admin/members/${userId}`);
+  return { ok: true };
+}

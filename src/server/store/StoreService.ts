@@ -4,6 +4,7 @@
  *  - 카드: 커버사진 + 지역 · 맛집수 · 구매수 + 만든이(닉네임·인증수).
  */
 import { prisma } from "@/lib/db";
+import { TIER_WONS } from "@/lib/iapTiers";
 
 const mediaPick = { select: { type: true, url: true, thumbnailUrl: true }, orderBy: { sortOrder: "asc" as const }, take: 1 };
 
@@ -47,7 +48,8 @@ export type StoreThemeKey = (typeof STORE_THEMES)[number]["key"];
 /** 판매 중인 모든 유료 지도를 카드 형태로 */
 export async function getStoreMaps(): Promise<StoreMapCard[]> {
   const cols = await prisma.collection.findMany({
-    where: { isPaid: true, isPublic: true },
+    // 가격이 현행 IAP 티어가 아닌 지도(구 PG 시절 990원 등)는 구매가 불가능하므로 진열하지 않는다
+    where: { isPaid: true, isPublic: true, priceWon: { in: [...TIER_WONS] } },
     orderBy: { updatedAt: "desc" },
     take: 200,
     select: {
