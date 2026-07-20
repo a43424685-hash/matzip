@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: { default: "먹고핀 — 위치 인증 맛집 지도 소셜앱", template: "%s · 먹고핀" },
   description: "먹고 핀 꽂고 — 내 맛집 지도를 키우고 레벨업하는 소셜 맛집 앱",
   manifest: "/manifest.webmanifest",
+  // 검색엔진 소유확인 (구글 서치콘솔 / 네이버 서치어드바이저)
+  verification: {
+    google: "2twZeEECnZrrZnpNE29nqTJhajMR2CAAOtJZVbGjmVI",
+    other: { "naver-site-verification": "e6b226153470e2168f06d4142ef907e4ab219d66" },
+  },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "먹고핀" },
   icons: {
     icon: "/icon.svg",
