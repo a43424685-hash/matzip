@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OAUTH_STATE_COOKIE, newNonce, buildState, stateCookieOptions } from "@/lib/oauthState";
+import { stateCookieName, newNonce, buildState, stateCookieOptions } from "@/lib/oauthState";
 
 // 사용자를 Apple 로그인 페이지로 보낸다. (카카오 /api/auth/kakao 와 동일 패턴)
 export async function GET(req: Request) {
@@ -30,6 +30,6 @@ export async function GET(req: Request) {
   u.searchParams.set("state", stateVal);
 
   const res = NextResponse.redirect(u);
-  res.cookies.set(OAUTH_STATE_COOKIE, nonce, stateCookieOptions(true)); // form_post → 교차출처
+  res.cookies.set(stateCookieName("apple"), nonce, stateCookieOptions(true)); // form_post → 교차출처
   return res;
 }

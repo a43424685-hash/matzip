@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OAUTH_STATE_COOKIE, newNonce, buildState, stateCookieOptions } from "@/lib/oauthState";
+import { stateCookieName, newNonce, buildState, stateCookieOptions } from "@/lib/oauthState";
 
 export async function GET(req: Request) {
   const clientId = process.env.KAKAO_CLIENT_ID || process.env.KAKAO_REST_API_KEY;
@@ -28,6 +28,6 @@ export async function GET(req: Request) {
   u.searchParams.set("state", stateVal);
 
   const res = NextResponse.redirect(u);
-  res.cookies.set(OAUTH_STATE_COOKIE, nonce, stateCookieOptions());
+  res.cookies.set(stateCookieName("kakao"), nonce, stateCookieOptions());
   return res;
 }

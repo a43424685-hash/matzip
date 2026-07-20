@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { createSession, makeExchangeToken } from "@/lib/auth";
 import { makeAppleClientSecret, decodeAppleIdToken } from "@/lib/appleAuth";
-import { OAUTH_STATE_COOKIE, parseState, verifyNonce } from "@/lib/oauthState";
+import { stateCookieName, parseState, verifyNonce } from "@/lib/oauthState";
 
 interface AppleTokenResponse {
   id_token?: string;
@@ -21,18 +21,20 @@ export async function POST(req: Request) {
   const form = await req.formData().catch(() => null);
   const code = form?.get("code")?.toString();
   const stateRaw = form?.get("state")?.toString() || "";
-  const { nonce, native, returnTo } = parseState(stateRaw);
+  const parsed = parseState(stateRaw);
+  const { native, returnTo } = parsed;
+  const COOKIE = stateCookieName("apple");
 
-  const fail = (reason: string) =>
-    NextResponse.redirect(new URL(`/login?error=${reason}`, req.url), 303);
-
-  // CSRF 검증: state의 nonce가 시작 시 심은 쿠키와 일치해야 함
-  const cookieNonce = (await cookies()).get(OAUTH_STATE_COOKIE)?.value;
-  if (!verifyNonce(nonce, cookieNonce)) {
-    const res = fail("state_mismatch");
-    res.cookies.delete(OAUTH_STATE_COOKIE);
+  // 모든 실패/성공 응답에서 1회용 state 쿠키를 반드시 삭제
+  const fail = (reason: string) => {
+    const res = NextResponse.redirect(new URL(`/login?error=${reason}`, req.url), 303);
+    res.cookies.delete(COOKIE);
     return res;
-  }
+  };
+
+  // CSRF 검증: state 서명 유효 + nonce가 시작 시 심은 쿠키와 일치해야 함
+  const cookieNonce = (await cookies()).get(COOKIE)?.value;
+  if (!parsed.valid || !verifyNonce(parsed.nonce, cookieNonce)) return fail("state_mismatch");
 
   if (!code) return fail("apple_failed");
 
@@ -128,12 +130,12 @@ export async function POST(req: Request) {
       status: 303,
       headers: { Location: `mukgopin://auth?token=${encodeURIComponent(tok)}` },
     });
-    res.cookies.delete(OAUTH_STATE_COOKIE);
+    res.cookies.delete(COOKIE);
     return res;
   }
   await createSession(user.id);
   const dest = user.nicknameConfirmedAt ? returnTo : "/onboarding";
   const res = NextResponse.redirect(new URL(dest, req.url), 303);
-  res.cookies.delete(OAUTH_STATE_COOKIE);
+  res.cookies.delete(COOKIE);
   return res;
 }

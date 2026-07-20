@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { createSession, makeExchangeToken } from "@/lib/auth";
-import { OAUTH_STATE_COOKIE, parseState, verifyNonce } from "@/lib/oauthState";
+import { stateCookieName, parseState, verifyNonce } from "@/lib/oauthState";
 
 interface KakaoTokenResponse {
   access_token?: string;
@@ -27,22 +27,29 @@ function appBase(req: Request): string {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  if (!code) return NextResponse.redirect(new URL("/login?error=kakao_failed", req.url));
-
-  // 로그인 후 복귀할 내부 경로 (state). 외부 URL 차단 — 내부 절대경로만 허용.
-  const stateRaw = url.searchParams.get("state") || "";
-  const { nonce, native, returnTo } = parseState(stateRaw);
-  // CSRF 검증: state의 nonce가 시작 시 심은 쿠키와 일치해야 함 (불일치면 로그인 거부)
-  const cookieNonce = (await cookies()).get(OAUTH_STATE_COOKIE)?.value;
-  if (!verifyNonce(nonce, cookieNonce)) {
-    const res = NextResponse.redirect(new URL("/login?error=state_mismatch", req.url));
-    res.cookies.delete(OAUTH_STATE_COOKIE);
+  const COOKIE = stateCookieName("kakao");
+  // 모든 실패/성공 응답에서 1회용 state 쿠키를 반드시 삭제 (재사용 방지)
+  const respond = (path: string, status = 307) => {
+    const res = NextResponse.redirect(new URL(path, req.url), status);
+    res.cookies.delete(COOKIE);
     return res;
+  };
+
+  // CSRF 검증: state 서명 유효 + nonce가 시작 시 심은 쿠키와 일치해야 함.
+  // (검증 성공 즉시 쿠키를 소진하므로 이후 단계 실패해도 재사용 불가)
+  const stateRaw = url.searchParams.get("state") || "";
+  const parsed = parseState(stateRaw);
+  const cookieNonce = (await cookies()).get(COOKIE)?.value;
+  if (!parsed.valid || !verifyNonce(parsed.nonce, cookieNonce)) {
+    return respond("/login?error=state_mismatch");
   }
+  const { native, returnTo } = parsed;
+
+  if (!code) return respond("/login?error=kakao_failed");
 
   const clientId = process.env.KAKAO_CLIENT_ID || process.env.KAKAO_REST_API_KEY;
   if (!clientId) {
-    return NextResponse.redirect(new URL("/login?error=kakao_not_configured", req.url));
+    return respond("/login?error=kakao_not_configured");
   }
   const redirectUri =
     process.env.KAKAO_REDIRECT_URI || `${appBase(req)}/api/auth/kakao/callback`;
@@ -70,7 +77,7 @@ export async function GET(req: Request) {
       redirectUri,
       hasClientSecret: Boolean(process.env.KAKAO_CLIENT_SECRET),
     });
-    return NextResponse.redirect(new URL("/login?error=kakao_failed", req.url));
+    return respond("/login?error=kakao_failed");
   }
 
   const meRes = await fetch("https://kapi.kakao.com/v2/user/me", {
@@ -82,7 +89,7 @@ export async function GET(req: Request) {
       status: meRes.status,
       body: me,
     });
-    return NextResponse.redirect(new URL("/login?error=kakao_failed", req.url));
+    return respond("/login?error=kakao_failed");
   }
 
   const providerUserId = String(me.id);
@@ -147,12 +154,10 @@ export async function GET(req: Request) {
       status: 303,
       headers: { Location: `mukgopin://auth?token=${encodeURIComponent(tok)}` },
     });
-    res.cookies.delete(OAUTH_STATE_COOKIE); // 1회용 state 소진
+    res.cookies.delete(COOKIE);
     return res;
   }
   await createSession(user.id);
   const dest = user.nicknameConfirmedAt ? returnTo : "/onboarding";
-  const res = NextResponse.redirect(new URL(dest, req.url));
-  res.cookies.delete(OAUTH_STATE_COOKIE); // 1회용 state 소진
-  return res;
+  return respond(dest);
 }

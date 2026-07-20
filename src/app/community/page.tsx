@@ -4,6 +4,9 @@ import { getSessionUserId } from "@/lib/auth";
 import { listCommunityPosts, COMMUNITY_CATEGORIES, categoryLabel } from "@/server/community/CommunityService";
 import OfficialBadge from "@/components/OfficialBadge";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "커뮤니티" };
+
 export const dynamic = "force-dynamic";
 
 function ago(d: Date): string {

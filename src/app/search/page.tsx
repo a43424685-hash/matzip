@@ -19,6 +19,9 @@ import SearchBox from "@/components/SearchBox";
 import { PRICE_RANGES, SORT_OPTIONS } from "@/lib/labels";
 import BackHomeHeader from "@/components/BackHomeHeader";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "맛집 검색" };
+
 export const dynamic = "force-dynamic";
 
 const CAT_PRIORITY = [

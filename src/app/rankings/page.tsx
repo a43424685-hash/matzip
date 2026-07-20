@@ -9,6 +9,9 @@ import {
 import BackHomeHeader from "@/components/BackHomeHeader";
 import RankingClient, { type MeInfo } from "@/components/RankingClient";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "맛잘알 랭킹" };
+
 export const dynamic = "force-dynamic";
 
 export default async function RankingsPage({

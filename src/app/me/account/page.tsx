@@ -7,7 +7,7 @@ import BankAccountForm from "@/components/BankAccountForm";
 import RealNameForm from "@/components/RealNameForm";
 import { decryptField, maskAccountNumber } from "@/lib/fieldCrypto";
 
-export const metadata: Metadata = { title: "정산 계좌 · 먹고핀" };
+export const metadata: Metadata = { title: "정산 계좌" };
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {

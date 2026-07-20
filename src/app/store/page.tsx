@@ -12,7 +12,7 @@ import {
   type StoreSort,
 } from "@/server/store/StoreService";
 
-export const metadata: Metadata = { title: "맛집 지도 · 먹고핀" };
+export const metadata: Metadata = { title: "맛집 지도" };
 export const dynamic = "force-dynamic";
 
 const SORTS: { key: StoreSort; label: string }[] = [

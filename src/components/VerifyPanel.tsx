@@ -157,10 +157,8 @@ export default function VerifyPanel({
     // TOO_FAR / LOW_ACCURACY 는 추적을 유지하며 실시간 안내(아래 onPosition)로 처리
   }
 
-  function onPosition(pos: GeolocationPosition) {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    const acc = pos.coords.accuracy ?? null;
+  // 좌표 1건 처리 — 브라우저 watch와 네이티브 결과가 공용으로 쓴다
+  function handleCoords(lat: number, lng: number, acc: number | null) {
     setUserLoc({ lat, lng });
     setAccuracy(acc);
 
@@ -179,6 +177,10 @@ export default function VerifyPanel({
     }
   }
 
+  function onPosition(pos: GeolocationPosition) {
+    handleCoords(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+  }
+
   async function startTracking() {
     setMsg(null);
     if (!("geolocation" in navigator)) {
@@ -187,9 +189,11 @@ export default function VerifyPanel({
     }
     setTracking(true);
     setMsg("내 위치를 찾는 중…");
-    // 네이티브 앱이면 여기서 한글 권한 팝업(먹고핀)을 먼저 띄운다.
-    // 실패해도 아래 watchPosition이 이어서 시도하므로 무시(fire-and-forget).
-    getCurrentPositionSafe({ enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }).catch(() => {});
+    // 네이티브 앱이면 여기서 한글 권한 팝업(먹고핀)을 먼저 띄우고, 그 결과를 바로 반영한다.
+    // (결과를 버리지 않고 첫 거리 판정에 사용 → 이후 watch가 실시간 갱신)
+    getCurrentPositionSafe({ enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 })
+      .then((c) => handleCoords(c.lat, c.lng, c.accuracy))
+      .catch(() => {});
     watchIdRef.current = navigator.geolocation.watchPosition(
       onPosition,
       (err) => {

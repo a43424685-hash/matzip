@@ -84,6 +84,7 @@ model User {
   communityPosts    CommunityPost[]    @relation("CommunityAuthor")
   communityComments CommunityComment[] @relation("CommunityCommentAuthor")
   communityLikes    CommunityLike[]    @relation("CommunityLikeUser")
+  abuseFlags        AbuseFlag[]        @relation("AbuseFlagUser")
 
   @@map("users")
 }
@@ -866,4 +867,51 @@ model CollectionItem {
   @@unique([collectionId, restaurantId])
   @@index([collectionId])
   @@map("collection_items")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 결제 웹훅 수신함(inbox) — RevenueCat 환불 이벤트 멱등 처리 + 미매칭 보관.
+// event ID 유니크로 중복 수신을 걸러내고, 매칭 실패건은 pending으로 남겨
+// 나중에 수동/정기 대사(reconciliation)로 회수한다. (RevenueCat 재시도는 5회 후 종료되므로)
+// ─────────────────────────────────────────────────────────────
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  eventId     String    @unique // RevenueCat event.id (멱등 키)
+  provider    String    @default("revenuecat")
+  type        String // REFUND | CANCELLATION ...
+  // status: received(접수) | processed(회수 완료) | no_match(대상 못 찾음 → 대사 필요) | ignored
+  status      String    @default("received")
+  appUserId   String?
+  productId   String?
+  transactionId String?
+  payload     Json? // 원문 최소 필드 (마스킹 후)
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@map("webhook_events")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 어뷰징 의심 플래그 — 시스템이 자동 탐지한 의심 활동을 운영자에게 보고.
+// 차단이 아니라 '보고' 용도(오탐 대비). 운영자가 검토 후 정지/무시 결정.
+// 예: 1시간에 위치 인증 N곳 이상(가짜 좌표로 대량 인증 의심).
+// ─────────────────────────────────────────────────────────────
+model AbuseFlag {
+  id        String    @id @default(cuid())
+  userId    String
+  // kind: rapid_location(짧은시간 다수 위치인증) ...
+  kind      String
+  detail    String? // 사람이 읽을 요약 (예: "1시간 내 4곳 인증")
+  // status: open(미검토) | reviewed(검토완료) | dismissed(오탐 무시)
+  status    String    @default("open")
+  count     Int       @default(1) // 관련 지표 (예: 인증 곳 수)
+  createdAt DateTime  @default(now())
+  reviewedAt DateTime?
+
+  user User @relation("AbuseFlagUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("abuse_flags")
 }

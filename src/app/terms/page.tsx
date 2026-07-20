@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import LegalShell from "@/components/LegalShell";
 import { BUSINESS } from "@/lib/businessInfo";
 
-export const metadata: Metadata = { title: "이용약관 · 먹고핀" };
+export const metadata: Metadata = { title: "이용약관" };
 
 export default function TermsPage() {
   return (
