@@ -29,6 +29,33 @@ import { priceLabel, revisitLabel, waitingLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ postId: string }> }) {
+  const { postId } = await params;
+  const post = await prisma.restaurantPost.findUnique({
+    where: { id: postId },
+    select: {
+      shortReview: true,
+      visibility: true,
+      restaurant: { select: { name: true, signatureMenu: true, primaryRegion: { select: { name: true } } } },
+      media: { select: { url: true, thumbnailUrl: true }, orderBy: { sortOrder: "asc" }, take: 1 },
+    },
+  });
+  if (!post || post.visibility !== "public") return { title: "맛집", robots: { index: false } };
+
+  const r = post.restaurant;
+  const title = `${r.name}${r.primaryRegion ? ` · ${r.primaryRegion.name}` : ""} 맛집`;
+  const description =
+    post.shortReview?.slice(0, 110) ||
+    `${r.primaryRegion?.name ?? ""} ${r.name}${r.signatureMenu ? ` — ${r.signatureMenu}` : ""}. 먹고핀에서 위치 인증된 진짜 맛집을 확인하세요.`;
+  const image = post.media[0]?.thumbnailUrl ?? post.media[0]?.url;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/restaurants/${postId}` },
+    openGraph: { title: `${title} | 먹고핀`, description, type: "article", ...(image ? { images: [image] } : {}) },
+  };
+}
+
 const MENU_ROW = "flex w-full items-center gap-2 px-4 py-2.5 text-left text-[13.5px] font-medium text-ink hover:bg-stone-50";
 
 function formatPostDate(value: Date) {

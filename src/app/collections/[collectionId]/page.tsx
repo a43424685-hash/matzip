@@ -20,8 +20,33 @@ import PaidMapViewer from "@/components/PaidMapViewer";
 import { getRevealedIds } from "@/server/payment/PaymentService";
 import BackButton from "@/components/BackButton";
 import OfficialBadge from "@/components/OfficialBadge";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ collectionId: string }> }) {
+  const { collectionId } = await params;
+  const col = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    select: {
+      title: true,
+      isPublic: true,
+      region: { select: { name: true } },
+      user: { select: { nickname: true } },
+      _count: { select: { items: true } },
+    },
+  });
+  if (!col || !col.isPublic) return { title: "맛집 지도", robots: { index: false } };
+  const title = `${col.title}${col.region ? ` · ${col.region.name}` : ""}`;
+  const description = `${col.region?.name ?? ""} 맛집 지도 · 가게 ${col._count.items}곳 · ${col.user.nickname} 큐레이션. 먹고핀에서 확인하세요.`;
+  // OG 이미지는 opengraph-image.tsx가 자동 제공
+  return {
+    title,
+    description,
+    alternates: { canonical: `/collections/${collectionId}` },
+    openGraph: { title: `${title} | 먹고핀`, description, type: "website" },
+  };
+}
 
 export default async function CollectionDetailPage({
   params,
