@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowLeft, Bookmark, ChevronDown, LocateFixed, MapPin, Play, Search, ShieldCheck, Star } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import { getPlatform, openExternal } from "@/lib/nativeAuth";
+import { getCurrentPositionSafe } from "@/lib/geo";
+import { toast } from "@/components/AppDialogs";
 import type { PostCard as PostCardData } from "@/server/restaurant/RestaurantService";
 import CardImage from "@/components/CardImage";
 
@@ -331,21 +333,17 @@ export default function NearbyMapScreen() {
   }
 
   function locateMe() {
-    if (!navigator.geolocation) return;
-
-    if (watchIdRef.current != null) {
+    if (watchIdRef.current != null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        applyUserLocation(next);
-      },
-      () => undefined,
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-    );
+    // 네이티브 앱에선 한글 팝업(먹고핀)으로 뜨고, 웹/구버전 앱은 브라우저 위치로 대체
+    getCurrentPositionSafe({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 })
+      .then((c) => applyUserLocation({ lat: c.lat, lng: c.lng }))
+      .catch(() => toast("위치를 가져오지 못했어요. 권한을 허용했는지 확인해 주세요.", "error"));
+
+    if (!navigator.geolocation) return;
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {

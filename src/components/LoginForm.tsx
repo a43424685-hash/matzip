@@ -52,7 +52,8 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
   return (
     <main className="flex min-h-[88vh] flex-col justify-center px-6 py-10">
       <div className="mb-9 text-center">
-        <p className="text-[34px] leading-none">
+        <h1 className="sr-only">먹고핀 로그인</h1>
+        <p className="text-[34px] leading-none" aria-hidden="true">
           <span className="brand-logo">먹고</span>
           <span className="brand-logo-point">핀</span>
         </p>

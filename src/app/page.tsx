@@ -95,8 +95,10 @@ export default async function HomePage({
       <WeatherToast />
       {/* 1. 헤더 (스크롤 시 사라짐 — sticky 아님) */}
       <header className="px-5 pt-4">
+        {/* 스크린리더·SEO용 의미론적 제목 (화면엔 로고로 표시) */}
+        <h1 className="sr-only">먹고핀 — 위치 인증 맛집 지도 소셜앱</h1>
         <div className="flex items-center justify-between">
-          <span className="brand-logo text-[30px] leading-none">
+          <span className="brand-logo text-[30px] leading-none" aria-hidden="true">
             <span>먹고</span>
             <span className="brand-logo-point">핀</span>
           </span>

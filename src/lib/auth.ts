@@ -165,12 +165,18 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return user;
 }
 
-/** API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부 + 역할(RBAC) */
+/**
+ * API 라우트용 — 리다이렉트 없이 로그인 사용자 id + 운영자 여부 + 역할(RBAC).
+ * 정지·탈퇴 계정은 null (getActiveUserId와 동일 기준). 이 헬퍼를 쓰는 삭제·관리자
+ * 라우트가 정지 계정에 열려 있던 구멍을 막는다.
+ */
 export async function getSessionAdmin(): Promise<{ id: string; isAdmin: boolean; role: string } | null> {
   const userId = await getSessionUserId();
   if (!userId) return null;
-  return prisma.user.findUnique({
+  const u = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, isAdmin: true, role: true },
+    select: { id: true, isAdmin: true, role: true, suspendedAt: true, deletedAt: true },
   });
+  if (!u || u.suspendedAt || u.deletedAt) return null;
+  return { id: u.id, isAdmin: u.isAdmin, role: u.role };
 }

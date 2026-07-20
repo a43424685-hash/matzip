@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OAUTH_STATE_COOKIE, newNonce, buildState, stateCookieOptions } from "@/lib/oauthState";
 
 export async function GET(req: Request) {
   const clientId = process.env.KAKAO_CLIENT_ID || process.env.KAKAO_REST_API_KEY;
@@ -14,16 +15,19 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const returnToRaw = sp.get("returnTo") || "";
   const returnTo = returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "";
-  // 네이티브 앱(Safari View Controller) 흐름이면 state에 표시 → 콜백이 딥링크로 응답
   const native = sp.get("native") === "1";
-  const stateVal = native ? `native:${returnTo}` : returnTo;
+  // CSRF 방어: 난수 nonce를 state와 쿠키에 함께 심어 콜백에서 대조 (로그인 CSRF 차단)
+  const nonce = newNonce();
+  const stateVal = buildState(nonce, native, returnTo);
 
   const u = new URL("https://kauth.kakao.com/oauth/authorize");
   u.searchParams.set("client_id", clientId);
   u.searchParams.set("redirect_uri", redirectUri);
   u.searchParams.set("response_type", "code");
   u.searchParams.set("scope", "profile_nickname account_email");
-  if (stateVal) u.searchParams.set("state", stateVal);
+  u.searchParams.set("state", stateVal);
 
-  return NextResponse.redirect(u);
+  const res = NextResponse.redirect(u);
+  res.cookies.set(OAUTH_STATE_COOKIE, nonce, stateCookieOptions());
+  return res;
 }

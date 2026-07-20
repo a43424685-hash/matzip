@@ -213,8 +213,9 @@ export async function verifyLocation(
     return { verified: false, reason: "NO_COORDS", distanceMeters: null, ...base };
   }
 
-  // 2) GPS 정확도가 기준(50m) 초과면 재시도 요구
-  if (accuracy != null && accuracy > LOCATION_ACCURACY_LIMIT_METERS) {
+  // 2) GPS 정확도 필수 — 없거나(정확도 생략으로 우회) 기준(50m) 초과면 거부.
+  //    (accuracy를 빼고 가게 좌표만 그대로 보내 인증을 우회하던 구멍 차단)
+  if (accuracy == null || !Number.isFinite(accuracy) || accuracy <= 0 || accuracy > LOCATION_ACCURACY_LIMIT_METERS) {
     await logLocationAttempt(userId, postId, false);
     return { verified: false, reason: "LOW_ACCURACY", distanceMeters: null, ...base };
   }

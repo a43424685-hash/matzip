@@ -34,11 +34,23 @@ export async function POST(req: Request) {
   if (!REFUND_EVENT_TYPES.has(ev.type)) return NextResponse.json({ ok: true }); // 환불/취소만 처리
 
   try {
-    await handleStoreRefund({
+    const result = await handleStoreRefund({
       transactionId: ev.store_transaction_id ?? ev.transaction_id ?? ev.id,
       appUserId: ev.app_user_id,
       productId: ev.product_id,
     });
+    // 매칭 실패(NO_MATCH)를 200으로 삼키면 환불 회수가 영구 유실된다.
+    // 5xx로 응답해 RevenueCat 재시도를 유도하고, 원문을 로깅해 수동 대사(reconciliation) 가능하게.
+    if (!result.ok) {
+      console.error("[revenuecat/webhook] 환불 매칭 실패 — 재시도 유도", {
+        reason: result.reason,
+        transactionId: ev.store_transaction_id ?? ev.transaction_id ?? ev.id,
+        appUserId: ev.app_user_id,
+        productId: ev.product_id,
+        type: ev.type,
+      });
+      return NextResponse.json({ ok: false, reason: result.reason }, { status: 500 });
+    }
   } catch (e) {
     console.error("[revenuecat/webhook]", e);
     return NextResponse.json({ ok: false }, { status: 500 }); // 재시도 유도

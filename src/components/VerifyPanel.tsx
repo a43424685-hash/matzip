@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MapPin, Camera, Receipt, BookOpen, Check, Navigation, type LucideIcon } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { track } from "@/lib/analytics";
+import { getCurrentPositionSafe } from "@/lib/geo";
 
 // 서버(VerificationService)와 동일하게 유지 — 50m + 정확도 50m 하드 제한
 const LOCATION_THRESHOLD_METERS = 50; // 가게 50m 이내
@@ -178,7 +179,7 @@ export default function VerifyPanel({
     }
   }
 
-  function startTracking() {
+  async function startTracking() {
     setMsg(null);
     if (!("geolocation" in navigator)) {
       setMsg("이 기기는 위치를 지원하지 않아요.");
@@ -186,6 +187,9 @@ export default function VerifyPanel({
     }
     setTracking(true);
     setMsg("내 위치를 찾는 중…");
+    // 네이티브 앱이면 여기서 한글 권한 팝업(먹고핀)을 먼저 띄운다.
+    // 실패해도 아래 watchPosition이 이어서 시도하므로 무시(fire-and-forget).
+    getCurrentPositionSafe({ enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }).catch(() => {});
     watchIdRef.current = navigator.geolocation.watchPosition(
       onPosition,
       (err) => {
