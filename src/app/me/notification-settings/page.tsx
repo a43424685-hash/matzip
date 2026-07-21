@@ -15,7 +15,7 @@ export default async function NotificationSettingsPage() {
   });
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title="알림 설정" />
+      <MeSubPageHeader backHref="/me/menu" title="알림 설정" />
       <NotificationSettings initial={prefs} />
     </main>
   );

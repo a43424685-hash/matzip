@@ -26,7 +26,7 @@ export default async function MyReportsPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title="신고 / 제재" />
+      <MeSubPageHeader backHref="/me/menu" title="신고 / 제재" />
 
       <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-[13px] leading-relaxed text-ink-muted">
         <p>허위 인증, 거짓 리뷰, 욕설, 광고성 글은 제한될 수 있어요.</p>

@@ -412,7 +412,7 @@ export default function PaidMapViewer({
                       onClick={() => toggleVisited(it)}
                       className={`flex h-9 flex-1 items-center justify-center gap-1 rounded-xl border text-[13px] font-bold active:scale-[0.98] ${isVisited ? "border-forest bg-forest text-white" : "border-stone-200 text-ink"}`}
                     >
-                      <Check size={14} /> {isVisited ? "가봄" : "방문"}
+                      <Check size={14} /> {isVisited ? "방문 완료" : "가봤어요"}
                     </button>
                   </>
                 )}

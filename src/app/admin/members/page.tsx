@@ -40,7 +40,7 @@ export default async function AdminMembersPage({
         <button type="submit" className="shrink-0 rounded-full bg-ink px-3 py-1 text-[13px] font-bold text-white">검색</button>
       </form>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="w-full min-w-[720px] text-[13px]">
           <thead className="bg-stone-50 text-stone-400">
             <tr className="text-left">

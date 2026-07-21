@@ -57,7 +57,7 @@ function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number)
 function sheetClass(state: SheetState) {
   if (state === "collapsed") return "h-[14dvh]";
   if (state === "expanded") return "h-[calc(100dvh-98px)]";
-  return "h-[28dvh]";
+  return "h-[22dvh]";
 }
 
 export default function NearbyMapScreen() {
@@ -455,7 +455,7 @@ export default function NearbyMapScreen() {
       <button
         type="button"
         onClick={locateMe}
-        className="absolute bottom-[30dvh] left-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-lg active:scale-95"
+        className={`absolute bottom-[24dvh] right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-lg active:scale-95 ${sheet === "expanded" ? "hidden" : ""}`}
         aria-label="내 위치"
       >
         <LocateFixed size={22} />
@@ -471,7 +471,7 @@ export default function NearbyMapScreen() {
               : `https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`
           )
         }
-        className="absolute bottom-[calc(30dvh_+_3.5rem)] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95"
+        className={`absolute bottom-[24dvh] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95 ${sheet === "expanded" ? "hidden" : ""}`}
         aria-label={isAndroid ? "구글 지도로 보기" : "Apple 지도로 보기"}
       >
         <MapPin size={18} className="text-forest" /> {isAndroid ? "구글 지도" : "Apple 지도"}
