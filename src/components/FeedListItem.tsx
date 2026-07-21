@@ -37,18 +37,13 @@ export default function FeedListItem({ post }: { post: PostCard }) {
           ) : (
             <>
               {post.isOfficial && (
-                <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                   <Check size={10} strokeWidth={3.5} /> 운영자
                 </span>
               )}
               {post.verification.location && (
                 <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-forest px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                   <ShieldCheck size={10} /> 인증
-                </span>
-              )}
-              {!post.isOfficial && !post.verification.location && (
-                <span className="shrink-0 rounded-md bg-stone-200 px-1.5 py-0.5 text-[10px] font-extrabold text-stone-500">
-                  미인증
                 </span>
               )}
             </>

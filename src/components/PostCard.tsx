@@ -107,7 +107,7 @@ function Header({ post }: { post: PostCardData }) {
           </span>
         ) : (
           post.isOfficial && (
-            <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+            <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-extrabold text-white">
               <Check size={10} strokeWidth={3.5} /> 운영자
             </span>
           )

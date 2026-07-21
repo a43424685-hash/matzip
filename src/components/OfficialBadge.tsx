@@ -6,7 +6,7 @@ export default function OfficialBadge({ size = 16, className = "" }: { size?: nu
     <span
       aria-label="공식 운영자"
       title="공식 운영자"
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#1d9bf0] text-white ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-ink text-white ${className}`}
       style={{ width: size, height: size }}
     >
       <Check size={Math.round(size * 0.68)} strokeWidth={3.5} />

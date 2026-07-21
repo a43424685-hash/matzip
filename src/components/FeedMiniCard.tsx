@@ -49,7 +49,7 @@ export function PhotoCard({
         )}
         <div className="absolute left-2 top-2 flex gap-1">
           {post.isOfficial && (
-            <span className="flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+            <span className="flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-white">
               <Check size={11} strokeWidth={3.2} /> 운영자
             </span>
           )}
@@ -57,9 +57,6 @@ export function PhotoCard({
             <span className="flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
               <ShieldCheck size={11} /> 인증
             </span>
-          )}
-          {!post.isOfficial && !post.verification.location && !showVerified && (
-            <span className="rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
           )}
         </div>
       </div>
@@ -99,7 +96,7 @@ export function TextPostCard({
         <div className="absolute inset-0 opacity-60 thumb-empty" />
         <div className="relative z-[1] flex w-fit gap-1">
           {post.isOfficial && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#1d9bf0] px-2 py-0.5 text-[11px] font-bold text-white">
+            <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-white">
               <Check size={11} strokeWidth={3.2} /> 운영자
             </span>
           )}
@@ -107,9 +104,6 @@ export function TextPostCard({
             <span className="inline-flex items-center gap-1 rounded-full bg-forest/90 px-2 py-0.5 text-[11px] font-bold text-white">
               <ShieldCheck size={11} /> 인증
             </span>
-          )}
-          {!post.isOfficial && !post.verification.location && !showVerified && (
-            <span className="inline-flex rounded-full bg-stone-500/80 px-2 py-0.5 text-[11px] font-bold text-white">미인증</span>
           )}
         </div>
         <div className="relative z-[1] mt-auto">

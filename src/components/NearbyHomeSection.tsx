@@ -27,6 +27,12 @@ export default function NearbyHomeSection() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
+          // '더보기'로 주변 지도 열 때 바로 내 위치에서 열리도록 저장
+          try {
+            localStorage.setItem("mukgopin:lastLocation", JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() }));
+          } catch {
+            /* ignore */
+          }
           const res = await fetch(`/api/nearby?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
           const data = (await res.json()) as { ok?: boolean; items?: NearbyItem[] };
           setItems(data.items ?? []);
@@ -130,7 +136,7 @@ export default function NearbyHomeSection() {
                   )}
                   <div className="absolute left-1.5 top-1.5 flex gap-1">
                     {post.isOfficial && (
-                      <span className="flex items-center gap-0.5 rounded-full bg-[#1d9bf0] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span className="flex items-center gap-0.5 rounded-full bg-ink px-1.5 py-0.5 text-[10px] font-bold text-white">
                         <Check size={9} strokeWidth={3.5} /> 운영자
                       </span>
                     )}

@@ -6,7 +6,7 @@ import { Home, MessageSquare, Trophy, MapPin, User } from "lucide-react";
 
 const TABS = [
   { href: "/", label: "홈", Icon: Home },
-  { href: "/nearby", label: "주변", Icon: MapPin }, // 검색 흡수(지도+검색)
+  { href: "/nearby", label: "탐색", Icon: MapPin }, // 지도+검색+피드+가이드 탐색 진입
   { href: "/community", label: "커뮤니티", Icon: MessageSquare },
   { href: "/rankings", label: "랭킹", Icon: Trophy },
   { href: "/me", label: "내정보", Icon: User },

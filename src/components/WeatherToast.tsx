@@ -64,6 +64,12 @@ export default function WeatherToast() {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try {
+            // 주변 지도가 '내 주변 더 보기'로 열릴 때 바로 이 위치에서 열리도록 저장
+            try {
+              localStorage.setItem("mukgopin:lastLocation", JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() }));
+            } catch {
+              /* ignore */
+            }
             const res = await fetch(`/api/weather-picks?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
             const d = (await res.json()) as { ok?: boolean; weather?: Weather; items?: Item[] };
             if (cancelled || !d.ok || !d.weather || (d.items?.length ?? 0) === 0) return;
@@ -126,18 +132,14 @@ export default function WeatherToast() {
   if (!open || !weather) return null;
 
   return (
+    // 홈을 가리지 않는 하단 인라인 카드 (전체화면 딤 제거) — 하단 탭 위에 뜬다
     <div
-      className={`fixed inset-0 z-[80] flex items-center justify-center px-6 transition-opacity duration-300 ${
-        entered ? "opacity-100" : "opacity-0"
+      className={`fixed inset-x-0 bottom-[88px] z-[70] flex justify-center px-4 transition-all duration-300 ${
+        entered ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
       }`}
-      onClick={close}
     >
-      <div className="absolute inset-0 bg-black/45" />
       <div
-        onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-300 ${
-          entered ? "translate-y-0 scale-100" : "translate-y-2 scale-95"
-        }`}
+        className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5`}
       >
         <WeatherScene condition={weather.condition} tempC={weather.tempC} humidity={weather.humidity} />
 
