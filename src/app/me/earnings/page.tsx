@@ -8,6 +8,7 @@ import { getSellerBalance, listMyWithdrawals, MIN_WITHDRAW_WON } from "@/server/
 import MeSubPageHeader from "@/components/MeSubPageHeader";
 import WithdrawForm from "@/components/WithdrawForm";
 import { decryptField, maskAccountNumber } from "@/lib/fieldCrypto";
+import { SETTLEMENT_NOTICE } from "@/lib/iapTiers";
 
 export const dynamic = "force-dynamic";
 
@@ -156,8 +157,8 @@ export default async function EarningsPage() {
         </div>
       )}
 
-      <p className="mt-4 px-1 text-[12px] leading-relaxed text-stone-400">
-        ※ 판매액에서 앱 마켓 수수료 15%를 뗀 뒤, 남은 금액의 80%가 정산돼요(판매가 기준 약 68%). 판매 후 14일 정산 대기가 지나면 출금할 수 있고, 출금 신청 시 운영자가 확인 후 등록하신 계좌로 입금해드려요.
+      <p className="mt-4 px-1 text-[12px] leading-relaxed text-ink-muted">
+        ※ {SETTLEMENT_NOTICE} 출금 신청 시 운영자가 확인 후 등록하신 계좌로 입금해드려요.
       </p>
     </main>
   );

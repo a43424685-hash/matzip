@@ -12,7 +12,8 @@ import { ABUSE_LIMITS } from "@/server/xp/xpRules";
 import { getStorage } from "@/server/storage/StorageService";
 import { randomUUID } from "crypto";
 
-const KINDS: ProofKind[] = ["receipt", "menu"];
+// 영수증 인증은 폐기됨 — 신규는 메뉴판만 받는다. (기존 receiptVerified 데이터는 보존)
+const KINDS: ProofKind[] = ["menu"];
 
 /** data URL → 스토리지 업로드용 버퍼/타입 */
 function parseImage(dataUrl: string): { mime: string; ext: string; buf: Buffer } | null {
@@ -42,6 +43,8 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
   const kind = body.kind as ProofKind;
   const image = body.image as string;
+  // 폐기된 영수증 인증 신규 요청은 명시적으로 거부 (410 Gone)
+  if (kind === "receipt") return NextResponse.json({ error: "RECEIPT_DEPRECATED" }, { status: 410 });
   if (!KINDS.includes(kind)) return NextResponse.json({ error: "BAD_KIND" }, { status: 400 });
   if (typeof image !== "string" || !image.startsWith("data:image/")) {
     return NextResponse.json({ error: "BAD_IMAGE" }, { status: 400 });

@@ -19,7 +19,7 @@ export default async function SettingsPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title="설정" />
+      <MeSubPageHeader backHref="/me/menu" title="설정" />
 
       <div className="divide-y divide-stone-100">
         <Link href="/me/profile" className="flex items-center gap-3 px-1 py-3.5 active:bg-stone-50">

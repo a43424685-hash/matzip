@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { openExternal } from "@/lib/nativeAuth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy, Quote, Pencil, Lock, Eye } from "lucide-react";
+import { List, Map as MapIcon, Navigation, Bookmark, Check, Store, Trophy, Quote, Pencil, Eye, ChevronDown } from "lucide-react";
 import { loadKakaoMaps } from "@/lib/kakaoLoader";
 import type { CollectionDetail } from "@/server/collection/CollectionService";
 import CardImage from "@/components/CardImage";
@@ -37,8 +37,8 @@ export default function PaidMapViewer({
   previewIds?: string[];
   initialRevealed?: string[];
 }) {
-  // 지도 상품이므로 '지도'를 먼저, 목록은 둘째
-  const [view, setView] = useState<"map" | "list">("map");
+  // 모바일 기본값은 '목록' — 무엇을 샀는지(가게들)를 먼저 보여주고, '지도' 탭에서 분포 확인
+  const [view, setView] = useState<"map" | "list">("list");
   const [region, setRegion] = useState<string>("전체");
   const [visited, setVisited] = useState<Set<string>>(new Set(initialVisited));
   const [saved, setSaved] = useState<Set<string>>(new Set(initialSaved));
@@ -76,9 +76,14 @@ export default function PaidMapViewer({
     () => (region === "전체" ? items : items.filter((i) => i.regionName === region)),
     [items, region]
   );
-  const geoItems = useMemo(
-    () => filtered.filter((i) => Number.isFinite(i.latitude) && Number.isFinite(i.longitude)),
+  // 번호 원본 하나만 사용 — 좌표 없는 가게가 껴도 지도 핀 번호와 목록 번호가 항상 일치.
+  const indexedItems = useMemo(
+    () => filtered.map((item, index) => ({ item, number: index + 1 })),
     [filtered]
+  );
+  const geoItems = useMemo(
+    () => indexedItems.filter(({ item }) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude)),
+    [indexedItems]
   );
 
   useEffect(() => {
@@ -88,7 +93,7 @@ export default function PaidMapViewer({
       .then(() => {
         if (cancelled || !mapBoxRef.current) return;
         const kakao = window.kakao;
-        const first = geoItems[0];
+        const first = geoItems[0]?.item;
         const center = first
           ? new kakao.maps.LatLng(first.latitude, first.longitude)
           : new kakao.maps.LatLng(37.5665, 126.978);
@@ -122,7 +127,7 @@ export default function PaidMapViewer({
     if (geoItems.length === 0) return;
 
     const bounds = new kakao.maps.LatLngBounds();
-    geoItems.forEach((it, idx) => {
+    geoItems.forEach(({ item: it, number }) => {
       const pos = new kakao.maps.LatLng(it.latitude, it.longitude);
       bounds.extend(pos);
       const done = visited.has(it.restaurantId);
@@ -143,15 +148,13 @@ export default function PaidMapViewer({
             box-shadow:0 3px 8px rgba(0,0,0,.15);">
             ?
           </div>`
-          : `
-          <a href="${it.postId ? `/restaurants/${it.postId}` : "#"}" title="${escapeHtml(it.restaurantName)}" style="
-            display:flex;align-items:center;justify-content:center;
-            width:26px;height:26px;border-radius:999px;
-            background:${done ? "#1f4d3f" : "#ffffff"};color:${done ? "#fff" : "#1f2b25"};
-            border:2px solid #1f4d3f;font-size:12px;font-weight:900;
-            box-shadow:0 3px 8px rgba(0,0,0,.25);text-decoration:none;">
-            ${idx + 1}
-          </a>`,
+          : (() => {
+              const style = `display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:${done ? "#1f4d3f" : "#ffffff"};color:${done ? "#fff" : "#1f2b25"};border:2px solid #1f4d3f;font-size:12px;font-weight:900;box-shadow:0 3px 8px rgba(0,0,0,.25);text-decoration:none;`;
+              // postId 없으면 링크 아닌 표시로 (죽은 "#" 링크 방지)
+              return it.postId
+                ? `<a href="/restaurants/${it.postId}" title="${escapeHtml(it.restaurantName)}" style="${style}">${number}</a>`
+                : `<div title="${escapeHtml(it.restaurantName)}" style="${style}">${number}</div>`;
+            })(),
         map,
       });
       markerRefs.current.push(overlay);
@@ -215,51 +218,41 @@ export default function PaidMapViewer({
 
   return (
     <div className="mt-5">
-      {/* 도장깨기 진행률 (보상감) */}
+      {/* 도장깨기 진행률 — 한 줄로 축소 (화면 독점 방지) */}
       {canTrack && (
-        <div
-          className={`mb-3 rounded-2xl border p-4 ${
-            allDone ? "border-coral/40 bg-coral/10" : "border-forest/20 bg-forest-soft/25"
-          }`}
-        >
-          <div className="flex items-center justify-between text-sm font-extrabold text-ink">
-            <span className="flex items-center gap-1.5">
-              <Trophy size={16} className={allDone ? "text-coral-dark" : "text-forest"} /> 맛집 정복
-            </span>
-            <span className="tabular-nums text-forest">
-              {items.length}곳 중 <b>{visitedCount}곳</b>
-            </span>
-          </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2">
+          <Trophy size={14} className={allDone ? "text-coral-dark" : "text-forest"} />
+          <span className="shrink-0 text-[12px] font-bold text-ink">맛집 정복</span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
             <div
               className={`h-full rounded-full transition-all ${allDone ? "bg-coral" : "bg-forest"}`}
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="mt-2 text-[12px] font-semibold text-ink-muted">
-            {allDone
-              ? "🏆 이 지도를 전부 정복했어요! 대단해요"
-              : visitedCount === 0
-                ? "가본 곳을 '방문'으로 체크해 첫 도장을 찍어보세요"
-                : `${items.length - visitedCount}곳 더 가면 정복 완료!`}
-          </p>
+          <span className="shrink-0 tabular-nums text-[12px] font-bold text-forest">
+            {visitedCount}/{items.length}
+          </span>
         </div>
       )}
 
-      {/* 지도/목록 토글 (지도 먼저) */}
+      {/* 목록 | 지도 세그먼트 (탭) */}
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex rounded-full border border-stone-200 bg-white p-0.5">
+        <div role="tablist" aria-label="보기 방식" className="flex rounded-full border border-stone-200 bg-white p-0.5">
           <button
-            onClick={() => setView("map")}
-            className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] font-bold ${view === "map" ? "bg-forest text-white" : "text-ink-muted"}`}
-          >
-            <MapIcon size={15} /> 지도
-          </button>
-          <button
+            role="tab"
+            aria-selected={view === "list"}
             onClick={() => setView("list")}
             className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] font-bold ${view === "list" ? "bg-forest text-white" : "text-ink-muted"}`}
           >
             <List size={15} /> 목록
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === "map"}
+            onClick={() => setView("map")}
+            className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] font-bold ${view === "map" ? "bg-forest text-white" : "text-ink-muted"}`}
+          >
+            <MapIcon size={15} /> 지도
           </button>
         </div>
       </div>
@@ -276,7 +269,7 @@ export default function PaidMapViewer({
 
       {/* 지도 뷰 — 목록으로 갔다 와도 깨지지 않게 항상 마운트하고 보일 때만 표시 */}
       <div
-        className={`relative mb-3 h-[360px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 ${
+        className={`relative mb-3 h-[300px] overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 ${
           view === "map" ? "" : "hidden"
         }`}
       >
@@ -293,25 +286,35 @@ export default function PaidMapViewer({
         )}
       </div>
 
-      {/* 구매자 열람/환불 안내 */}
+      {/* 구매자 열람/환불 안내 — 접기 영역(환불 제한 도달 시에만 펼침 강조) */}
       {revealGating && (
-        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-800">
-          맛보기 외 가게는 <b>열어보기</b>로 하나씩 공개돼요.{" "}
-          {revealCount < REVEAL_REFUND_THRESHOLD ? (
-            <>
-              지금은 <b>환불 가능</b> (열람 {revealCount}/{REVEAL_REFUND_THRESHOLD}) — {REVEAL_REFUND_THRESHOLD}곳 열면 단순 변심 환불이 제한돼요.
-            </>
-          ) : (
-            <>
-              충분히 열람해 <b>단순 변심 환불이 제한</b>돼요. (콘텐츠 하자·결제 오류는 환불)
-            </>
-          )}
-        </div>
+        <details
+          className={`group mb-3 rounded-xl border text-[12px] ${
+            revealCount >= REVEAL_REFUND_THRESHOLD ? "border-amber-200 bg-amber-50" : "border-stone-200 bg-white"
+          }`}
+          {...(revealCount >= REVEAL_REFUND_THRESHOLD ? { open: true } : {})}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-semibold text-ink-muted">
+            <span>
+              열람·환불 안내 · 열람 {revealCount}/{REVEAL_REFUND_THRESHOLD}
+            </span>
+            <ChevronDown size={14} className="transition group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-stone-100 px-3 py-2 leading-relaxed text-ink-muted">
+            맛보기 외 가게는 <b>열어보기</b>로 하나씩 공개돼요.{" "}
+            {revealCount < REVEAL_REFUND_THRESHOLD ? (
+              <>지금은 <b>환불 가능</b> — 맛보기 외 {REVEAL_REFUND_THRESHOLD}곳을 열면 단순 변심 환불이 제한돼요. (콘텐츠 하자·결제 오류는 예외)</>
+            ) : (
+              <>충분히 열람해 <b>단순 변심 환불이 제한</b>돼요. (콘텐츠 하자·결제 오류는 환불)</>
+            )}
+          </div>
+        </details>
       )}
 
-      {/* 목록 (지도 밑에 늘 함께 — 핀 번호와 매칭) */}
-      <div className="space-y-3">
-        {filtered.map((it, i) => {
+      {/* 목록 — '목록' 탭에서만 (지도 탭에선 지도만, 중복 렌더 X). 핀 번호와 목록 번호 일치 */}
+      {view === "list" && (
+        <div className="space-y-3">
+        {indexedItems.map(({ item: it, number }) => {
           const isVisited = visited.has(it.restaurantId);
           const isSaved = saved.has(it.restaurantId);
           const hasGeo = Number.isFinite(it.latitude) && Number.isFinite(it.longitude);
@@ -323,7 +326,7 @@ export default function PaidMapViewer({
                 onClick={() => reveal(it)}
                 className="card relative flex w-full items-center gap-3 overflow-hidden p-3 text-left active:scale-[0.99]"
               >
-                <span className="badge-rank bg-stone-100 text-stone-500">{i + 1}</span>
+                <span className="badge-rank bg-stone-100 text-stone-500">{number}</span>
                 <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-stone-200">
                   {it.media && it.media.type === "image" ? (
                     <CardImage src={it.media.thumbnailUrl ?? it.media.url} alt="" className="h-14 w-14 scale-110 object-cover blur-[6px]" />
@@ -346,7 +349,7 @@ export default function PaidMapViewer({
           return (
             <div key={it.restaurantId} className={`card p-3 ${isVisited ? "border-forest/40 bg-forest-soft/15" : ""}`}>
               <div className="flex items-center gap-3">
-                <span className="badge-rank bg-stone-100 text-stone-500">{i + 1}</span>
+                <span className="badge-rank bg-stone-100 text-stone-500">{number}</span>
                 <Link href={it.postId ? `/restaurants/${it.postId}` : "#"} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
                   {it.media && it.media.type === "image" ? (
                     <CardImage src={it.media.thumbnailUrl ?? it.media.url} alt={it.restaurantName} className="h-14 w-14 object-cover" />
@@ -358,10 +361,15 @@ export default function PaidMapViewer({
                 </Link>
                 <Link href={it.postId ? `/restaurants/${it.postId}` : "#"} className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-ink">{it.restaurantName}</div>
-                  <div className="text-[11px] text-stone-400">
+                  <div className="text-[12px] text-ink-muted">
                     {it.regionName}
                     {it.categories.length > 0 && ` · ${it.categories.slice(0, 2).join(", ")}`}
                   </div>
+                  {!hasGeo && (
+                    <div className="mt-1 inline-flex items-center rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-semibold text-stone-500">
+                      지도 위치 없음
+                    </div>
+                  )}
                   <div className="mt-1">
                     <VerificationBadges v={it.verification} compact />
                   </div>
@@ -404,7 +412,7 @@ export default function PaidMapViewer({
                       onClick={() => toggleVisited(it)}
                       className={`flex h-9 flex-1 items-center justify-center gap-1 rounded-xl border text-[13px] font-bold active:scale-[0.98] ${isVisited ? "border-forest bg-forest text-white" : "border-stone-200 text-ink"}`}
                     >
-                      <Check size={14} /> {isVisited ? "가봄" : "방문"}
+                      <Check size={14} /> {isVisited ? "방문 완료" : "가봤어요"}
                     </button>
                   </>
                 )}
@@ -412,7 +420,8 @@ export default function PaidMapViewer({
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

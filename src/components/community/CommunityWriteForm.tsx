@@ -66,8 +66,8 @@ export default function CommunityWriteForm({ initialCategory }: { initialCategor
 
   return (
     <div className="space-y-4">
-      {/* 카테고리 */}
-      <div className="flex gap-2">
+      {/* 카테고리 — 좁은 화면에서 칩이 넘치지 않게 줄바꿈 */}
+      <div className="flex flex-wrap gap-2">
         {COMMUNITY_CATEGORIES.map((c) => (
           <button
             key={c.key}

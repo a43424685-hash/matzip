@@ -22,7 +22,7 @@ export default async function NoticesPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title="공지사항" />
+      <MeSubPageHeader backHref="/me/menu" title="공지사항" />
       <div className="space-y-2">
         {NOTICES.map((n) => (
           <details key={n.title} className="rounded-2xl border border-stone-200">

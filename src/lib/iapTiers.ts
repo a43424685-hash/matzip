@@ -43,6 +43,12 @@ export const STORE_FEE_RATE = 0.15; // 애플·구글 소상공인 수수료 15%
 export const SELLER_SHARE = 0.8; // 스토어 수수료 뗀 후 셀러 몫
 export const PLATFORM_SHARE = 0.2; // 스토어 수수료 뗀 후 플랫폼 몫
 
+// 판매가 기준 셀러 실수령 비율 — 화면 문구는 이 상수에서 렌더(숫자 하드코딩 금지)
+export const SELLER_NET_RATE = (1 - STORE_FEE_RATE) * SELLER_SHARE; // 0.68
+export const SELLER_NET_PERCENT = Math.round(SELLER_NET_RATE * 100); // 68
+export const STORE_FEE_PERCENT = Math.round(STORE_FEE_RATE * 100); // 15
+export const SELLER_SHARE_PERCENT = Math.round(SELLER_SHARE * 100); // 80
+
 export interface Settlement {
   amountWon: number; // 총 판매가
   storeFeeWon: number; // 애플/구글 몫
@@ -66,3 +72,6 @@ export const REVEAL_REFUND_THRESHOLD = 3;
 export const SETTLEMENT_HOLD_DAYS = 14;
 // 누적 환불 이 횟수 도달 시 유료지도 구매 영구 제한 (스토어 환불도 카운트)
 export const REFUND_BLOCK_COUNT = 4;
+
+// 정산 안내 표준 문구 — 모든 화면이 이걸 쓴다(숫자 하드코딩·불일치 방지)
+export const SETTLEMENT_NOTICE = `판매가에서 앱 마켓 수수료 ${STORE_FEE_PERCENT}%가 먼저 차감되고, 남은 금액의 ${SELLER_SHARE_PERCENT}%가 정산돼요. 판매가 기준 약 ${SELLER_NET_PERCENT}%이며, 판매 후 ${SETTLEMENT_HOLD_DAYS}일이 지나면 출금할 수 있어요.`;

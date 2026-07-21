@@ -29,7 +29,11 @@ body {
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+    @apply inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+  }
+  /* 아이콘 전용 버튼 — 보이는 아이콘은 작아도 터치 영역은 최소 44×44 */
+  .icon-button {
+    @apply inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition active:scale-95;
   }
   .btn-primary {
     @apply btn bg-forest text-white hover:bg-forest-dark;
@@ -56,7 +60,7 @@ body {
     @apply rounded-2xl border border-stone-200/60 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-8px_rgba(15,23,42,0.10)];
   }
   .input {
-    @apply w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest;
+    @apply w-full min-h-[44px] rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-[16px] text-ink outline-none focus:border-forest;
   }
   .label {
     @apply mb-1.5 block text-sm font-semibold text-ink;

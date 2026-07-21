@@ -26,6 +26,8 @@ type NearbyItem = {
 
 const SEOUL_CENTER: LatLng = { lat: 37.5665, lng: 126.978 };
 const LAST_LOCATION_KEY = "mukgopin:lastLocation";
+// 저장된 '보던 위치'가 이 시간 이내면 최근 것으로 보고 복원(뒤로가기·재진입). 지나면 자동으로 내 위치로.
+const LOCATION_FRESH_MS = 30 * 60 * 1000;
 const CATEGORY_LABELS = ["전체", "노포", "야장", "가성비", "데이트", "혼밥", "카페", "술집"];
 
 function formatDistance(m: number) {
@@ -55,7 +57,7 @@ function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number)
 function sheetClass(state: SheetState) {
   if (state === "collapsed") return "h-[14dvh]";
   if (state === "expanded") return "h-[calc(100dvh-98px)]";
-  return "h-[28dvh]";
+  return "h-[22dvh]";
 }
 
 export default function NearbyMapScreen() {
@@ -66,6 +68,7 @@ export default function NearbyMapScreen() {
   const autoSearchTimer = useRef<number | undefined>(undefined);
   const watchIdRef = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
+  const centerRef = useRef<LatLng>(SEOUL_CENTER); // 최신 center (초기 setTimeout 클로저 stale 방지)
 
   const [center, setCenter] = useState<LatLng>(SEOUL_CENTER);
   const [userLoc, setUserLoc] = useState<LatLng | null>(null);
@@ -82,7 +85,6 @@ export default function NearbyMapScreen() {
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [emptyArea, setEmptyArea] = useState(false); // 지오코딩은 됐지만 등록된 맛집이 없는 지역
-  const [moved, setMoved] = useState(false);
   // 외부 지도 버튼: 안드로이드=구글, iOS/웹=애플 (마운트 후 결정)
   const [isAndroid, setIsAndroid] = useState(false);
   useEffect(() => setIsAndroid(getPlatform() === "android"), []);
@@ -116,20 +118,36 @@ export default function NearbyMapScreen() {
   }, []);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(LAST_LOCATION_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as LatLng;
-        if (Number.isFinite(parsed.lat) && Number.isFinite(parsed.lng)) setCenter(parsed);
-      } catch {
-        window.localStorage.removeItem(LAST_LOCATION_KEY);
+    // 1) 저장된 '마지막으로 보던 위치' 복원 (뒤로가기·재진입 시 그 자리 유지)
+    let restoredFresh = false;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(LAST_LOCATION_KEY) || "null") as (LatLng & { ts?: number }) | null;
+      if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lng)) {
+        setCenter({ lat: saved.lat, lng: saved.lng });
+        restoredFresh = typeof saved.ts === "number" && Date.now() - saved.ts < LOCATION_FRESH_MS;
       }
+    } catch {
+      window.localStorage.removeItem(LAST_LOCATION_KEY);
     }
+
+    // 2) 진입 시 자동으로 내 위치 잡기 — 최근에 보던 위치가 없으면 내 위치로 중심 이동.
+    //    (최근 위치가 있으면 지도는 그 자리 유지, 파란 '내 위치' 점만 갱신)
+    getCurrentPositionSafe({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 })
+      .then((c) => {
+        const next = { lat: c.lat, lng: c.lng };
+        setUserLoc(next);
+        if (!restoredFresh) applyUserLocation(next);
+      })
+      .catch(() => {
+        /* 권한 거부/실패 → 저장된 위치(또는 서울) 그대로 */
+      });
+
     return () => {
-      if (watchIdRef.current != null) {
+      if (watchIdRef.current != null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -149,10 +167,11 @@ export default function NearbyMapScreen() {
           if (autoSearchTimer.current) window.clearTimeout(autoSearchTimer.current);
           autoSearchTimer.current = window.setTimeout(() => {
             const c = map.getCenter();
-            setMoved(false);
+            const pos = { lat: c.getLat(), lng: c.getLng() };
+            centerRef.current = pos;
+            saveCenter(pos); // 보던 위치 저장 → 맛집 갔다 뒤로와도 이 자리로 복원
             // pan(중심이동)이든 zoom(확대/축소)이든 항상 직접 재검색.
-            // 예전엔 setCenter로 처리해서, 줌은 중심이 안 바뀌어 재검색이 아예 안 됐음(버그).
-            void loadNearby({ lat: c.getLat(), lng: c.getLng() });
+            void loadNearby(pos);
           }, 400);
         };
         kakao.maps.event.addListener(map, "dragend", onMapMove);
@@ -161,10 +180,11 @@ export default function NearbyMapScreen() {
         // 재진입(다시 들어옴) 시 컨테이너 크기가 늦게 잡혀 지도/마커가 안 그려지는 것 방지
         window.setTimeout(() => {
           if (!cancelled && mapRef.current) {
+            const c = centerRef.current; // 최신 center 사용 (stale 클로저로 서울 깜빡임 방지)
             mapRef.current.relayout();
-            mapRef.current.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+            mapRef.current.setCenter(new window.kakao.maps.LatLng(c.lat, c.lng));
             // 레이아웃(크기) 잡힌 뒤 정확한 화면 범위로 초기 로드 — 처음부터 핀이 뜨게
-            void loadNearby({ lat: center.lat, lng: center.lng });
+            void loadNearby(c);
           }
         }, 250);
       })
@@ -178,6 +198,7 @@ export default function NearbyMapScreen() {
   }, []);
 
   useEffect(() => {
+    centerRef.current = center;
     const kakao = window.kakao;
     const map = mapRef.current;
     if (!kakao || !map) return;
@@ -299,7 +320,7 @@ export default function NearbyMapScreen() {
         setEmptyArea(true); // 등록된 맛집 없음 → 지도 이동 안 함
         return;
       }
-      setMoved(false);
+      saveCenter({ lat, lng }); // 검색 위치 저장 → 뒤로가기 복원
       mapRef.current?.setLevel?.(4); // 반경 ~2km 로 맞춰 줌
       setItems(found);
       setCenter({ lat, lng });
@@ -316,18 +337,17 @@ export default function NearbyMapScreen() {
     await geocodeAndMove(q.trim());
   }
 
-  // "이 지역 다시 검색" — 현재 지도 중심/줌 기준으로 다시 로드 (줌만 바뀐 경우도 강제 갱신)
-  function researchHere() {
-    const c = mapRef.current?.getCenter?.();
-    if (!c) return;
-    const pos = { lat: c.getLat(), lng: c.getLng() };
-    setCenter(pos);
-    void loadNearby(pos);
-    setMoved(false);
+  // 보던/검색/내위치를 '마지막 위치'로 저장(시각 포함) → 뒤로가기·재진입 시 복원
+  function saveCenter(next: LatLng) {
+    try {
+      window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify({ ...next, ts: Date.now() }));
+    } catch {
+      /* ignore */
+    }
   }
 
   function applyUserLocation(next: LatLng) {
-    window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(next));
+    saveCenter(next);
     setUserLoc(next);
     setCenter(next);
   }
@@ -347,11 +367,9 @@ export default function NearbyMapScreen() {
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        // 추적 갱신은 '내 위치 마커'만 옮긴다. 지도 중심은 건드리지 않아 드래그가 유지됨.
-        // (지도를 내 위치로 다시 맞추려면 '내 위치' 버튼을 누르면 됨)
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        window.localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(next));
-        setUserLoc(next);
+        // 추적 갱신은 '내 위치 마커'만 옮긴다. 지도 중심/저장위치는 건드리지 않아
+        // 드래그로 보던 위치가 유지됨. (지도를 내 위치로 맞추려면 '내 위치' 버튼)
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
       () => undefined,
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
@@ -434,20 +452,10 @@ export default function NearbyMapScreen() {
         </div>
       </div>
 
-      {moved && (
-        <button
-          type="button"
-          onClick={researchHere}
-          className="absolute left-1/2 top-[128px] z-20 -translate-x-1/2 rounded-full bg-forest px-4 py-2.5 text-sm font-bold text-white shadow-lg active:scale-95"
-        >
-          이 지역 다시 검색
-        </button>
-      )}
-
       <button
         type="button"
         onClick={locateMe}
-        className="absolute bottom-[30dvh] left-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-lg active:scale-95"
+        className={`absolute bottom-[24dvh] right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-lg active:scale-95 ${sheet === "expanded" ? "hidden" : ""}`}
         aria-label="내 위치"
       >
         <LocateFixed size={22} />
@@ -463,7 +471,7 @@ export default function NearbyMapScreen() {
               : `https://maps.apple.com/?ll=${center.lat},${center.lng}&q=${encodeURIComponent("맛집")}`
           )
         }
-        className="absolute bottom-[calc(30dvh_+_3.5rem)] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95"
+        className={`absolute bottom-[24dvh] left-4 z-20 flex h-12 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-ink shadow-lg active:scale-95 ${sheet === "expanded" ? "hidden" : ""}`}
         aria-label={isAndroid ? "구글 지도로 보기" : "Apple 지도로 보기"}
       >
         <MapPin size={18} className="text-forest" /> {isAndroid ? "구글 지도" : "Apple 지도"}
@@ -487,7 +495,7 @@ export default function NearbyMapScreen() {
           <div>
             <div className="text-base font-extrabold text-ink">{headerText}</div>
             <div className="mt-0.5 text-[12px] text-ink-muted">
-              {loading ? "불러오는 중" : "가까운 순"}
+              {loading ? "불러오는 중" : userLoc ? "가까운 순" : "현재 지도 중심 기준"}
             </div>
           </div>
           <button

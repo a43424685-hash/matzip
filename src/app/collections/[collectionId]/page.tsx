@@ -16,6 +16,7 @@ import PaidMapToggle from "@/components/PaidMapToggle";
 import PreviewPicker from "@/components/PreviewPicker";
 import CollectionAddPicker from "@/components/CollectionAddPicker";
 import PurchaseMapButton from "@/components/PurchaseMapButton";
+import StickyPurchaseBar from "@/components/StickyPurchaseBar";
 import PaidMapViewer from "@/components/PaidMapViewer";
 import { getRevealedIds } from "@/server/payment/PaymentService";
 import BackButton from "@/components/BackButton";
@@ -124,7 +125,7 @@ export default async function CollectionDetailPage({
             </p>
             <p className="mt-1 pl-5 text-[12px] text-ink-muted">
               위치 인증 {col.verifyStats.location}/{col.verifyStats.total}
-              {col.verifyStats.proof > 0 && ` · 영수증·메뉴 인증 ${col.verifyStats.proof}/${col.verifyStats.total}`}
+              {col.verifyStats.proof > 0 && ` · 메뉴판 인증 ${col.verifyStats.proof}/${col.verifyStats.total}`}
             </p>
           </div>
         )}
@@ -132,9 +133,6 @@ export default async function CollectionDetailPage({
         {/* 유료 잠금: 맛보기(무료 공개)만 실제로 보여주고 나머지는 잠금 */}
         {col.locked ? (
           <div className="mt-2 space-y-4">
-            {/* 지도 티저 — 가치를 한눈에 (제일 위 비주얼) */}
-            {col.mapPins.length > 0 && <MapTeaser pins={col.mapPins} />}
-
             {/* 크리에이터 — 담백한 한 줄 */}
             <div className="flex flex-wrap items-center gap-1.5 px-1 text-[13px]">
               {ownerIsRanker && <span className="leading-none">👑</span>}
@@ -189,6 +187,9 @@ export default async function CollectionDetailPage({
               </div>
             )}
 
+            {/* 지도 티저 — 분포를 한눈에 (맛보기 다음) */}
+            {col.mapPins.length > 0 && <MapTeaser pins={col.mapPins} />}
+
             {/* 잠긴 맛집 티저 — 흐릿한 실제 사진 + 잠금 개수(호기심) */}
             {col.lockedTeasers.length > 0 && (
               <div>
@@ -220,7 +221,12 @@ export default async function CollectionDetailPage({
               </div>
             )}
 
-            <PurchaseMapButton collectionId={col.id} priceWon={col.priceWon} buyerId={user?.id ?? null} />
+            <div id="purchase-panel" tabIndex={-1} className="scroll-mt-20 outline-none">
+              <PurchaseMapButton collectionId={col.id} priceWon={col.priceWon} buyerId={user?.id ?? null} />
+            </div>
+            {/* 스크롤 밖으로 밀려도 항상 보이는 하단 구매 안내 바 (탭바 위에 여백) */}
+            <div className="h-20" />
+            <StickyPurchaseBar priceWon={col.priceWon} />
           </div>
         ) : col.items.length === 0 ? (
           <div className="card mt-5 p-6 text-center text-sm text-ink-muted">

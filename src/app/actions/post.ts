@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getActiveUserId } from "@/lib/auth";
 import { createRestaurantPost, updateRestaurantPost } from "@/server/restaurant/RestaurantService";
 import { XP_AMOUNT } from "@/server/xp/xpRules";
+import { isValidLatLng } from "@/lib/geoValidation";
 
 const schema = z.object({
   name: z.string().min(1, "상호명을 입력하세요."),
@@ -40,6 +41,13 @@ function parseCoord(v?: string): number | null {
   if (!v) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+// 위/경도 쌍을 검증 — 유효한 좌표쌍이 아니면 둘 다 null (한쪽만·범위 밖 좌표 저장 방지)
+function parseCoordPair(latRaw?: string, lngRaw?: string): { latitude: number | null; longitude: number | null } {
+  const lat = parseCoord(latRaw);
+  const lng = parseCoord(lngRaw);
+  return isValidLatLng(lat, lng) ? { latitude: lat, longitude: lng } : { latitude: null, longitude: null };
 }
 
 export type RegisterState = { error?: string; redirectTo?: string } | undefined;
@@ -118,8 +126,7 @@ export async function registerPostAction(
       primaryRegionId: d.primaryRegionId,
       address: d.address ?? null,
       kakaoPlaceId: d.kakaoPlaceId?.trim() || null,
-      latitude: parseCoord(d.latitude),
-      longitude: parseCoord(d.longitude),
+      ...parseCoordPair(d.latitude, d.longitude),
       shortReview: d.shortReview ?? null,
       content: d.content ?? null,
       tasteRating: d.tasteRating ?? null,

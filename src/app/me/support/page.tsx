@@ -31,7 +31,7 @@ export default async function SupportPage() {
 
   return (
     <main className="px-5 pb-24 pt-5">
-      <MeSubPageHeader title="고객센터" />
+      <MeSubPageHeader backHref="/me/menu" title="고객센터" />
 
       <h2 className="mb-2 text-sm font-bold text-stone-400">자주 묻는 질문</h2>
       <div className="space-y-2">
