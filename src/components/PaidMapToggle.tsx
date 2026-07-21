@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Coins, Lock } from "lucide-react";
-import { PRICE_TIERS, computeSettlement } from "@/lib/iapTiers";
+import { PRICE_TIERS, computeSettlement, SETTLEMENT_NOTICE } from "@/lib/iapTiers";
 
 export default function PaidMapToggle({
   collectionId,
@@ -102,7 +102,7 @@ export default function PaidMapToggle({
         <Coins size={16} className="text-forest" /> 유료 지도로 판매
       </h2>
       <p className="mt-1 text-[12px] text-ink-muted">
-        구매자는 가게 목록이 가려진 채 지역·개수만 보고, 구매하면 전체가 열려요. 애플·구글 수수료 15% 차감 후, 남은 금액의 80%가 정산돼요.
+        구매자는 가게 목록이 가려진 채 지역·개수만 보고, 구매 후 맛보기 외 가게를 하나씩 열어봐요. {SETTLEMENT_NOTICE}
       </p>
 
       {/* 가격 티어 선택 (5개 고정) */}

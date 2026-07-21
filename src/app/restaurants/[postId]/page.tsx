@@ -255,8 +255,7 @@ export default async function PostDetailPage({
             {!post.isOperatorPick && post.user.isAdmin && (
               <span className="font-semibold text-stone-400">운영자</span>
             )}
-            {post.receiptVerified && <span className="text-stone-400">영수증</span>}
-            {post.menuVerified && <span className="text-stone-400">메뉴</span>}
+            {post.menuVerified && <span className="text-stone-400">메뉴판</span>}
           </div>
           {/* 운영자 PICK: 대표메뉴 + 별점(다이닝코드) — 카드와 동일하게 상세에도 노출 */}
           {post.isOperatorPick && (post.restaurant.signatureMenu || post.restaurant.extRating != null) && (
@@ -352,7 +351,7 @@ export default async function PostDetailPage({
                   <span className="flex items-center gap-1">
                     <Check size={14} strokeWidth={3} /> 방문 인증 완료
                   </span>
-                  <span className="text-xs font-semibold text-stone-400">영수증·메뉴 추가</span>
+                  <span className="text-xs font-semibold text-stone-400">메뉴판 추가</span>
                 </summary>
                 <div className="border-t border-stone-100">
                   <VerifyPanel

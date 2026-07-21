@@ -157,7 +157,7 @@ export default function PurchaseMapButton({
           </>
         ) : (
           <>
-            <Lock size={17} /> {priceWon ? `${priceWon.toLocaleString()}원 구매하고 전체 보기` : "구매하고 전체 보기"}
+            <Lock size={17} /> {priceWon ? `${priceWon.toLocaleString()}원 · 구매하고 가게 열어보기` : "구매하고 가게 열어보기"}
           </>
         )}
       </button>
