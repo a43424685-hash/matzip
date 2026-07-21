@@ -60,63 +60,6 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
         <p className="mt-3 text-sm text-ink-muted">맛집 발견하고 핀 꽂고, 레벨을 올려요 📍</p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className="label">이메일</label>
-          <input
-            name="email"
-            type="email"
-            required
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            inputMode="email"
-            autoComplete="email"
-            className="input"
-            placeholder="you@example.com"
-          />
-        </div>
-        <div>
-          <label className="label">비밀번호</label>
-          <input
-            name="password"
-            type="password"
-            required
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            autoComplete="current-password"
-            className="input"
-            placeholder="••••••"
-          />
-          <p className="mt-1.5 text-[12px] text-stone-400">
-            비밀번호를 잊으셨다면 아래 <b className="text-ink-muted">카카오로 시작하기</b>로 로그인하거나, 고객문의로 알려주세요.
-          </p>
-        </div>
-        {message && <p className="text-sm text-red-500">{message}</p>}
-        {error === "kakao_not_configured" && (
-          <p className="text-sm text-red-500">카카오 로그인이 아직 설정되지 않았어요.</p>
-        )}
-        {error === "kakao_failed" && (
-          <p className="text-sm text-red-500">카카오 로그인에 실패했어요. 다시 시도해주세요.</p>
-        )}
-        {error === "apple_not_configured" && (
-          <p className="text-sm text-red-500">Apple 로그인이 아직 설정되지 않았어요.</p>
-        )}
-        {error === "apple_failed" && (
-          <p className="text-sm text-red-500">Apple 로그인에 실패했어요. 다시 시도해주세요.</p>
-        )}
-        <button type="submit" disabled={pending} className="btn-primary w-full">
-          {pending ? "로그인 중…" : "로그인"}
-        </button>
-      </form>
-
-      <div className="my-6 flex items-center gap-3 text-xs text-stone-400">
-        <span className="h-px flex-1 bg-stone-200" />
-        또는
-        <span className="h-px flex-1 bg-stone-200" />
-      </div>
-
       {!isAndroid && (
       <a
         href={returnTo && returnTo !== "/" ? `/api/auth/apple?returnTo=${encodeURIComponent(returnTo)}` : "/api/auth/apple"}
@@ -180,6 +123,60 @@ export default function LoginForm({ error, returnTo: rawReturn = "" }: { error?:
       >
         카카오로 시작하기
       </a>
+
+      {/* 이메일 로그인 — 보조(접기) */}
+      <details className="mt-6 rounded-xl border border-stone-200">
+        <summary className="cursor-pointer list-none px-4 py-3 text-center text-sm font-semibold text-ink-muted">
+          이메일로 로그인
+        </summary>
+        <form onSubmit={onSubmit} className="space-y-4 px-4 pb-4">
+          <div>
+            <label className="label">이메일</label>
+            <input
+              name="email"
+              type="email"
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="email"
+              autoComplete="email"
+              className="input"
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label className="label">비밀번호</label>
+            <input
+              name="password"
+              type="password"
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="current-password"
+              className="input"
+              placeholder="••••••"
+            />
+          </div>
+          {message && <p className="text-sm text-red-500">{message}</p>}
+          {error === "kakao_not_configured" && (
+            <p className="text-sm text-red-500">카카오 로그인이 아직 설정되지 않았어요.</p>
+          )}
+          {error === "kakao_failed" && (
+            <p className="text-sm text-red-500">카카오 로그인에 실패했어요. 다시 시도해주세요.</p>
+          )}
+          {error === "apple_not_configured" && (
+            <p className="text-sm text-red-500">Apple 로그인이 아직 설정되지 않았어요.</p>
+          )}
+          {error === "apple_failed" && (
+            <p className="text-sm text-red-500">Apple 로그인에 실패했어요. 다시 시도해주세요.</p>
+          )}
+          <button type="submit" disabled={pending} className="btn-primary w-full">
+            {pending ? "로그인 중…" : "로그인"}
+          </button>
+        </form>
+      </details>
 
       <p className="mt-5 text-center text-[12px] leading-relaxed text-stone-400">
         로그인·가입 시{" "}
