@@ -41,15 +41,17 @@ export function latLonToGrid(lat: number, lon: number): { nx: number; ny: number
   return { nx, ny };
 }
 
-// 실황 발표(매시각 40분 생성, 이후 제공) 기준 base_date/base_time 계산
+// 실황 발표(매시각 40분 생성, 이후 제공) 기준 base_date/base_time 계산.
+// ⚠️ 반드시 한국시간(KST) 기준. 서버(Vercel)가 UTC라 로컬시간 쓰면 9시간 전 날씨를 불러온다.
 function baseDateTime(now: Date): { base_date: string; base_time: string } {
-  const d = new Date(now.getTime());
+  // UTC+9로 시프트한 뒤 getUTC* 로 읽으면 KST 시각이 된다
+  const d = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   // 아직 이번 시각 실황이 안 올라온 경우(정시~40분) 한 시간 전 데이터 사용
-  if (d.getMinutes() < 45) d.setHours(d.getHours() - 1);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
+  if (d.getUTCMinutes() < 45) d.setTime(d.getTime() - 60 * 60 * 1000);
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const hh = String(d.getUTCHours()).padStart(2, "0");
   return { base_date: `${yyyy}${mm}${dd}`, base_time: `${hh}00` };
 }
 

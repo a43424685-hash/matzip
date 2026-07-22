@@ -34,7 +34,22 @@ export async function createCollection(input: CreateCollectionInput) {
 }
 
 /** 음식점의 대표 게시글(썸네일/한줄평용) — 미디어 있는 최신 글 우선 */
-async function pickRepresentativePost(restaurantId: string): Promise<string | null> {
+async function pickRepresentativePost(restaurantId: string, ownerUserId?: string): Promise<string | null> {
+  // 지도 만든 사람(소유자)의 글을 최우선 — 눌렀을 때 제작자 피드로 연결되게
+  if (ownerUserId) {
+    const own =
+      (await prisma.restaurantPost.findFirst({
+        where: { restaurantId, userId: ownerUserId, media: { some: {} } },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      })) ??
+      (await prisma.restaurantPost.findFirst({
+        where: { restaurantId, userId: ownerUserId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      }));
+    if (own) return own.id;
+  }
   const withMedia = await prisma.restaurantPost.findFirst({
     where: { restaurantId, media: { some: {} } },
     orderBy: { createdAt: "desc" },
@@ -71,7 +86,7 @@ export async function toggleItem(
   }
 
   const count = await prisma.collectionItem.count({ where: { collectionId } });
-  const postId = await pickRepresentativePost(restaurantId);
+  const postId = await pickRepresentativePost(restaurantId, userId);
   await prisma.collectionItem.create({
     data: { collectionId, restaurantId, postId, sortOrder: count },
   });

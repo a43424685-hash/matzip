@@ -70,6 +70,8 @@ export default function PaidMapViewer({
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<any[]>([]);
   const [mapError, setMapError] = useState<string | null>(null);
+  // 길찾기 지도 선택창 대상 (누른 맛집)
+  const [navTarget, setNavTarget] = useState<{ name: string; lat: number; lng: number } | null>(null);
 
   const multiRegion = regionCounts.length > 1;
   const filtered = useMemo(
@@ -118,6 +120,27 @@ export default function PaidMapViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoItems, view, visited, revealed]);
 
+  const router = useRouter();
+  // 지도 핀 클릭 처리 (카카오 오버레이 안 링크는 SPA 이동이 안 돼서 문서 클릭으로 처리)
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement)?.closest?.(".pm-pin") as HTMLElement | null;
+      if (!el) return;
+      const rid = el.getAttribute("data-rid");
+      const isLocked = el.getAttribute("data-locked") === "1";
+      const postid = el.getAttribute("data-postid");
+      if (isLocked) {
+        const it = items.find((i) => i.restaurantId === rid);
+        if (it) void reveal(it);
+        return;
+      }
+      if (postid) router.push(`/restaurants/${postid}`);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   function plotMarkers() {
     const kakao = window.kakao;
     const map = mapRef.current;
@@ -135,26 +158,15 @@ export default function PaidMapViewer({
       // (핀 title/링크로 열람 카운트 없이 전체를 소비 → 단순변심 환불하는 우회 차단)
       const locked = revealGating && !revealed.has(it.restaurantId);
       // 라벨 겹침 방지 — 이름 없이 '번호 핀'만. (이름은 목록 탭에서)
+      // 핀은 클릭 가능한 요소(.pm-pin) — 카카오 오버레이 안에선 링크가 SPA 이동 안 돼서
+      // 문서 클릭 핸들러로 처리(잠김=열어보기, 열림=상세 이동). 터치영역 44px 확보.
+      const inner = locked
+        ? `width:30px;height:30px;background:#e7e5e4;color:#78716c;border:2px dashed #a8a29e;`
+        : `width:30px;height:30px;background:${done ? "#1f4d3f" : "#ffffff"};color:${done ? "#fff" : "#1f2b25"};border:2px solid #1f4d3f;`;
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         yAnchor: 1,
-        content: locked
-          ? `
-          <div style="
-            display:flex;align-items:center;justify-content:center;
-            width:26px;height:26px;border-radius:999px;
-            background:#e7e5e4;color:#78716c;
-            border:2px dashed #a8a29e;font-size:12px;font-weight:900;
-            box-shadow:0 3px 8px rgba(0,0,0,.15);">
-            ?
-          </div>`
-          : (() => {
-              const style = `display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:${done ? "#1f4d3f" : "#ffffff"};color:${done ? "#fff" : "#1f2b25"};border:2px solid #1f4d3f;font-size:12px;font-weight:900;box-shadow:0 3px 8px rgba(0,0,0,.25);text-decoration:none;`;
-              // postId 없으면 링크 아닌 표시로 (죽은 "#" 링크 방지)
-              return it.postId
-                ? `<a href="/restaurants/${it.postId}" title="${escapeHtml(it.restaurantName)}" style="${style}">${number}</a>`
-                : `<div title="${escapeHtml(it.restaurantName)}" style="${style}">${number}</div>`;
-            })(),
+        content: `<div class="pm-pin" data-rid="${it.restaurantId}" data-postid="${it.postId ?? ""}" data-locked="${locked ? "1" : "0"}" title="${escapeHtml(it.restaurantName)}" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:44px;height:44px;"><div style="display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:13px;font-weight:900;box-shadow:0 3px 8px rgba(0,0,0,.25);${inner}">${locked ? "?" : number}</div></div>`,
         map,
       });
       markerRefs.current.push(overlay);
@@ -390,11 +402,7 @@ export default function PaidMapViewer({
                 {hasGeo && (
                   <button
                     type="button"
-                    onClick={() =>
-                      openExternal(
-                        `https://map.kakao.com/link/to/${encodeURIComponent(it.restaurantName)},${it.latitude},${it.longitude}`
-                      )
-                    }
+                    onClick={() => setNavTarget({ name: it.restaurantName, lat: it.latitude as number, lng: it.longitude as number })}
                     className="flex h-9 flex-1 items-center justify-center gap-1 rounded-xl border border-stone-200 text-[13px] font-bold text-ink active:scale-[0.98]"
                   >
                     <Navigation size={14} className="text-forest" /> 길찾기
@@ -420,6 +428,25 @@ export default function PaidMapViewer({
             </div>
           );
         })}
+        </div>
+      )}
+
+      {/* 길찾기 지도 선택창 (카카오·네이버·애플·구글) */}
+      {navTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setNavTarget(null)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-md rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            <div className="mb-3 text-center text-sm font-extrabold text-ink">
+              <span className="text-forest">{navTarget.name}</span> 길찾기
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => { openExternal(`https://map.kakao.com/link/to/${encodeURIComponent(navTarget.name)},${navTarget.lat},${navTarget.lng}`); setNavTarget(null); }} className="h-12 rounded-xl bg-[#FEE500] text-sm font-bold text-[#3c1e1e] active:scale-[0.98]">카카오맵</button>
+              <button onClick={() => { openExternal(`https://map.naver.com/p/search/${encodeURIComponent(navTarget.name)}`); setNavTarget(null); }} className="h-12 rounded-xl bg-[#03C75A] text-sm font-bold text-white active:scale-[0.98]">네이버지도</button>
+              <button onClick={() => { openExternal(`https://maps.apple.com/?daddr=${navTarget.lat},${navTarget.lng}&dirflg=d`); setNavTarget(null); }} className="h-12 rounded-xl border border-stone-200 text-sm font-bold text-ink active:scale-[0.98]">애플 지도</button>
+              <button onClick={() => { openExternal(`https://www.google.com/maps/dir/?api=1&destination=${navTarget.lat},${navTarget.lng}`); setNavTarget(null); }} className="h-12 rounded-xl border border-stone-200 text-sm font-bold text-ink active:scale-[0.98]">구글 지도</button>
+            </div>
+            <button onClick={() => setNavTarget(null)} className="mt-3 h-11 w-full text-sm font-semibold text-stone-400">닫기</button>
+          </div>
         </div>
       )}
     </div>

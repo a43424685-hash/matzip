@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ChevronDown, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 
 interface CategoryIconItem {
   id: string;
@@ -20,47 +19,19 @@ function keyOf(name: string): string {
 }
 
 export default function CategoryIconGrid({ categories }: { categories: CategoryIconItem[] }) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [fixed, setFixed] = useState(false);
-  const [fixedExpanded, setFixedExpanded] = useState(false);
   const byName = new Map(categories.map((c) => [keyOf(c.name), c]));
   const items = ICON_ORDER.map((name) => byName.get(name)).filter(
     (item): item is CategoryIconItem => Boolean(item)
   );
 
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(([entry]) => setFixed(!entry.isIntersecting), {
-      threshold: 0,
-    });
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
-
   if (items.length === 0) return null;
 
+  // 상단 카테고리(스크롤하면 자연스럽게 사라짐). 예전의 'fixed 복사본'은
+  // 스크롤 시 상태바 파고듦·본문 가림 버그가 있어 제거함.
   return (
-    <>
-      <div ref={sentinelRef} aria-hidden="true" className="h-px" />
-      <section className="px-5 pt-5">
-        <CategoryPanel items={items} expanded />
-      </section>
-      {fixed && (
-        <section
-          className="fixed left-1/2 top-0 z-40 w-full max-w-md -translate-x-1/2 bg-white px-5 pb-2 shadow-sm"
-          style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
-        >
-          <CategoryPanel
-            items={items}
-            expanded={fixedExpanded}
-            onMore={() => setFixedExpanded(true)}
-            onClose={() => setFixedExpanded(false)}
-            compact
-          />
-        </section>
-      )}
-    </>
+    <section className="px-5 pt-5">
+      <CategoryPanel items={items} expanded />
+    </section>
   );
 }
 

@@ -15,6 +15,12 @@ export default function LogoutButton() {
     setBusy(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      // 날씨 '오늘 안 보기' 스누즈 해제 → 재로그인하면 날씨 추천 다시 뜸
+      try {
+        localStorage.removeItem("mgp:weather-snooze");
+      } catch {
+        /* ignore */
+      }
     } finally {
       window.location.href = "/";
     }

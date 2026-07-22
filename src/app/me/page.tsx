@@ -45,7 +45,7 @@ export default async function MePage({
 
   const prog = calculateLevel(user.totalXp);
 
-  const [counts, overallRank, regionRanks, postCount, verifiedCount, savedCount, collectionsCount, paidCollectionsCount, purchasedCount, unread] =
+  const [counts, overallRank, regionRanks, postCount, verifiedCount, savedCount, collectionsCount, purchasedCount, unread] =
     await Promise.all([
       getFollowCounts(user.id),
       getMyOverallRank(user.id),
@@ -54,13 +54,12 @@ export default async function MePage({
       prisma.restaurantPost.count({ where: { userId: user.id, locationVerified: true } }),
       prisma.save.count({ where: { userId: user.id } }),
       prisma.collection.count({ where: { userId: user.id } }),
-      prisma.collection.count({ where: { userId: user.id, isPaid: true } }),
       prisma.mapPurchase.count({ where: { buyerId: user.id } }),
       unreadCount(user.id),
     ]);
 
-  // 실제 '유료' 판매 지도가 있어야 판매자 센터 노출 (무료/비공개만 있으면 수익 센터로 오인 방지)
-  const isSeller = paidCollectionsCount > 0;
+  // 지도(리스트)가 하나라도 있으면 판매자 센터(정산·유료지도 관리) 진입을 보여준다
+  const isSeller = collectionsCount > 0;
   const mapUnlocked = user.totalLevel >= LEVEL_GOAL && verifiedCount >= VERIFY_GOAL;
   const topRegion = regionRanks[0];
 
