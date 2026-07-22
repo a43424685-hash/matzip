@@ -360,9 +360,12 @@ export default function PaidMapViewer({
           }
           return (
             <div key={it.restaurantId} className={`card p-3 ${isVisited ? "border-forest/40 bg-forest-soft/15" : ""}`}>
-              <div className="flex items-center gap-3">
+              <div
+                className={`flex items-center gap-3 ${it.postId ? "cursor-pointer" : ""}`}
+                onClick={() => it.postId && router.push(`/restaurants/${it.postId}`)}
+              >
                 <span className="badge-rank bg-stone-100 text-stone-500">{number}</span>
-                <Link href={it.postId ? `/restaurants/${it.postId}` : "#"} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
                   {it.media && it.media.type === "image" ? (
                     <CardImage src={it.media.thumbnailUrl ?? it.media.url} alt={it.restaurantName} className="h-14 w-14 object-cover" />
                   ) : (
@@ -370,8 +373,8 @@ export default function PaidMapViewer({
                       <Store size={20} strokeWidth={1.7} />
                     </div>
                   )}
-                </Link>
-                <Link href={it.postId ? `/restaurants/${it.postId}` : "#"} className="min-w-0 flex-1">
+                </div>
+                <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-ink">{it.restaurantName}</div>
                   <div className="text-[12px] text-ink-muted">
                     {it.regionName}
@@ -385,7 +388,7 @@ export default function PaidMapViewer({
                   <div className="mt-1">
                     <VerificationBadges v={it.verification} compact />
                   </div>
-                </Link>
+                </div>
               </div>
 
               {/* 큐레이터 추천 이유 (큐레이터 한 줄) */}

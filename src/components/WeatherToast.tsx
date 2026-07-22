@@ -232,6 +232,7 @@ const SCENE_BG: Record<string, string> = {
   hot: "bg-gradient-to-b from-amber-400 to-orange-500",
   humid: "bg-gradient-to-b from-teal-700 to-slate-600",
   cold: "bg-gradient-to-b from-sky-400 to-indigo-600",
+  cloudy: "bg-gradient-to-b from-slate-400 to-slate-500",
   nice: "bg-gradient-to-b from-sky-400 to-sky-300",
 };
 
@@ -246,12 +247,32 @@ function WeatherScene({ condition, tempC, humidity }: { condition: string; tempC
       {condition === "hot" && <SceneHot />}
       {condition === "humid" && <SceneHumid />}
       {condition === "cold" && <SceneCold />}
+      {condition === "cloudy" && <SceneCloudy />}
       {tempC != null && (
         <span className="absolute left-3 top-3 z-10 rounded-full bg-black/30 px-2 py-0.5 text-[13px] font-extrabold text-white backdrop-blur-sm">
           {Math.round(tempC)}°{condition === "humid" && humidity != null ? ` · 💧${Math.round(humidity)}%` : ""}
         </span>
       )}
       <style>{SCENE_CSS}</style>
+    </div>
+  );
+}
+
+function SceneCloudy() {
+  const clouds = [
+    { top: 40, w: 84, h: 26, dur: "20s", d: "0s", o: 0.95 },
+    { top: 80, w: 64, h: 22, dur: "26s", d: "4s", o: 0.8 },
+    { top: 18, w: 56, h: 18, dur: "22s", d: "8s", o: 0.7 },
+  ];
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {clouds.map((c, i) => (
+        <div
+          key={i}
+          className="wt-anim absolute rounded-full bg-white/80 blur-[2px]"
+          style={{ top: c.top, left: -60, width: c.w, height: c.h, opacity: c.o, animation: `wt-drift ${c.dur} linear ${c.d} infinite` }}
+        />
+      ))}
     </div>
   );
 }

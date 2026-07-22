@@ -6,6 +6,9 @@
 
 const KMA_ENDPOINT =
   "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst";
+// 초단기예보 — 실황(Ncst)엔 하늘상태(SKY)가 없어서, 흐림 감지는 예보(Fcst)로 보완
+const KMA_FCST_ENDPOINT =
+  "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst";
 
 // 위경도 → 기상청 격자 좌표 (기상청 제공 표준 변환식)
 export function latLonToGrid(lat: number, lon: number): { nx: number; ny: number } {
@@ -55,8 +58,8 @@ function baseDateTime(now: Date): { base_date: string; base_time: string } {
   return { base_date: `${yyyy}${mm}${dd}`, base_time: `${hh}00` };
 }
 
-// 7종: 태풍·비·눈·더움·습함·추움·맑음
-export type WeatherCondition = "storm" | "rain" | "snow" | "hot" | "humid" | "cold" | "nice";
+// 8종: 태풍·비·눈·더움·습함·추움·흐림·맑음
+export type WeatherCondition = "storm" | "rain" | "snow" | "hot" | "humid" | "cold" | "cloudy" | "nice";
 
 export interface CurrentWeather {
   condition: WeatherCondition;
@@ -75,6 +78,7 @@ const LABELS: Record<WeatherCondition, { emoji: string; label: string }> = {
   hot: { emoji: "🥵", label: "더운 날, 시원하게 한 방" },
   humid: { emoji: "💧", label: "꿉꿉한 날, 개운한 메뉴 어때요?" },
   cold: { emoji: "🥶", label: "추운 날, 속 데우는 맛집" },
+  cloudy: { emoji: "☁️", label: "흐린 날, 뜨끈하게 한 그릇 어때요?" },
   nice: { emoji: "☀️", label: "날씨 좋은 날, 이런 곳 어때요?" },
 };
 
@@ -82,7 +86,8 @@ function classify(
   tempC: number | null,
   pty: number,
   reh: number | null,
-  wsd: number | null
+  wsd: number | null,
+  sky: number | null // 하늘상태(예보): 1 맑음, 3 구름많음, 4 흐림
 ): WeatherCondition {
   const raining = pty === 1 || pty === 2 || pty === 5 || pty === 6;
   const snowing = pty === 3 || pty === 7;
@@ -92,6 +97,7 @@ function classify(
   if (tempC != null && tempC >= 28) return "hot";
   if (tempC != null && tempC <= 4) return "cold";
   if (reh != null && reh >= 80 && tempC != null && tempC >= 21) return "humid"; // 따뜻+습함=장마느낌
+  if (sky != null && sky >= 3) return "cloudy"; // 구름많음(3)·흐림(4) = 흐림
   return "nice";
 }
 
@@ -104,8 +110,35 @@ export const WEATHER_CATEGORIES: Record<WeatherCondition, string[]> = {
   hot: ["더운 날", "면", "카페"],
   humid: ["더운 날", "면", "회/해산물"],
   cold: ["추운 날", "국밥/탕"],
+  cloudy: ["국밥/탕", "술집", "카페"],
   nice: ["날씨 좋은 날", "데이트", "카페"],
 };
+
+// 초단기예보에서 하늘상태(SKY) 조회 (1 맑음, 3 구름많음, 4 흐림)
+async function getSkyState(key: string, nx: number, ny: number, now: Date): Promise<number | null> {
+  const d = new Date(now.getTime() + 9 * 60 * 60 * 1000); // KST
+  // 초단기예보: 매시 30분 발표, 45분 이후 제공
+  if (d.getUTCMinutes() < 45) d.setTime(d.getTime() - 60 * 60 * 1000);
+  const base_date = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+  const base_time = `${String(d.getUTCHours()).padStart(2, "0")}30`;
+  const qs = new URLSearchParams({
+    serviceKey: key, pageNo: "1", numOfRows: "60", dataType: "JSON",
+    base_date, base_time, nx: String(nx), ny: String(ny),
+  });
+  try {
+    const res = await fetch(`${KMA_FCST_ENDPOINT}?${qs.toString()}`, { next: { revalidate: 600 } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const items: { category: string; fcstTime: string; fcstValue: string }[] =
+      json?.response?.body?.items?.item ?? [];
+    const skyItems = items
+      .filter((i) => i.category === "SKY")
+      .sort((a, b) => a.fcstTime.localeCompare(b.fcstTime));
+    return skyItems.length ? Number(skyItems[0].fcstValue) : null;
+  } catch {
+    return null;
+  }
+}
 
 /** 현재 날씨 조회. 키/네트워크 문제 시 null (섹션 자체를 숨김). */
 export async function getCurrentWeather(lat: number, lon: number): Promise<CurrentWeather | null> {
@@ -144,7 +177,9 @@ export async function getCurrentWeather(lat: number, lon: number): Promise<Curre
       else if (it.category === "REH") humidity = Number(it.obsrValue);
       else if (it.category === "WSD") windMs = Number(it.obsrValue);
     }
-    const condition = classify(tempC, pty, humidity, windMs);
+    // 흐림 감지용 하늘상태(예보) — 실패해도 null로 두고 나머지로 분류
+    const sky = await getSkyState(key, nx, ny, new Date());
+    const condition = classify(tempC, pty, humidity, windMs, sky);
     return { condition, tempC, pty, humidity, windMs, ...LABELS[condition] };
   } catch {
     return null;

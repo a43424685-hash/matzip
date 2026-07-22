@@ -19,25 +19,31 @@ export default function AppSplash() {
   // 서버/초기 렌더에선 아예 안 그린다(false). 이래야 페이지가 통째로 새로고침되는
   // 앱 내 이동(하드 네비게이션)마다 스플래시가 "깜빡" 뜨던 문제가 원천 차단된다.
   // 콜드스타트(앱 완전 재실행 → sessionStorage 비어있음)일 때만 노출한다.
-  const [visible, setVisible] = useState(false);
+  // 콜드스타트면 '첫 클라이언트 렌더 즉시' 스플래시를 켠다(홈이 먼저 번쩍이는 것 최소화).
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.sessionStorage.getItem(SPLASH_SEEN_KEY) !== "1";
+    } catch {
+      return false;
+    }
+  });
   const [shown, setShown] = useState(false); // 페이드 인 완료 여부
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    // 이번 앱 실행에서 이미 봤으면(=콜드스타트 아님) 절대 안 뜬다.
-    if (window.sessionStorage.getItem(SPLASH_SEEN_KEY) === "1") return;
+    if (!visible) return;
     markSplashSeen();
-    setVisible(true);
-
-    // 다음 프레임에 opacity 0→1 로 부드럽게 페이드 인 (딱 켜지는 느낌 제거)
+    // 다음 프레임에 opacity 0→1 로 부드럽게 페이드 인
     const enter = window.requestAnimationFrame(() => setShown(true));
-    const leave = window.setTimeout(() => setLeaving(true), 1600); // 페이드 아웃 시작
-    const hide = window.setTimeout(() => setVisible(false), 2150); // 완전히 사라짐
+    const leave = window.setTimeout(() => setLeaving(true), 1100); // 페이드 아웃 시작(짧게)
+    const hide = window.setTimeout(() => setVisible(false), 1500); // 완전히 사라짐
     return () => {
       window.cancelAnimationFrame(enter);
       window.clearTimeout(leave);
       window.clearTimeout(hide);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!visible) return null;

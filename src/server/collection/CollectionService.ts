@@ -355,6 +355,21 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
         .map((i) => ({ media: i.post?.media[0] ?? null, categories: i.post?.categories.map((c) => c.category.name) ?? [] }))
     : [];
 
+  // 기존 유료지도 보정: 각 가게를 '지도 주인'의 글로 연결(저장된 대표글이 다른 사람 것일 수 있음).
+  // DB는 안 고치고 조회 시점에만 우선 적용.
+  const ownerPostByRestaurant = new Map<string, string>();
+  {
+    const ids = col.items.map((i) => i.restaurant.id);
+    if (ids.length) {
+      const ownerPosts = await prisma.restaurantPost.findMany({
+        where: { userId: col.userId, restaurantId: { in: ids } },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, restaurantId: true },
+      });
+      for (const p of ownerPosts) if (!ownerPostByRestaurant.has(p.restaurantId)) ownerPostByRestaurant.set(p.restaurantId, p.id);
+    }
+  }
+
   return {
     id: col.id,
     title: col.title,
@@ -388,7 +403,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
       regionName: i.restaurant.primaryRegion.name,
       isPreview: i.isPreview,
       note: i.note ?? null,
-      postId: i.post?.id ?? null,
+      postId: ownerPostByRestaurant.get(i.restaurant.id) ?? i.post?.id ?? null,
       shortReview: i.post?.shortReview ?? null,
       media: i.post?.media[0] ?? null,
       categories: i.post?.categories.map((c) => c.category.name) ?? [],
