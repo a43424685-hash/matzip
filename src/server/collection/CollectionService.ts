@@ -356,17 +356,27 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
     : [];
 
   // 기존 유료지도 보정: 각 가게를 '지도 주인'의 글로 연결(저장된 대표글이 다른 사람 것일 수 있음).
+  // 지도 주인 글이 없으면 '운영자픽' 글로 연결(클릭 시 게시물이 아예 안 열리던 문제 해결).
   // DB는 안 고치고 조회 시점에만 우선 적용.
   const ownerPostByRestaurant = new Map<string, string>();
+  const pickPostByRestaurant = new Map<string, string>();
   {
     const ids = col.items.map((i) => i.restaurant.id);
     if (ids.length) {
-      const ownerPosts = await prisma.restaurantPost.findMany({
-        where: { userId: col.userId, restaurantId: { in: ids } },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, restaurantId: true },
-      });
+      const [ownerPosts, pickPosts] = await Promise.all([
+        prisma.restaurantPost.findMany({
+          where: { userId: col.userId, restaurantId: { in: ids } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, restaurantId: true },
+        }),
+        prisma.restaurantPost.findMany({
+          where: { isOperatorPick: true, restaurantId: { in: ids } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, restaurantId: true },
+        }),
+      ]);
       for (const p of ownerPosts) if (!ownerPostByRestaurant.has(p.restaurantId)) ownerPostByRestaurant.set(p.restaurantId, p.id);
+      for (const p of pickPosts) if (!pickPostByRestaurant.has(p.restaurantId)) pickPostByRestaurant.set(p.restaurantId, p.id);
     }
   }
 
@@ -403,7 +413,7 @@ export async function getCollectionDetail(collectionId: string, viewerId?: strin
       regionName: i.restaurant.primaryRegion.name,
       isPreview: i.isPreview,
       note: i.note ?? null,
-      postId: ownerPostByRestaurant.get(i.restaurant.id) ?? i.post?.id ?? null,
+      postId: ownerPostByRestaurant.get(i.restaurant.id) ?? pickPostByRestaurant.get(i.restaurant.id) ?? i.post?.id ?? null,
       shortReview: i.post?.shortReview ?? null,
       media: i.post?.media[0] ?? null,
       categories: i.post?.categories.map((c) => c.category.name) ?? [],

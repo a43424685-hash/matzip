@@ -187,3 +187,9 @@ body {
   background: rgba(37, 99, 235, 0.28);
   animation: nearbyPulse 1.8s ease-out infinite;
 }
+
+/* 스플래시: 이번 세션에서 이미 봤으면(html.splash-seen) 그리기 전에 숨김 → 재방문 시 깜빡임 없음.
+   콜드스타트면 이 클래스가 없어 서버가 그린 스플래시가 그대로 보인다(홈 번쩍 방지). */
+html.splash-seen .app-splash {
+  display: none !important;
+}

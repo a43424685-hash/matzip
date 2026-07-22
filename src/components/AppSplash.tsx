@@ -16,42 +16,39 @@ export function markSplashSeen() {
 }
 
 export default function AppSplash() {
-  // 서버/초기 렌더에선 아예 안 그린다(false). 이래야 페이지가 통째로 새로고침되는
-  // 앱 내 이동(하드 네비게이션)마다 스플래시가 "깜빡" 뜨던 문제가 원천 차단된다.
-  // 콜드스타트(앱 완전 재실행 → sessionStorage 비어있음)일 때만 노출한다.
-  // 콜드스타트면 '첫 클라이언트 렌더 즉시' 스플래시를 켠다(홈이 먼저 번쩍이는 것 최소화).
-  const [visible, setVisible] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.sessionStorage.getItem(SPLASH_SEEN_KEY) !== "1";
-    } catch {
-      return false;
-    }
-  });
-  const [shown, setShown] = useState(false); // 페이드 인 완료 여부
+  // 서버 HTML에도 '항상' 그린다(solid). 이래야 브라우저가 홈을 먼저 그려서 번쩍이는 일이 없다.
+  // 이미 본 세션(재방문/하드 네비)에선 <body> 최상단 인라인 스크립트가 '그리기 전에'
+  // html.splash-seen 을 달아 CSS(.splash-seen .app-splash{display:none})로 숨겨 스플래시도 안 뜬다.
+  // 콜드스타트(sessionStorage 비어있음)일 때만 서버가 그린 스플래시가 보이고, 잠시 뒤 페이드 아웃.
+  const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
+    let seen = false;
+    try {
+      seen = window.sessionStorage.getItem(SPLASH_SEEN_KEY) === "1";
+    } catch {
+      // sessionStorage 접근 불가 환경: 그냥 한 번 보여주고 넘어감
+    }
+    if (seen) {
+      setVisible(false); // 재방문 — 즉시 제거(화면엔 이미 CSS로 숨겨져 있음)
+      return;
+    }
     markSplashSeen();
-    // 다음 프레임에 opacity 0→1 로 부드럽게 페이드 인
-    const enter = window.requestAnimationFrame(() => setShown(true));
-    const leave = window.setTimeout(() => setLeaving(true), 1100); // 페이드 아웃 시작(짧게)
-    const hide = window.setTimeout(() => setVisible(false), 1500); // 완전히 사라짐
+    const leave = window.setTimeout(() => setLeaving(true), 1100); // 페이드 아웃 시작
+    const hide = window.setTimeout(() => setVisible(false), 1600); // 완전히 사라짐
     return () => {
-      window.cancelAnimationFrame(enter);
       window.clearTimeout(leave);
       window.clearTimeout(hide);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!visible) return null;
 
   return (
     <div
-      className={`pointer-events-none fixed inset-0 z-[100] mx-auto w-full max-w-md overflow-hidden bg-stone-900 transition-opacity duration-[550ms] ease-in-out ${
-        leaving || !shown ? "opacity-0" : "opacity-100"
+      className={`app-splash pointer-events-none fixed inset-0 z-[100] mx-auto w-full max-w-md overflow-hidden bg-stone-900 transition-opacity duration-[550ms] ease-in-out ${
+        leaving ? "opacity-0" : "opacity-100"
       }`}
       aria-hidden
     >
@@ -60,7 +57,7 @@ export default function AppSplash() {
         src="/splash-mukgopin.webp"
         alt=""
         className={`h-full w-full object-cover transition-transform duration-[1600ms] ease-out ${
-          shown && !leaving ? "scale-100" : "scale-[1.06]"
+          leaving ? "scale-[1.06]" : "scale-100"
         }`}
       />
     </div>

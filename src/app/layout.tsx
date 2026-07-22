@@ -54,6 +54,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // 속성으로 인한 hydration 경고 무시 (앱 코드와 무관)
     <html lang="ko" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        {/* 스플래시 깜빡임 방지: 본문이 그려지기 '전에' 실행돼, 이미 본 세션이면
+            html.splash-seen 을 달아 CSS로 스플래시를 즉시 숨긴다(재방문 시 스플래시 안 뜸).
+            콜드스타트(세션 비어있음)면 클래스 없음 → 서버가 그린 스플래시가 홈을 덮음(홈 번쩍 없음). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(sessionStorage.getItem('mukgopin-splash-seen')==='1')document.documentElement.classList.add('splash-seen')}catch(e){}",
+          }}
+        />
+        {/* 스플래시는 스크립트 '바로 다음'에 둔다 — 홈(app-shell)보다 먼저 파싱돼
+            스트리밍 렌더 중에도 홈이 먼저 그려지는 일이 없다(홈 번쩍 원천 차단). */}
+        <AppSplash />
         <Suspense fallback={null}>
           <ScrollReset />
         </Suspense>
@@ -65,7 +77,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AppDialogs />
         <div className="app-shell">{children}</div>
         <BottomNav />
-        <AppSplash />
         <NativeAuthBridge />
       </body>
     </html>
